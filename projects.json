@@ -1,0 +1,45 @@
+{
+  "_comment": "Central registry for projects using the literature pipeline. Two tiers: Tier 1 = full systematic-review workflow (discovery+fetch+extract+report). Tier 2 = library-only (just PDFs + sidecars + .ris). Add a project here when it starts using the puller. Promotion 2 → 1 is opt-in; never automatic.",
+  "_schema": {
+    "tier": "1 (full pipeline) or 2 (library-only)",
+    "lib_dir": "PDF/sidecar/.ris directory, relative to project root",
+    "data_dir": "Tier 1 only: build-artifact directory (discovery/triage/tables/text)",
+    "parent":   "Subprojects only: name of containing top-level project",
+    "active":   "false to skip in audits without removing from registry"
+  },
+
+  "projects": {
+    "getpaid": {
+      "tier": 1,
+      "lib_dir": "references/literature",
+      "data_dir": "data/prior_art",
+      "active": true
+    },
+    "Physiological_Data": {
+      "tier": 2,
+      "lib_dir": "docs/literature",
+      "active": true
+    },
+    "Physiological_Data/Yitts": {
+      "tier": 2,
+      "lib_dir": "Yitts/literature",
+      "parent": "Physiological_Data",
+      "active": true
+    },
+    "thermalphys": {
+      "tier": 2,
+      "lib_dir": "papers",
+      "active": true
+    },
+    "SOC": {
+      "tier": 2,
+      "lib_dir": "papers",
+      "active": true
+    },
+    "Genova_Diagnostics": {
+      "tier": 2,
+      "lib_dir": "literature",
+      "active": true
+    }
+  }
+}
