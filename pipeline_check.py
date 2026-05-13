@@ -35,11 +35,8 @@ CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
 def resolve_from_config(name: str):
     """Look up project in projects.json. Returns (base, lib, data_or_None, tier)."""
-    if not CONFIG_PATH.exists():
-        print(f"[ERR] projects.json not found at {CONFIG_PATH}", file=sys.stderr)
-        sys.exit(2)
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        cfg = json.load(f).get("projects", {})
+    from ris_emit import load_projects_config
+    cfg = load_projects_config(CONFIG_PATH).get("projects", {})
     if name not in cfg:
         print(f"[ERR] project '{name}' not in projects.json. "
               f"Known: {', '.join(sorted(cfg.keys()))}", file=sys.stderr)

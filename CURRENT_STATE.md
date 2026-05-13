@@ -1,6 +1,6 @@
 # Current state — Literature pipeline
 
-_Last touched: 2026-05-12_
+_Last touched: 2026-05-13_
 
 The pipeline is **stable through Stage 0** (fetch + citation walking + DuckDB index). Stages A → D (RAG, MCP, ensemble ranking) are planned in [ROADMAP.md](ROADMAP.md), not yet built.
 
@@ -52,6 +52,14 @@ Two threads, pick whichever has time:
 
 ## Change log
 
+- 2026-05-13 — usability pass for strangers (v0.1.1). Fresh-eyes test + red-team audit drove a punch list of seven items:
+  1. `jats_to_text.py` and `pdf_text_clean.py` now expose proper `--help` (previously crashed because their `__main__` was a dev smoke test that consumed `--help` as a positional arg). Smoke-test paths preserved behind explicit flags.
+  2. `LITPIPE_EMAIL` not-set emits a one-shot stderr warning at `sweep.py` / `snowball.py` startup — closes the silent-traffic-to-maintainer footgun.
+  3. `projects.json` migrated to `projects.json.template` + `.gitignore`'d. Missing-config now prints a friendly "copy the template" message instead of a `FileNotFoundError`. Centralized loader (`ris_emit.load_projects_config`) used across all 7 config-consuming scripts.
+  4. README §Quickstart added — clone → install → set email → register project → write queue → fetch first PDF in <2 min.
+  5. README personal paths stripped (`/c/Users/jab18015/...`, `~/.claude/skills/...`, hardcoded email reference). All commands now use generic placeholders.
+  6. `extract_references.py` line removed from §Layout (file isn't in the repo).
+  7. CI `--help` smoke test no longer excludes `jats_to_text.py` and `pdf_text_clean.py` (they now exit 0 properly).
 - 2026-05-12 (afternoon) — deep-research stress-test pass. Five HIGH-impact fixes:
   1. `subprocess.run(..., text=True)` in `sweep.py` (4 sites) and `snowball.py` (1 site) now passes `encoding="utf-8", errors="replace"` — closes the latent cp1252 UnicodeDecodeError on accented subprocess output.
   2. **Writer/auditor filename drift closed.** `unpaywall_fetch_v2.last_name()` and `slug_title()` now NFKD-normalize via `ris_emit.safe_ascii` *before* tokenization, so files are written with ASCII names (`2024_Muller_*.pdf` not `2024_Müller_*.pdf`). `audit_filenames.slug()` was also doing it backwards (ASCII-strip then NFKD); now NFKD first. Verified writer ≡ auditor across `Müller / Périard / Mølmen / García-López` inputs.

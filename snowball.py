@@ -121,9 +121,12 @@ def main():
     ap.add_argument("--skip-abstracts", action="store_true")
     args = ap.parse_args()
 
+    from ris_emit import warn_if_default_email
+    warn_if_default_email()
+
     if args.all:
-        with open(CONFIG_PATH, encoding="utf-8") as f:
-            cfg = json.load(f).get("projects", {})
+        from ris_emit import load_projects_config
+        cfg = load_projects_config(CONFIG_PATH).get("projects", {})
         projects = [n for n, p in cfg.items() if p.get("active", True)]
     elif args.project:
         projects = [args.project]

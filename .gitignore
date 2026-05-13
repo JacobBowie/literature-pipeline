@@ -36,3 +36,4 @@ portfolio.duckdb*
 lit_pull_queue.csv
 lit_pull_queue.*.processed.csv
 lit_pull_queue.draft.csv
+projects.json

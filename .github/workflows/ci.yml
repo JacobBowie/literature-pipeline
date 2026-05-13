@@ -40,7 +40,9 @@ jobs:
         shell: bash
         run: |
           set -e
-          for f in $(find . -maxdepth 1 -name '*.py' -not -name 'ris_emit.py' -not -name 'jats_to_text.py' -not -name 'pdf_text_clean.py'); do
+          # ris_emit.py is the only pure library (no __main__); every other
+          # top-level .py exposes --help and must exit 0.
+          for f in $(find . -maxdepth 1 -name '*.py' -not -name 'ris_emit.py'); do
             echo "--- $f --help"
             python "$f" --help > /dev/null
           done

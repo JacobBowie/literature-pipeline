@@ -82,16 +82,23 @@ def report_issues(text: str) -> dict:
 
 
 if __name__ == "__main__":
-    import sys, fitz
-    if len(sys.argv) < 2:
-        print("Usage: python tools/pdf_text_clean.py <pdf-path> [--diff]", file=sys.stderr); sys.exit(1)
-    path = sys.argv[1]
-    with fitz.open(path) as doc:
+    import argparse, sys
+    ap = argparse.ArgumentParser(
+        description="Library helpers for cleaning PDF text dumps (ligature, soft-hyphen, "
+                    "bare-page-number post-process). Run with a PDF path for a quick diff probe.")
+    ap.add_argument("pdf", nargs="?", help="Path to a PDF to clean + report issues for.")
+    args = ap.parse_args()
+    if not args.pdf:
+        print("pdf_text_clean is a library module; import clean_pdf_text from it, "
+              "or pass a PDF path to run a quick before/after diff.", file=sys.stderr)
+        sys.exit(0)
+    import fitz
+    with fitz.open(args.pdf) as doc:
         raw = "\n".join(p.get_text() for p in doc)
     before = report_issues(raw)
     clean = clean_pdf_text(raw)
     after = report_issues(clean)
-    print(f"File:           {path}")
+    print(f"File:           {args.pdf}")
     print(f"Length raw:     {len(raw):,}")
     print(f"Length clean:   {len(clean):,}  ({len(clean)-len(raw):+,})")
     print(f"Ligatures:      {before['ligatures']} → {after['ligatures']}")

@@ -452,8 +452,8 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
 # ---------- main ----------
 
 def load_config():
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        return json.load(f).get("projects", {})
+    from ris_emit import load_projects_config
+    return load_projects_config(CONFIG_PATH).get("projects", {})
 
 
 def project_paths(name: str, p: dict):

@@ -335,15 +335,15 @@ def parse_jats(xml_bytes: bytes) -> dict:
     }
 
 
-if __name__ == "__main__":
-    import sys, json, requests
-    pmcid = sys.argv[1] if len(sys.argv) > 1 else "PMC4977162"
-    UA = "GETPAID-jats-test/1.0"
+def _smoke_test(pmcid: str, dump: bool) -> int:
+    """Fetch a JATS-XML article from Europe PMC and dump the parsed structure."""
+    import requests
+    UA = f"litpipe-jats-smoke/1.0 (mailto:{os.environ.get('LITPIPE_EMAIL', 'jacob.bowie2@gmail.com')})"
     r = requests.get(f"https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML",
                       headers={"User-Agent": UA}, timeout=30)
     print(f"HTTP {r.status_code} ({len(r.content)} bytes)")
     if r.status_code != 200:
-        sys.exit(1)
+        return 1
     out = parse_jats(r.content)
     print(f"Title:    {out['title'][:80]}")
     print(f"DOI:      {out['doi']}")
@@ -357,6 +357,24 @@ if __name__ == "__main__":
         for f in out['formulas'][:3]:
             print(f"  [{f['kind']}] {f['label']:<6} {f['latex'][:80]}")
     print(f"Text len: {len(out['text'])} chars")
-    if "--dump" in sys.argv:
+    if dump:
         print("\n--- TEXT ---\n")
         print(out["text"])
+    return 0
+
+
+if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="Parse Europe PMC JATS XML into a structured sidecar dict (library + dev smoke-test).")
+    ap.add_argument("--smoke-test", metavar="PMCID", default=None,
+                    help="Fetch this PMCID from Europe PMC and dump the parsed structure. "
+                         "Example: --smoke-test PMC4977162.")
+    ap.add_argument("--dump", action="store_true",
+                    help="With --smoke-test, also dump the full plain-text body.")
+    args = ap.parse_args()
+    if args.smoke_test:
+        sys.exit(_smoke_test(args.smoke_test, args.dump))
+    print("jats_to_text is a library module; import parse_jats from it, or run with --smoke-test PMCID for a dev probe.",
+          file=sys.stderr)
+    sys.exit(0)

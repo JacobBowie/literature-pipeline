@@ -33,12 +33,8 @@ CONFIG_PATH = Path(__file__).parent / "projects.json"
 
 def load_config():
     """Load projects.json. Returns dict[name -> {tier, lib_dir, data_dir?, parent?, active}]."""
-    if not CONFIG_PATH.exists():
-        print(f"[ERR] projects.json not found at {CONFIG_PATH}", file=sys.stderr)
-        sys.exit(2)
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        cfg = json.load(f)
-    return cfg.get("projects", {})
+    from ris_emit import load_projects_config
+    return load_projects_config(CONFIG_PATH).get("projects", {})
 
 
 def discover_libs():

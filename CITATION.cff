@@ -9,8 +9,8 @@ authors:
     affiliation: "University of Connecticut"
 repository-code: "https://github.com/JacobBowie/literature-pipeline"
 license: MIT
-version: 0.1.0
-date-released: "2026-05-12"
+version: 0.1.1
+date-released: "2026-05-13"
 keywords:
   - literature-review
   - open-access

@@ -47,8 +47,8 @@ def main():
                     help="Override output path (default: <project>/lit_pull_queue.draft.csv)")
     args = ap.parse_args()
 
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        cfg = json.load(f).get("projects", {})
+    from ris_emit import load_projects_config
+    cfg = load_projects_config(CONFIG_PATH).get("projects", {})
     if args.project not in cfg:
         print(f"[ERR] '{args.project}' not in projects.json", file=sys.stderr); sys.exit(2)
     proj_cfg = cfg[args.project]

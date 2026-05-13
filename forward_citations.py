@@ -109,8 +109,8 @@ def s2_get(path, params=None, headers=None, timeout=20, retries=3):
 
 
 def resolve_project(name: str):
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        cfg = json.load(f).get("projects", {})
+    from ris_emit import load_projects_config
+    cfg = load_projects_config(CONFIG_PATH).get("projects", {})
     if name not in cfg:
         print(f"[ERR] '{name}' not in projects.json", file=sys.stderr); sys.exit(2)
     p = cfg[name]

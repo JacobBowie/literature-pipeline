@@ -27,13 +27,48 @@ Runtime deps: `requests`, `duckdb`, `pymupdf` (imported as `fitz`), `pdfplumber`
 
 ## Configuration
 
-The pipeline polls Unpaywall, CrossRef, Europe PMC, NCBI ID Converter, and Semantic Scholar. All five require a contact email in the User-Agent (it's their ToS, not a secret). Default is `jacob.bowie2@gmail.com`; override with:
+**Set your contact email first.** Unpaywall, CrossRef, Europe PMC, NCBI, and Semantic Scholar all require a `mailto:` in the User-Agent under their ToS. If `LITPIPE_EMAIL` is unset, the pipeline falls back to the maintainer's inbox and emits a warning on startup — you don't want that.
 
 ```bash
 export LITPIPE_EMAIL="you@example.org"
 ```
 
-Tesseract OCR is optional and only used by `build_pdf_library.py`. Override `TESSDATA_PREFIX` if your installation isn't at the conda-default Windows path.
+Tesseract OCR is optional and only used by `build_pdf_library.py`. Override `TESSDATA_PREFIX` if your installation isn't at the default location.
+
+## Quickstart
+
+Two minutes from clone to your first PDF.
+
+```bash
+git clone https://github.com/JacobBowie/literature-pipeline.git
+cd literature-pipeline
+pip install -r requirements.txt
+export LITPIPE_EMAIL="you@example.org"
+
+# 1. Set up the project registry from the template
+cp projects.json.template projects.json
+# Edit projects.json — one entry pointing at any directory you want PDFs to land in.
+# Tier 2 (library-only) is the simplest entry point; see schema in the file.
+
+# 2. Make a project directory and a queue
+mkdir -p ~/my_review/literature
+cd ~/my_review
+cat > lit_pull_queue.csv <<'EOF'
+doi,title,authors,year,destination,notes
+10.1152/jappl.1972.32.6.812,Predicting rectal temperature,Givoni B; Goldman R,1972,literature/,baseline
+EOF
+
+# 3. Dry-run first — confirms the queue is found and the destination is sane
+python /path/to/literature-pipeline/sweep.py --project my_review --dry-run
+
+# 4. Pull the PDF
+python /path/to/literature-pipeline/sweep.py --project my_review
+# → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.pdf
+# → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.fulltext.json
+# → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.ris
+```
+
+The same project registry feeds every downstream tool (`snowball.py` for citation expansion, `audit_filenames.py` for canonical renames, `index_portfolio.py` for the DuckDB index).
 
 ## Layout
 
@@ -71,7 +106,6 @@ Projects/_tools/literature_pipeline/
 ├── pdf_text_clean.py           # ligature + soft-hyphen + page-num post-process
 ├── jats_to_text.py             # JATS XML → JSON sidecar (with MathML→LaTeX)
 ├── build_pdf_library.py        # text dump + metadata + abstracts + library_report
-├── extract_references.py       # legacy (getpaid/tools/-only); promoted version is reverse_citations.py
 ├── fetch_figures.py            # PMC figure scrape → image files alongside PDFs
 ├── backfill_fulltext.py        # retro-fetch JATS sidecars
 │
@@ -119,7 +153,7 @@ Every tool takes `--base-dir`, `--lib-dir`, etc. — defaults assume the layout 
 
 ### Common commands
 
-All paths assume `cd /c/Users/jab18015/Projects/_tools/literature_pipeline`.
+All commands below assume you're inside the cloned `literature-pipeline/` directory. `$PROJECT` is whichever project name you registered in `projects.json`.
 
 ```bash
 # Audit the whole portfolio:
@@ -161,34 +195,26 @@ python build_pdf_library.py --base-dir <project>          # text dumps + metadat
 
 ## The lit_pull_queue contract
 
-Per the **`project-notes`** skill (see `~/.claude/skills/project-notes/SKILL.md`), a downstream session writes a queue file at the project root and pings `LOOSE_ENDS.md`:
-
-### Step 1 — downstream project session writes:
+`sweep.py` looks for `<project_root>/lit_pull_queue.csv` (where `<project_root>` is the parent directory of the `lib_dir` registered in `projects.json`). Append rows when you want PDFs pulled; the next sweep picks them up.
 
 ```bash
-cat >> /c/Users/jab18015/Projects/Physiological_Data/lit_pull_queue.csv <<'EOF'
+# Add a paper to the queue
+cat >> $PROJECT_ROOT/lit_pull_queue.csv <<'EOF'
 doi,title,authors,year,destination,notes
-10.1152/jappl.1972.32.6.812,"Predicting rectal temperature","Givoni B; Goldman R",1972,docs/literature/,baseline
+10.1152/jappl.1972.32.6.812,"Predicting rectal temperature","Givoni B; Goldman R",1972,literature/,baseline
 EOF
 
-echo "📚 Lit pull queued: Physiological_Data/lit_pull_queue.csv (1 paper — Ch.3 baseline)" \
-  >> /c/Users/jab18015/Projects/Git-R-Dun/files/LOOSE_ENDS.md
-```
+# Sweep all projects with pending queues
+python sweep.py
 
-### Step 2 — meta-PM session (here, or wherever the pipeline is run):
+# Or limit to one project
+python sweep.py --project $PROJECT
 
-```bash
-# Sweep all pending queues:
-python /c/Users/jab18015/Projects/_tools/literature_pipeline/sweep.py
-
-# Or just one project:
-python sweep.py --project Physiological_Data
-
-# Dry run (show plan, don't fetch):
+# Dry run (show plan, don't fetch)
 python sweep.py --dry-run
 ```
 
-`sweep.py` walks `Projects/*/lit_pull_queue.csv`, runs Unpaywall v2 → PMC against each, writes PDFs to `<project>/<destination>/`, renames the queue to `lit_pull_queue.<date>.processed.csv`, writes a report next to it, and appends a `✅ Lit pull done:` line to `LOOSE_ENDS.md`.
+For each row, `sweep.py` runs Unpaywall → PMC → preprint-server in order, writes the PDF to `<project_root>/<destination>/`, renames the queue to `lit_pull_queue.<date>.processed.csv` so the next sweep doesn't reprocess it, and writes a report alongside.
 
 ### CSV schema
 
@@ -277,7 +303,7 @@ What's NOT done:
 - ❌ Bypass paywalls (no Sci-Hub / LibGen)
 - ❌ Spoof institutional IPs or sessions
 - ❌ Hammer rate limits (1s sleeps between API calls)
-- ❌ Anonymous requests (every UA includes `mailto:jacob.bowie2@gmail.com`)
+- ❌ Anonymous requests (every UA includes `mailto:$LITPIPE_EMAIL`)
 
 See [vendor/VENDORED.md](vendor/VENDORED.md) for the bundled MathML→LaTeX library's provenance and one local patch.
 

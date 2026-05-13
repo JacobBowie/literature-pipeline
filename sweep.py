@@ -215,6 +215,9 @@ def main():
                     help="Show the queues that would be processed without fetching anything.")
     args = ap.parse_args()
 
+    from ris_emit import warn_if_default_email
+    warn_if_default_email()
+
     queues = list(find_queues(only_project=args.project))
     if not queues:
         scope = args.project or "any project"

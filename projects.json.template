@@ -1,0 +1,24 @@
+{
+  "_comment": "Central registry for projects using the literature pipeline. Copy this file to projects.json and edit. Two tiers: Tier 1 = full systematic-review workflow (discovery+fetch+extract+report). Tier 2 = library-only (just PDFs + sidecars + .ris). Promotion 2 to 1 is opt-in; never automatic.",
+  "_schema": {
+    "tier":     "1 (full pipeline) or 2 (library-only)",
+    "lib_dir":  "PDF/sidecar/.ris directory, relative to project root",
+    "data_dir": "Tier 1 only: build-artifact directory (discovery/triage/tables/text)",
+    "parent":   "Subprojects only: name of containing top-level project",
+    "active":   "false to skip in audits without removing from registry"
+  },
+
+  "projects": {
+    "my_systematic_review": {
+      "tier": 1,
+      "lib_dir": "references/literature",
+      "data_dir": "data/prior_art",
+      "active": true
+    },
+    "my_secondary_library": {
+      "tier": 2,
+      "lib_dir": "docs/literature",
+      "active": true
+    }
+  }
+}
