@@ -35,6 +35,18 @@ export LITPIPE_EMAIL="you@example.org"
 
 Tesseract OCR is optional and only used by `build_pdf_library.py`. Override `TESSDATA_PREFIX` if your installation isn't at the default location.
 
+## Compatibility
+
+| Platform | Status |
+|---|---|
+| Python 3.11 / 3.12 / 3.13 | Tested in CI (Ubuntu + Windows runners, every push) |
+| Linux (Ubuntu) | CI-tested |
+| Windows 11 | Primary dev platform; CI-tested |
+| macOS | Untested in CI. Pure Python deps + `pymupdf` wheels publish for macOS, so it should work — report issues if not |
+| Python ≤ 3.10 | Not tested; relies on `sys.stdout.reconfigure()` and modern type hints (likely works on 3.10, definitely won't on 3.9) |
+
+The pipeline writes UTF-8 everywhere and tolerates Windows console cp1252 via `sys.stdout.reconfigure()` at script entry. No platform-specific dependencies beyond optional Tesseract for OCR.
+
 ## Quickstart
 
 Two minutes from clone to your first PDF.
@@ -333,15 +345,19 @@ EOF
 
 Paste any MathML expression from any JATS sidecar (`grep -A2 mathml_input <paper>.fulltext.json`) into that snippet to see what we produce on your real inputs. If the result is wrong, the original MathML is still in the sidecar — process it with your own tool.
 
-## Comparison to existing tools (audit 2026-04-28)
+## Comparison to existing tools
 
-| Need | Closest OSS | Verdict |
-|---|---|---|
-| Unpaywall API client | `unpywall` (abandoned 2024) | Ours has citation_pdf_url HTML fallback nobody else does |
-| PMC PDF + XML | `paperscraper`, `pubget` | Partial overlap; could swap optionally |
-| Preprint search | `paperscraper` | Partial; no OSF or year-delta gate |
-| JATS → JSON + MathML→LaTeX | `s2orc-doc2json` | **Genuine gap**: doc2json `raise NotImplementedError('Display formula!')` |
-| PDF text clean | none | Bespoke |
-| End-to-end orchestration + sidecar refresh + fault check | none | Bespoke |
+Maturity legend: ★★★ active + good fit · ★★ usable but partial · ★ stale/abandoned · — no comparable tool
 
-Verdict: ~1.5 of 9 tools have a mature replacement; the rest are genuine contributions. Skip the swap for now.
+| Need | Closest OSS | Maturity | Verdict |
+|---|---|---|---|
+| Unpaywall API client | [`unpywall`](https://github.com/unpywall/unpywall) | ★ | Last release 2024, archived; ours adds `citation_pdf_url` meta-tag HTML fallback for OA landing pages that don't serve a direct PDF |
+| PMC PDF + JATS XML | [`paperscraper`](https://github.com/PhosphorylatedRabbits/paperscraper), [`pubget`](https://github.com/neuroquery/pubget) | ★★ | Both active; could swap for the PMC stage. Ours adds NCBI ID-converter retry + Europe PMC + arXiv-id-on-PMC fallback |
+| Preprint search | `paperscraper` | ★★ | Active. Ours adds OSF (sportRxiv etc), Europe PMC preprints, year-delta gate on title-similarity matching, and direct download for bioRxiv/medRxiv DOI patterns |
+| JATS → JSON + MathML→LaTeX | [`s2orc-doc2json`](https://github.com/allenai/s2orc-doc2json) | — | doc2json raises `NotImplementedError('Display formula!')` on display math; we vendor `py-mathml-to-latex` and wrap it with a sidecar that preserves the source MathML for re-processing |
+| Citation graph (forward+reverse) | None bundled; S2 API directly | — | Bespoke wrapper over Semantic Scholar `/paper/{id}/citations` + `/recommendations`, plus a References-section parser (sidecar → text dump → fitz fallback) |
+| Cross-project DuckDB index | None | — | Bespoke. One source of truth for "what we have" + `top_candidates` view ordered by seed-pointing count |
+| End-to-end orchestration + sidecar refresh + fault check | None | — | Bespoke. `sweep.py`, `snowball.py`, `pipeline_check.py`, `audit_portfolio.py` |
+| PDF text clean | None | — | Bespoke (ligature de-merge, soft-hyphen rejoin, bare-page-number strip) |
+
+**Bottom line:** PMC and preprint stages overlap with active OSS (`paperscraper`, `pubget`) — those swaps are reasonable if you'd rather depend on a maintained dependency than carry our wrappers. Everything else — Unpaywall + landing-page fallback, MathML→LaTeX with source preservation, citation walking with sidecar fallbacks, the DuckDB index — has no off-the-shelf equivalent. Drop-in candidates: see `paperscraper` if you want one less custom module.

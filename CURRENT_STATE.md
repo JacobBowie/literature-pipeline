@@ -1,6 +1,6 @@
 # Current state — Literature pipeline
 
-_Last touched: 2026-05-13_
+_Last touched: 2026-05-13 (afternoon)_
 
 The pipeline is **stable through Stage 0** (fetch + citation walking + DuckDB index). Stages A → D (RAG, MCP, ensemble ranking) are planned in [ROADMAP.md](ROADMAP.md), not yet built.
 
@@ -52,6 +52,7 @@ Two threads, pick whichever has time:
 
 ## Change log
 
+- 2026-05-13 (afternoon) — final-polish pass. LICENSE stripped of vendor addendum so GitHub detects MIT (vendor note already lives in `vendor/VENDORED.md`). ROADMAP.md stripped of session-only artifact references (`_archived/research_2026_05_04/`, "conversation transcript") — the DuckDB-VSS code skeleton is now inline instead of behind a dead link. Compatibility table added to README; comparison table got maturity scores. `requirements.txt` now has version ceilings (`<3`, `<2`); `requirements.lock.txt` ships exact versions tested in CI. Added 25 integration tests covering RIS emission (15), CSV schema + path-traversal guard (6), and the load-bearing `paper_metadata` UPSERT-preserves-abstract contract (4). 83/83 tests green.
 - 2026-05-13 — usability pass for strangers (v0.1.1). Fresh-eyes test + red-team audit drove a punch list of seven items:
   1. `jats_to_text.py` and `pdf_text_clean.py` now expose proper `--help` (previously crashed because their `__main__` was a dev smoke test that consumed `--help` as a positional arg). Smoke-test paths preserved behind explicit flags.
   2. `LITPIPE_EMAIL` not-set emits a one-shot stderr warning at `sweep.py` / `snowball.py` startup — closes the silent-traffic-to-maintainer footgun.

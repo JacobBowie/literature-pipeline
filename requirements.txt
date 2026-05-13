@@ -1,8 +1,9 @@
 # Literature pipeline runtime dependencies.
-# Tested against Python 3.13 on Windows 11 (miniconda3).
-# Versions pinned to the floor known to work — newer should be fine.
+# Tested against Python 3.11 / 3.12 / 3.13 on Ubuntu + Windows in CI.
+# Lower bounds are the floor known to work; the CI matrix locks the upper edge.
+# For exact-version reproducibility, see requirements.lock.txt.
 
-requests>=2.31
-duckdb>=0.10
-pymupdf>=1.24      # imported as `fitz`
-pdfplumber>=0.11
+requests>=2.31,<3
+duckdb>=0.10,<2          # 1.x stable; we don't yet use 2.x APIs
+pymupdf>=1.24,<2         # imported as `fitz`
+pdfplumber>=0.11,<1

@@ -73,7 +73,33 @@ Each stage produces standalone value. None require finishing later stages to be 
 
 **Skills showcase**: DuckDB vector extension, sentence-transformers, scientific embeddings.
 
-**Code skeleton**: see sub-agent report at `_archived/research_2026_05_04/duckdb_vss_embeddings.md` (or in conversation transcript) — ~30 lines.
+**Code skeleton (~30 lines)**:
+
+```python
+import duckdb
+from sentence_transformers import SentenceTransformer
+
+con = duckdb.connect("portfolio.duckdb")
+con.execute("INSTALL vss; LOAD vss;")
+con.execute("SET hnsw_enable_experimental_persistence = true;")
+con.execute("ALTER TABLE paper_metadata ADD COLUMN IF NOT EXISTS embedding FLOAT[768];")
+
+model = SentenceTransformer("allenai/specter2_base")
+rows  = con.execute("SELECT doi, title, abstract FROM paper_metadata "
+                    "WHERE abstract IS NOT NULL AND embedding IS NULL").fetchall()
+for doi, title, abstract in rows:
+    text = f"{title} [SEP] {abstract}"
+    vec  = model.encode(text).tolist()
+    con.execute("UPDATE paper_metadata SET embedding = ? WHERE doi = ?", [vec, doi])
+
+con.execute("CREATE INDEX IF NOT EXISTS embed_hnsw ON paper_metadata "
+            "USING HNSW (embedding) WITH (metric = 'cosine');")
+
+# Query: rank candidates by mean cosine similarity to a set of seed DOIs.
+seed_vecs = con.execute("SELECT embedding FROM paper_metadata WHERE doi IN (?,?,?)",
+                         seed_dois).fetchall()
+# ... average and rank top_candidates by similarity
+```
 
 **Implementation gotchas**:
 - DuckDB vss persistent indexes need `SET hnsw_enable_experimental_persistence = true;`
@@ -137,7 +163,7 @@ Each stage produces standalone value. None require finishing later stages to be 
 
 **Packaging**: `uvx mcp-server-litpipe` (PyPI-distributed, semver-pinned). Layout per Anthropic's official servers: `src/mcp_server_litpipe/__init__.py` + `__main__.py`, console script in `pyproject.toml`.
 
-**Threat model — top concerns** (from sub-agent report):
+**Threat model — top concerns**:
 - **Indirect prompt injection via fetched paper text**: a malicious paper title/abstract could try to redirect Claude's tool use after being returned by `lit_search`. Mitigation: never re-feed raw fetched text into another tool call without explicit user review.
 - **Command injection** via DOI args: regex validation closes this.
 - **Path traversal** in queue writes: `Path.resolve().is_relative_to(project_root)` assertion.
@@ -226,14 +252,12 @@ These don't require RAG/MCP planning — they improve the existing pipeline toda
 
 ---
 
-## Source material (sub-agent reports, 2026-05-04)
+## Source material
 
-The four sub-agent reports that informed this plan are in the conversation transcript for the 2026-05-04 session. Key citations:
+Public references that informed this plan:
 
 - **MCP**: [MCP Security Best Practices spec](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices), [Claude Code settings.json](https://code.claude.com/docs/en/settings), [Anthropic's official servers](https://github.com/modelcontextprotocol/servers), [Simon Willison on MCP prompt injection](https://simonwillison.net/2025/Apr/9/mcp-prompt-injection/), [Snyk Labs on prompt injection in MCP](https://labs.snyk.io/resources/prompt-injection-mcp/)
 - **paper-qa2**: [Future-House/paper-qa](https://github.com/Future-House/paper-qa), pinned-version recommendation v2026.02.27, issue #1321 (open regression), #1128 (closed Llama 3.2 tool-call), #1237 (closed router error)
 - **DuckDB vss**: [VSS docs](https://duckdb.org/docs/current/core_extensions/vss.html), [What's new Oct 2024](https://duckdb.org/2024/10/23/whats-new-in-the-vss-extension)
 - **Embeddings**: [SPECTER2 paper, EMNLP 2023, arXiv:2211.13308](https://arxiv.org/abs/2211.13308), [Allen AI SPECTER2 blog](https://allenai.org/blog/specter2-adapting-scientific-document-embeddings-to-multiple-fields-and-task-formats-c95686c06567), [MTEB leaderboard](https://huggingface.co/spaces/mteb/leaderboard)
 - **Local LLM**: [Ollama OpenAI compat docs](https://docs.ollama.com/api/openai-compatibility), [DatabaseMart Ollama benchmarks](https://www.databasemart.com/blog/ollama-gpu-benchmark-rtx4060), [paper-qa README](https://github.com/future-house/paper-qa)
-
-If/when this roadmap is executed, copy-paste the relevant sub-agent reports into `_archived/research_2026_05_04/` for permanent reference.

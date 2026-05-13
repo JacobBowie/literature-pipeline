@@ -19,9 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-The `vendor/mathml_to_latex/` directory contains a copy of
-`py-mathml-to-latex` v1.0.0 by André Nunes, used under its own MIT License.
-See `vendor/VENDORED.md` for provenance and the local-modifications log.
