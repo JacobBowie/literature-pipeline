@@ -52,7 +52,13 @@ Two threads, pick whichever has time:
 
 ## Change log
 
-- 2026-05-12 — polish + `git init` pass. Email + Tesseract path env-overridable (`LITPIPE_EMAIL`, `TESSDATA_PREFIX`); hardcoded conda Python in `sweep.py` replaced with `sys.executable`; file-handle and DuckDB-connection leaks closed across ~15 scripts; bare exceptions narrowed; `audit_filenames.py --queue-history` flag landed (closes the un-OCR'd-scan loose end). LICENSE, requirements.txt, .gitignore added. No behavior changes to fetch logic, UPSERT semantics, or MathML→LaTeX post-processing.
+- 2026-05-12 (afternoon) — deep-research stress-test pass. Five HIGH-impact fixes:
+  1. `subprocess.run(..., text=True)` in `sweep.py` (4 sites) and `snowball.py` (1 site) now passes `encoding="utf-8", errors="replace"` — closes the latent cp1252 UnicodeDecodeError on accented subprocess output.
+  2. **Writer/auditor filename drift closed.** `unpaywall_fetch_v2.last_name()` and `slug_title()` now NFKD-normalize via `ris_emit.safe_ascii` *before* tokenization, so files are written with ASCII names (`2024_Muller_*.pdf` not `2024_Müller_*.pdf`). `audit_filenames.slug()` was also doing it backwards (ASCII-strip then NFKD); now NFKD first. Verified writer ≡ auditor across `Müller / Périard / Mølmen / García-López` inputs.
+  3. **Cross-module import bug fixed.** All 22 scripts re-wrapped `sys.stdout` at import time, which crashed when one script imported another (`ValueError: I/O operation on closed file`). Replaced with idempotent `sys.stdout.reconfigure(encoding="utf-8", errors="replace")` gated on `encoding != utf-8`.
+  4. `audit_filenames.py --queue-history` flag landed (closes the un-OCR'd-scan loose end from the 2026-05-05 entry).
+  5. `sweep.py` now resolves `<project>/<destination>` and rejects paths that escape the project root — defends against path traversal in user-authored or distributed `lit_pull_queue.csv`.
+- 2026-05-12 (morning) — polish + `git init` pass. Email + Tesseract path env-overridable (`LITPIPE_EMAIL`, `TESSDATA_PREFIX`); hardcoded conda Python in `sweep.py` replaced with `sys.executable`; file-handle and DuckDB-connection leaks closed across ~15 scripts; bare exceptions narrowed. LICENSE, requirements.txt, .gitignore added. No behavior changes to fetch logic, UPSERT semantics, or MathML→LaTeX post-processing.
 - 2026-05-05 — abstract enrichment completed (9,834/17,617 = 56%); recommendations enrichment running; CURRENT_STATE introduced per SOP.
 - 2026-05-04 — major build session: schema v2, citation walker promotion, snowball orchestrator, EndNote harvest, filename+Unicode bug fixes, ROADMAP.md drafted, four sub-agent reports compiled into the plan.
 - 2026-04-28 — pipeline elevated from `getpaid/tools/` to portfolio level after wheel-reinvention audit.

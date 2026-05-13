@@ -25,7 +25,11 @@ from pathlib import Path
 
 import duckdb
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+try:
+    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"
@@ -62,7 +66,7 @@ def candidate_count(project: str) -> int:
 def run(cmd, label):
     print(f"\n>>> {label}")
     print(f"    {' '.join(cmd)}")
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     out = (r.stdout or "")[-1500:]
     print(out)
     if r.returncode != 0:

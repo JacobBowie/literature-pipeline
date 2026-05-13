@@ -12,7 +12,11 @@ Usage:
 """
 import os, sys, io, time, csv, re, argparse
 import requests
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+try:
+    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
 
 # Local module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -33,7 +37,9 @@ DEFAULT_REPORT = "data/prior_art/discovered/unpaywall_fetch_report_v2.csv"
 # ---------- filename synthesis (same as v1) ----------
 
 def slug_title(title, max_words=6):
+    from ris_emit import safe_ascii
     t = re.sub(r"<[^>]+>", "", title)
+    t = safe_ascii(t)
     t = re.sub(r"[^\w\s\-]", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     skip = {"a","an","the","of","in","on","and","to","for","at","from","with","by","as"}
@@ -54,8 +60,12 @@ def last_name(authors_str):
       - "T. Gabbett"                   → "Gabbett"
     """
     if not authors_str: return "Unknown"
+    from ris_emit import safe_ascii
+    # NFKD-normalize first so the initials-detection regex (ASCII-only) matches
+    # uppercase letters that came from non-ASCII chars (Ø → O, Å → A, Ñ → N).
+    s = safe_ascii(authors_str.strip())
     # Strip trailing "et al" / "et al."
-    s = re.sub(r",?\s*et\s+al\.?\s*$", "", authors_str.strip(), flags=re.IGNORECASE).strip()
+    s = re.sub(r",?\s*et\s+al\.?\s*$", "", s, flags=re.IGNORECASE).strip()
     # Take first author: split on ; first (multi-author separator), then on ,
     first = s.split(";")[0].strip()
     if "," in first: first = first.split(",")[0].strip()
@@ -66,7 +76,7 @@ def last_name(authors_str):
     # author name is in "LastName Initial" order — use the first token.
     if len(parts) > 1 and re.fullmatch(r"[A-Z]{1,3}\.?", cand):
         cand = parts[0]
-    return re.sub(r"[^\w\-]", "", cand) or "Unknown"
+    return re.sub(r"[^A-Za-z0-9\-]", "", cand) or "Unknown"
 
 def build_filename(year, authors, title):
     yr = year if year and re.match(r'^\d{4}$', str(year)) else "Unknown"

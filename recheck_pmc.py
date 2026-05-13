@@ -21,7 +21,11 @@ Usage:
 import os, sys, io, re, json, time, argparse, csv
 import requests
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+try:
+    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import fitz  # pymupdf

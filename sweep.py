@@ -25,7 +25,11 @@ Usage:
 import os, sys, io, csv, argparse, subprocess, datetime
 from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+try:
+    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
 
 HERE = Path(__file__).resolve().parent
 PROJECTS = HERE.parent.parent  # _tools/literature_pipeline/ -> Projects/
@@ -71,9 +75,15 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
     """Run unpaywall_v2 → pmc_fetch against this queue. Returns dict of results."""
     dest_rel = first_destination(queue_csv)
     if not dest_rel:
-        print(f"  ERR no `destination` column in {queue_csv}")
+        print(f"  ERR no `destination` column in {queue_csv}", file=sys.stderr)
         return None
-    lib_dir = project_dir / dest_rel
+    project_root = project_dir.resolve()
+    lib_dir = (project_dir / dest_rel).resolve()
+    try:
+        lib_dir.relative_to(project_root)
+    except ValueError:
+        print(f"  ERR destination escapes project root: {dest_rel!r} in {queue_csv}", file=sys.stderr)
+        return None
     lib_dir.mkdir(parents=True, exist_ok=True)
     today = datetime.date.today().isoformat()
     norm_csv = queue_csv.with_name(f"lit_pull_queue.{today}.normalized.csv")
@@ -101,7 +111,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
             "--report", str(report_unpw),
             "--base-dir", str(project_dir)]
     print(f"  -> {' '.join(cmd1)}")
-    r1 = subprocess.run(cmd1, capture_output=True, text=True)
+    r1 = subprocess.run(cmd1, capture_output=True, text=True, encoding="utf-8", errors="replace")
     print(r1.stdout[-1500:] if r1.stdout else "")
     if r1.returncode != 0:
         print(f"  ERR unpaywall stage failed:\n{r1.stderr[-500:]}")
@@ -114,7 +124,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
             "--report-out", str(report_pmc),
             "--base-dir", str(project_dir)]
     print(f"  -> {' '.join(cmd2)}")
-    r2 = subprocess.run(cmd2, capture_output=True, text=True)
+    r2 = subprocess.run(cmd2, capture_output=True, text=True, encoding="utf-8", errors="replace")
     print(r2.stdout[-1500:] if r2.stdout else "")
 
     # Stage 3: preprint_fetch (arXiv/bioRxiv/OSF/Europe PMC preprints) for any
@@ -144,7 +154,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
                 "--lib-dir", str(lib_dir),
                 "--report", str(report_ppr)]
         print(f"  -> {' '.join(cmd3)}")
-        r3 = subprocess.run(cmd3, capture_output=True, text=True)
+        r3 = subprocess.run(cmd3, capture_output=True, text=True, encoding="utf-8", errors="replace")
         print(r3.stdout[-1500:] if r3.stdout else "")
         if report_ppr.exists():
             with open(report_ppr, encoding="utf-8") as fh:
@@ -177,7 +187,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
     cmd4 = [py, str(HERE / "extract_pdf_fulltext.py"),
             "--lib-dir", str(lib_dir)]
     print(f"  -> {' '.join(cmd4)}")
-    r4 = subprocess.run(cmd4, capture_output=True, text=True)
+    r4 = subprocess.run(cmd4, capture_output=True, text=True, encoding="utf-8", errors="replace")
     print(r4.stdout[-1500:] if r4.stdout else "")
     if r4.returncode != 0:
         print(f"  WARN pdf-extract stage failed (continuing):\n{r4.stderr[-500:]}")

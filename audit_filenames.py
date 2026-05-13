@@ -29,7 +29,11 @@ import os, sys, io, re, json, csv, time, glob, argparse, unicodedata
 import requests
 import fitz
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+try:
+    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -44,6 +48,7 @@ SLUG_SKIP = {"a","an","the","of","in","on","and","to","for","at","from","with","
 
 def slug(text, n=6):
     text = re.sub(r"<[^>]+>", "", text or "")
+    text = safe_ascii(text)
     text = re.sub(r"[^A-Za-z0-9\s\-]", " ", text)
     words = [w for w in text.split() if w.lower() not in SLUG_SKIP][:n]
     return "".join(re.sub(r"[^A-Za-z0-9\-]", "", w).capitalize() for w in words) or "Untitled"

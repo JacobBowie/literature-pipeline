@@ -17,7 +17,11 @@ Usage:
 import os, sys, io, re, time, argparse
 import duckdb, requests
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+try:
+    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
 UA    = f"GETPAID-abstract-enrich/1.0 (mailto:{EMAIL})"

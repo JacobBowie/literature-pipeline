@@ -31,7 +31,11 @@ from difflib import SequenceMatcher
 from urllib.parse import urlencode
 from xml.etree import ElementTree as ET
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+try:
+    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
 
 EMAIL  = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
 UA     = f"GETPAID-preprint-fetch/1.0 (mailto:{EMAIL})"
@@ -59,18 +63,21 @@ def title_similarity(a, b):
 
 
 def slug_filename(year, author, title):
-    # Reuse the robust lastname extractor from unpaywall_fetch_v2 (handles ;
-    # and , separators, "et al" stripping, LastName-Initial vs Initial-LastName).
+    # Reuse the robust lastname extractor + NFKD normalizer from unpaywall_fetch_v2
+    # (handles ; and , separators, "et al" stripping, LastName-Initial vs
+    # Initial-LastName; safe_ascii NFKD-normalizes accents before ASCII strip).
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     from unpaywall_fetch_v2 import last_name
+    from ris_emit import safe_ascii
     title = re.sub(r"<[^>]+>", "", title or "")
+    title = safe_ascii(title)
     title = re.sub(r"[^\w\s\-]", " ", title)
     title = re.sub(r"\s+", " ", title).strip()
     skip = {"a","an","the","of","in","on","and","to","for","at","from","with","by","as"}
     words = [w for w in title.split() if w.lower() not in skip][:6]
     slug = "".join(w.capitalize() for w in words) or "Untitled"
-    last = last_name(author) if author else "Unknown"
-    return f"{year or 'Unknown'}_{last}_{slug}_preprint.pdf".encode("ascii","ignore").decode("ascii")
+    last = safe_ascii(last_name(author)) if author else "Unknown"
+    return f"{year or 'Unknown'}_{last}_{slug}_preprint.pdf"
 
 
 # ---------- arXiv ----------
