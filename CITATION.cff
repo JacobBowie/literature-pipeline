@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+title: "literature-pipeline: a Python toolkit for biomedical literature acquisition, citation walking, and structured extraction"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - given-names: Jacob
+    family-names: Bowie
+    email: jacob.bowie2@gmail.com
+    affiliation: "University of Connecticut"
+repository-code: "https://github.com/JacobBowie/literature-pipeline"
+license: MIT
+version: 0.1.0
+date-released: "2026-05-12"
+keywords:
+  - literature-review
+  - open-access
+  - unpaywall
+  - pubmed-central
+  - semantic-scholar
+  - citation-graph
+  - duckdb
+  - bibliometrics
+  - sports-science
+  - thermoregulation
+abstract: >-
+  A Python toolkit for systematic biomedical literature workflows: open-access
+  PDF acquisition (Unpaywall + PMC + preprint servers), citation snowballing
+  (Semantic Scholar forward/reverse + recommendations), DuckDB portfolio
+  indexing across multiple research projects, and JATS/PDF structured extraction
+  including MathML-to-LaTeX conversion. Built for reproducible review workflows
+  where the same library is consumed by multiple downstream projects.

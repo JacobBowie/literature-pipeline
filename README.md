@@ -1,10 +1,21 @@
-# Literature pipeline (`Projects/_tools/literature_pipeline/`)
+# literature-pipeline
 
-Shared toolkit for biomedical / sports-science paper acquisition, citation walking, indexing, and structured extraction. Lives at the portfolio level so any project under `Projects/` can use it.
+[![CI](https://github.com/JacobBowie/literature-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/JacobBowie/literature-pipeline/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
-Originally built inside `getpaid/tools/`, elevated 2026-04-28 after a wheel-reinvention audit confirmed genuine novelty (76% pdflatex-pass MathML→LaTeX inside JSON sidecars; no other Python tool does this). Major expansion 2026-05-04: citation walker promotion, DuckDB portfolio index, EndNote citation harvest, and full bug-fix pass on filename canonicalization.
+A Python toolkit for systematic biomedical literature workflows. Given a list of DOIs, it pulls open-access PDFs from Unpaywall → PMC → preprint servers (in that order), walks the citation graph via Semantic Scholar, indexes everything into a portable DuckDB, and extracts structured text + equations + figures from the resulting library.
 
-**Forward-looking plan** (RAG layer, MCP server, embedding-similarity ranking) lives in [ROADMAP.md](ROADMAP.md). State-of-the-pipeline as-of last touch lives in [CURRENT_STATE.md](CURRENT_STATE.md).
+Built for the workflow where the same library is consumed by multiple downstream projects — a sports-science postdoc shop, a thermoregulation systematic review, a wearable-data clustering paper — without duplicating fetches or re-OCR'ing PDFs.
+
+**What's interesting under the hood:**
+- Three-tier OA fetch chain (Unpaywall v2 → PMC + Europe PMC → arXiv / bioRxiv / OSF preprints) with citation-graph HTML fallback nobody else does
+- JATS-XML → JSON sidecar with **76% pdflatex-pass MathML→LaTeX** conversion (`s2orc-doc2json` raises `NotImplementedError` here)
+- Cross-project DuckDB index — one source of truth for "what we have" and "what to fetch next" ordered by seed-pointing citation count
+- One-command snowball: forward + reverse + recommendations + abstracts + reindex
+- No paywall bypass, no Sci-Hub, no spoofed institutional IPs. Every request identifies itself by mailto contact per API ToS.
+
+**Forward plan** (embedding-similarity ranking, local RAG, MCP server): [ROADMAP.md](ROADMAP.md). **State as of last touch:** [CURRENT_STATE.md](CURRENT_STATE.md).
 
 ## Install
 

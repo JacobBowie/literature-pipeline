@@ -1,0 +1,25 @@
+# Normalize text files to LF in the repo.
+# Working trees on Windows still get CRLF on checkout via core.autocrlf=true,
+# but the canonical stored form is LF — eliminates the "LF will be replaced by
+# CRLF" warning noise on every `git add`.
+
+* text=auto eol=lf
+
+# Explicit text files
+*.py        text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.toml      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.csv       text eol=lf
+*.cff       text eol=lf
+.gitignore  text eol=lf
+LICENSE     text eol=lf
+
+# Explicit binaries (defensive — none currently in repo)
+*.pdf       binary
+*.png       binary
+*.jpg       binary
+*.duckdb    binary
