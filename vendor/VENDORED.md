@@ -80,8 +80,9 @@ we are to ship a clean port. Manual port → ongoing fork divergence we'd own.
 
 **Recommended action when matrix-rendering becomes load-bearing:** open an
 issue on `asnunes/py-mathml-to-latex` asking for a v1.0.1 release synced to
-JS v1.5.0. Re-run our 25-case `pdflatex` benchmark against the new version
-when it lands; expect the matrix bucket to flip from 0/2 to 2/2.
+JS v1.5.0. At that point a real benchmark suite becomes worth building; for
+now, MathML→LaTeX correctness is an explicit non-goal of this pipeline
+(see README §MathML→LaTeX: scope + known limits).
 
 ### Out of scope: do NOT do these without explicit decision
 

@@ -10,7 +10,7 @@ Built for the workflow where the same library is consumed by multiple downstream
 
 **What's interesting under the hood:**
 - Three-tier OA fetch chain (Unpaywall v2 → PMC + Europe PMC → arXiv / bioRxiv / OSF preprints) with citation-graph HTML fallback nobody else does
-- JATS-XML → JSON sidecar with **76% pdflatex-pass MathML→LaTeX** conversion (`s2orc-doc2json` raises `NotImplementedError` here)
+- JATS-XML → JSON sidecar with MathML→LaTeX conversion via a vendored MIT library — common math (fractions, sums, integrals, Greek, sub/sup) round-trips cleanly; complex matrices and custom operators may need manual cleanup. The original MathML is preserved in each `formulas[i].mathml_input` so you can re-process with your own tooling if ours fails for your corpus. (`s2orc-doc2json` raises `NotImplementedError` here, so even partial coverage is a step up.)
 - Cross-project DuckDB index — one source of truth for "what we have" and "what to fetch next" ordered by seed-pointing citation count
 - One-command snowball: forward + reverse + recommendations + abstracts + reindex
 - No paywall bypass, no Sci-Hub, no spoofed institutional IPs. Every request identifies itself by mailto contact per API ToS.
@@ -307,15 +307,31 @@ What's NOT done:
 
 See [vendor/VENDORED.md](vendor/VENDORED.md) for the bundled MathML→LaTeX library's provenance and one local patch.
 
-## Audited 2026-04-28
+## MathML→LaTeX: scope + known limits
 
-The `mathml-to-latex` vendor was audited against a 25-case ground-truth benchmark with `pdflatex` compile-checks. **76% pass rate.** Mitigations baked into `jats_to_text.py::_formula_latex()`:
+The pipeline vendors `py-mathml-to-latex` (MIT) for math conversion — we don't own that library, just wrap it. Our smoke tests confirm the common cases (inline fractions, sums with sub/superscripts, Greek letters, basic operators) round-trip. Beyond those, behavior varies:
 
-- Function operators (log/sin/lim) emit U+2061 → stripped from output
-- Matrices missing `\begin{matrix}` wrapper → flagged with status `ok-but-matrix-likely-broken`
-- Multi-letter `<mi>` joining via post-process regex
+- **Function operators** (`log`, `sin`, `lim`): U+2061 invisible-apply tokens are stripped post-process
+- **Matrices** missing `\begin{matrix}` wrapper: flagged with status `ok-but-matrix-likely-broken` rather than silently corrupted
+- **Multi-letter `<mi>` tokens** are joined via a post-process regex
 
-For papers where these fail, the offending MathML is preserved in the sidecar's `formulas[i].mathml_input` for diagnosis.
+When the converter fails, the offending MathML is preserved in `sidecar.formulas[i].mathml_input` so you can re-process with your own tooling (pandoc, mathjax, a different library, or Claude/Copilot with vision). The pipeline doesn't commit to math-conversion correctness — it commits to *preserving the source so you can verify or replace*.
+
+### Verify-it-yourself
+
+```bash
+python - <<'EOF'
+from xml.etree import ElementTree as ET
+from jats_to_text import _formula_latex
+
+mathml = '<math xmlns="http://www.w3.org/1998/Math/MathML"><mfrac><mn>1</mn><mi>x</mi></mfrac></math>'
+latex, status, source = _formula_latex(ET.fromstring(mathml))
+print(f"latex:  {latex}")    # → \frac{1}{x}
+print(f"status: {status}")   # → ok
+EOF
+```
+
+Paste any MathML expression from any JATS sidecar (`grep -A2 mathml_input <paper>.fulltext.json`) into that snippet to see what we produce on your real inputs. If the result is wrong, the original MathML is still in the sidecar — process it with your own tool.
 
 ## Comparison to existing tools (audit 2026-04-28)
 

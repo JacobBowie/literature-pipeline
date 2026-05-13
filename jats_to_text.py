@@ -86,9 +86,14 @@ def _formula_latex(formula_elem):
         return "", "no-converter", ""
 
     math_el = None
-    for tag in (f"{{{_MML_NS}}}math", "math"):
-        math_el = formula_elem.find(f".//{tag}")
-        if math_el is not None: break
+    # Accept either a JATS formula wrapper (containing <math> as a descendant)
+    # or a bare <math> element passed directly.
+    if formula_elem.tag in (f"{{{_MML_NS}}}math", "math"):
+        math_el = formula_elem
+    else:
+        for tag in (f"{{{_MML_NS}}}math", "math"):
+            math_el = formula_elem.find(f".//{tag}")
+            if math_el is not None: break
     if math_el is None:
         return "", "no-mathml", ""
 
