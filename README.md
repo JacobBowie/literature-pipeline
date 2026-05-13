@@ -317,6 +317,18 @@ What's NOT done:
 - ❌ Hammer rate limits (1s sleeps between API calls)
 - ❌ Anonymous requests (every UA includes `mailto:$LITPIPE_EMAIL`)
 
+### The institutional-access boundary
+
+The pipeline is **anonymous by design**. In a typical biomedical corpus, expect ~5–15% of papers to be genuinely paywalled to anonymous traffic — pre-mandate-era US journals (J Appl Physiol, MSSE, JSC, Hum Kinetics, etc.), older Wiley/Springer/FASEB papers without green-OA mirrors. Those land in the residual report (`needs_manual_pull.csv` for getpaid-style Tier 1 setups) with a `bucket` column tagging the reason: `PAYWALL`, `OA_NO_URL`, `PMC_GATED_WEB_ONLY`.
+
+**For those papers, the legitimate workflow is:**
+
+1. Open the DOI in a browser session authenticated to your institutional library (EZproxy, Shibboleth, OpenAthens — whatever your institution provides). Google Scholar with library link-resolver enabled works well here.
+2. Save the PDF into the project's `<lib_dir>/` with any filename — `audit_filenames.py` will normalize it on the next sweep.
+3. Run `python backfill_ris.py --lib-dir <path>` to attach CrossRef-canonical metadata + `.ris` sidecars.
+
+This isn't a pipeline limitation we're going to fix — it's a fundamental property of "no auth, no proxy" tooling. Tried adding an OpenAlex Tier 2 to chase green-OA repo mirrors against this exact residual (68 DOIs); empirically zero net new downloads. The papers that exist outside the open-access ecosystem cannot be reached by any anonymous tool.
+
 See [vendor/VENDORED.md](vendor/VENDORED.md) for the bundled MathML→LaTeX library's provenance and one local patch.
 
 ## MathML→LaTeX: scope + known limits
