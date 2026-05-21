@@ -149,11 +149,11 @@ Surveyed Python CrossRef wrappers:
 
 ---
 
-## Test artifacts
+## Test artifacts (pre-implementation)
 
-- `C:\tmp\orphan_audit.py` — orphan classifier (run on 4 libs, 317 orphans)
-- `C:\tmp\crossref_titlematch_test.py` — 21-sample CrossRef test (results above)
-- Sample output: see test run log in 2026-05-21 conversation
+- `C:\tmp\orphan_audit.py` — orphan classifier (4 libs, 317 orphans); logic absorbed into `fill_missing_dois.discover_orphans` post-ship.
+- `C:\tmp\crossref_titlematch_test.py` — 21-sample CrossRef prototype (results above); superseded by `fill_missing_dois.py` + `tests/test_fill_missing_dois.py`.
+- Both scratch scripts deleted 2026-05-21 after the shipped tool + 29-case pytest suite passed validation.
 
 ---
 
