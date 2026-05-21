@@ -40,6 +40,7 @@ except (AttributeError, OSError):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ris_emit import load_projects_config
+from audit_filenames import safe_ascii
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
 UA = f"GETPAID-doi-fill/1.0 (mailto:{EMAIL})"
@@ -103,11 +104,14 @@ def parse_filename_hints(fn):
 
 
 def normalize_for_match(s):
-    """Lowercase + ASCII-fold (Périard → periard) for robust comparison."""
-    if not s:
-        return ""
-    nfkd = unicodedata.normalize("NFKD", s)
-    return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
+    """Lowercase + ASCII-fold for robust comparison.
+
+    Reuses audit_filenames.safe_ascii which handles non-decomposable specials
+    (ø→o, æ→ae, ß→ss, ł→l) that pure NFKD leaves intact. Keeping a single
+    canonical fold across the pipeline ensures `2020_Molmen_*.pdf` (filename
+    written via safe_ascii) round-trips against CrossRef's "Mølmen" record.
+    """
+    return safe_ascii(s).lower() if s else ""
 
 
 def is_bundled_issue(fn, title_hint):
