@@ -24,10 +24,12 @@ Usage:
   python index_portfolio.py --no-citations     # papers table only (faster)
   python index_portfolio.py --rebuild          # drop+recreate all tables first
 """
-import os, sys, io, csv, re, json, argparse, datetime
+import os, sys, io, csv, re, json, argparse, datetime, time
 from pathlib import Path
 
 import duckdb
+
+import lit_util  # RC1 DOI validity gate, RC4 atomic writes (shared, pre-tested)
 
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
@@ -248,7 +250,21 @@ def ingest_papers(con, name: str, lib: Path):
                 VALUES (?,?,?,?,?,?,?)
             """, new_meta)
 
-    # paper_locations: dedupe by (doi, project)
+    # paper_locations: dedupe by (doi, project), and ALSO drop any prior row
+    # for this project whose pdf_filename is no longer on disk (so quarantined
+    # / deleted PDFs don't leak stale rows). Without this prune, the UPSERT
+    # only refreshes rows for PDFs still present; rows for missing PDFs persist
+    # indefinitely. 2026-05-22 patch — caught by the LWW boilerplate quarantine.
+    current_filenames = sorted({r[3] for r in loc_rows})
+    if current_filenames:
+        placeholders = ",".join(["?"] * len(current_filenames))
+        cur.execute(
+            f"DELETE FROM paper_locations WHERE project = ? AND pdf_filename NOT IN ({placeholders})",
+            [name, *current_filenames],
+        )
+    else:
+        cur.execute("DELETE FROM paper_locations WHERE project = ?", [name])
+
     if loc_rows:
         seen = set(); dedup_loc = []
         for r in loc_rows:
@@ -287,11 +303,19 @@ def ingest_forward(con, name: str, csv_path: Path, lib: Path):
     cur = con.cursor()
     now = datetime.datetime.now().isoformat(timespec="seconds")
     cand_rows = []; meta_rows = []; cite_rows = []
+    n_rejected = 0  # RC1-gate: malformed / truncated DOIs already sitting in the CSV
     with open(csv_path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             seed = (r.get("seed_doi") or "").strip().lower()
             cited = (r.get("citing_doi") or "").strip().lower()
             if not (seed and cited): continue
+            # RC1-gate (defense-in-depth): drop rows whose DOI is malformed or looks
+            # like a line-wrap truncation (the '10.1002/cphy' class) before it pollutes
+            # candidates/cites/meta. Applies to both the candidate (cited) and seed DOI.
+            if (not lit_util.is_valid_doi(cited) or lit_util.is_suspicious_doi(cited)
+                    or not lit_util.is_valid_doi(seed) or lit_util.is_suspicious_doi(seed)):
+                n_rejected += 1
+                continue
             cand_rows.append((
                 cited, "forward", seed, name,
                 safe_int(r.get("citing_cited_by")), now,
@@ -350,6 +374,8 @@ def ingest_forward(con, name: str, csv_path: Path, lib: Path):
             INSERT INTO cites (citing_doi, cited_doi, source_pipeline, source_project)
             VALUES (?,?,?,?)
         """, cite_rows)
+    if n_rejected:
+        print(f"  [RC1-gate] forward: dropped {n_rejected} row(s) with malformed/truncated DOI")
     return len(cand_rows)
 
 
@@ -383,10 +409,16 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
         return d
 
     meta_rows = []
+    n_rejected = 0  # RC1-gate: malformed / truncated DOIs already sitting in the CSV
     with open(csv_path, encoding="utf-8") as f:
         for r in csv.DictReader(f):
             cited_doi = (r.get("doi") or "").strip().lower()
             if not cited_doi: continue
+            # RC1-gate (defense-in-depth): drop the candidate/meta row if the cited DOI
+            # is malformed or looks like a line-wrap truncation (the '10.1002/cphy' class).
+            if not lit_util.is_valid_doi(cited_doi) or lit_util.is_suspicious_doi(cited_doi):
+                n_rejected += 1
+                continue
             seed_filename = r.get("seed") or ""
             seed_doi = seed_doi_for(seed_filename)
             cand_rows.append((
@@ -402,7 +434,9 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
                 "", "",   # no venue / authors from reverse parser
                 now,
             ))
-            if seed_doi:
+            # Only emit a citation edge when the seed DOI is itself well-formed (RC1-gate);
+            # a truncated seed DOI would pollute the cites graph with a bad endpoint.
+            if seed_doi and lit_util.is_valid_doi(seed_doi) and not lit_util.is_suspicious_doi(seed_doi):
                 cite_rows.append((seed_doi, cited_doi, "reverse", name))
 
     if cand_rows:
@@ -446,10 +480,33 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
             INSERT INTO cites (citing_doi, cited_doi, source_pipeline, source_project)
             VALUES (?,?,?,?)
         """, cite_rows)
+    if n_rejected:
+        print(f"  [RC1-gate] reverse: dropped {n_rejected} row(s) with malformed/truncated DOI")
     return len(cand_rows)
 
 
 # ---------- main ----------
+
+def connect_with_retry(db_path_str, tries=3, delays=(2, 4)):
+    """RC10: open the DuckDB file with a small retry. The DB lives on Google-Drive-synced
+    storage, and GoogleDriveFS sometimes holds portfolio.duckdb open mid-sync → a transient
+    IO/lock error. Retry a couple of times, then surface a clear Drive-suspect message before
+    re-raising (don't re-diagnose as a code bug; suspect Drive first)."""
+    last_err = None
+    for attempt in range(1, tries + 1):
+        try:
+            return duckdb.connect(db_path_str)
+        except Exception as e:  # duckdb.IOException / lock errors are not a stable public type
+            last_err = e
+            if attempt < tries:
+                wait = delays[min(attempt - 1, len(delays) - 1)]
+                print(f"  [RC10] DB open failed (attempt {attempt}/{tries}): {e}\n"
+                      f"        retrying in {wait}s ...")
+                time.sleep(wait)
+    print("  [RC10] DB locked - suspect Google Drive holding portfolio.duckdb open "
+          "(pause Drive sync or move the DB off Drive-synced storage, then retry).")
+    raise last_err
+
 
 def load_config():
     from ris_emit import load_projects_config
@@ -499,17 +556,33 @@ def main():
     ap.add_argument("--no-citations", action="store_true",
                     help="Skip forward+reverse citation ingestion (faster).")
     ap.add_argument("--rebuild", action="store_true",
-                    help="Drop and recreate all tables before ingesting.")
+                    help="Drop and recreate all tables before ingesting. WARNING: this DISCARDS the "
+                         "enrich_abstracts CrossRef abstract layer — abstracts live ONLY in the DB, not in "
+                         ".ris/sidecar — so re-run enrich_abstracts.py afterward. A plain (non-rebuild) "
+                         "re-index PRESERVES abstracts; use --rebuild only to flush stale candidate rows.")
     args = ap.parse_args()
 
     db_path = Path(args.db)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     if args.rebuild and db_path.exists():
+        # The abstract column (enriched by enrich_abstracts.py from CrossRef) lives ONLY in the DB;
+        # dropping it discards that harvest. Count + warn loudly so it's never an accidental loss.
+        _n = None
+        try:
+            _c = duckdb.connect(str(db_path), read_only=True)
+            _n = _c.execute("SELECT COUNT(*) FROM paper_metadata "
+                            "WHERE abstract IS NOT NULL AND abstract != ''").fetchone()[0]
+            _c.close()  # MUST close before unlink (Windows locks open files)
+        except Exception:
+            pass
+        print(f"[--rebuild] dropping {db_path.name}"
+              + (f" — DISCARDS {_n} harvested abstracts; re-run enrich_abstracts.py to restore"
+                 if _n else ""), file=sys.stderr)
         db_path.unlink()
         # Also clear the WAL if present
         wal = db_path.with_suffix(db_path.suffix + ".wal")
         if wal.exists(): wal.unlink()
-    con = duckdb.connect(str(db_path))
+    con = connect_with_retry(str(db_path))
     try:
         con.execute(SCHEMA)
 

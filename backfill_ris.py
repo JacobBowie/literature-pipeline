@@ -15,7 +15,7 @@ Usage:
   python backfill_ris.py
 
   # Custom library
-  python backfill_ris.py --lib-dir /c/Users/jab18015/Projects/getpaid/references/literature
+  python backfill_ris.py --lib-dir /c/Users/<user>/Projects/getpaid/references/literature
 
   # Commit
   python backfill_ris.py --commit

@@ -38,6 +38,7 @@ except (AttributeError, OSError):
     pass
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jats_to_text import parse_jats
+import lit_util
 
 EMAIL    = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
 IDCONV   = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
@@ -78,8 +79,17 @@ def fetch_sidecar(pmcid, sidecar_path):
         if not r.content or not r.content.strip().startswith(b"<"):
             return False, "EMPTY_OR_NON_XML"
         parsed = parse_jats(r.content)
-        with open(sidecar_path, "w", encoding="utf-8") as f:
-            json.dump(parsed, f, indent=2, ensure_ascii=False)
+        # RC5: --refresh re-fetches over an existing sidecar; the fresh JATS parse has
+        # no fetched figure image_path/image_url and may lack a doi/authors the prior
+        # write carried. merge_sidecar keeps those enriched fields when re-fetching.
+        if os.path.exists(sidecar_path):
+            try:
+                with open(sidecar_path, encoding="utf-8") as f:
+                    old = json.load(f)
+            except (OSError, ValueError):
+                old = None
+            parsed = lit_util.merge_sidecar(old, parsed)
+        lit_util.atomic_write_json(sidecar_path, parsed)  # RC4: crash-safe
         return True, "OK"
     except (requests.RequestException, OSError, ET.ParseError, ValueError) as e:
         return False, f"ERROR_{type(e).__name__}:{str(e)[:60]}"

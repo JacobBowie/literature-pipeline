@@ -78,7 +78,10 @@ def audit_lib(name: str, lib: Path) -> dict:
         except OSError as e:
             fake_pdfs.append(f"{p.name} ({e})")
 
-    # Sidecar integrity
+    # Sidecar integrity. NOTE: in this pipeline the .ris (not the sidecar) carries
+    # doi/title/authors, so "sidecar has text but no metadata" is the NORMAL state and is
+    # NOT a usable canary for the --refresh metadata wipe (the wipe is only detectable as a
+    # drop in .ris-derived DOI coverage over time). RC5 merge_sidecar prevents the wipe.
     bad_sidecars = []  # (name, reason)
     empty_sidecars = []
     for s in sidecars:
@@ -166,10 +169,12 @@ def doi_from_sources(stem: Path, pdf: Path) -> dict:
 
 
 def deep_audit_lib(lib: Path) -> dict:
-    """Deeper checks: DOI consistency + sidecar text length + filename alignment."""
+    """Deeper checks: DOI consistency + validity + sidecar text length + filename alignment."""
+    from lit_util import is_valid_doi as _valid_doi, is_suspicious_doi as _susp_doi
     pdfs = sorted(p for p in lib.iterdir() if p.is_file() and p.suffix.lower() == ".pdf")
     sidecar_lens = []        # (stem, len)
     doi_mismatch = []        # (stem, sources)
+    malformed_dois = []      # (filename, source, doi) — RC1: truncated/invalid DOIs on disk
     fn_misalign = []         # (filename, expected_lastname, expected_year)
     doi_to_files = {}        # doi -> [(project_lib, filename)]
 
@@ -190,6 +195,9 @@ def deep_audit_lib(lib: Path) -> dict:
         non_empty = {k: v for k, v in dois.items() if v}
         if len(set(non_empty.values())) > 1:
             doi_mismatch.append((pdf.name, dois))
+        for _src, _dv in non_empty.items():
+            if not _valid_doi(_dv) or _susp_doi(_dv):
+                malformed_dois.append((pdf.name, _src, _dv))
         # Track DOI for cross-project overlap
         canonical_doi = next(iter(non_empty.values()), "")
         if canonical_doi:
@@ -222,6 +230,7 @@ def deep_audit_lib(lib: Path) -> dict:
     return {
         "sidecar_lens":  sidecar_lens,
         "doi_mismatch":  doi_mismatch,
+        "malformed_dois": malformed_dois,
         "fn_misalign":   fn_misalign,
         "doi_to_files":  doi_to_files,
     }
@@ -393,6 +402,13 @@ def main():
     print(f"\n  intra-file DOI mismatches (sidecar≠ris): {len(all_doi_mis)}")
     for proj, fn, dois in all_doi_mis[:5]:
         print(f"     [{proj}] {fn}: {dois}")
+
+    # 6. Malformed/suspicious DOIs on disk (RC1: truncations like 10.1002/cphy)
+    all_malformed = [(o["audit"]["project"], *m) for o in out
+                     for m in o["audit"]["deep"].get("malformed_dois", [])]
+    print(f"\n  malformed/suspicious DOIs in library (sidecar/ris): {len(all_malformed)}")
+    for proj, fn, src, dv in all_malformed[:10]:
+        print(f"     [{proj}] {fn} [{src}]: {dv}")
 
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:

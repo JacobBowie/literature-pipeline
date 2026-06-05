@@ -237,8 +237,8 @@ def write_ris(path: str, ris_text: str, overwrite: bool = True) -> bool:
         return False
     if not ris_text: return False
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(ris_text)
+    from lit_util import atomic_write_text  # RC4: crash-safe write (tmp + os.replace)
+    atomic_write_text(path, ris_text)
     return True
 
 
@@ -249,11 +249,11 @@ DOI_TRAIL  = re.compile(r"[.,;:\)\]\}\>]+$")
 
 
 def extract_doi_from_text(text: str) -> str:
-    if not text: return ""
-    for m in DOI_RE.finditer(text):
-        d = DOI_TRAIL.sub("", m.group(1)).rstrip(".")
-        if "/" in d and len(d) > 7: return d.lower()
-    return ""
+    # RC1 (2026-06-05 audit): delegate to lit_util, which re-joins line-wrapped DOIs and
+    # rejects the truncation class ('10.1002/cphy', '10.1001/archinte') instead of the old
+    # whitespace-stopping regex that produced those junk DOIs.
+    from lit_util import extract_doi_from_text as _extract
+    return _extract(text)
 
 
 def emit_ris_for_pdf(doi: str, pdf_path: str, overwrite: bool = False) -> tuple:

@@ -21,6 +21,7 @@ except (AttributeError, OSError):
 # Local module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as _R
+import lit_util  # RC2/RC3/RC4 audit-remediation helpers (atomic writes, DOI extraction)
 
 EMAIL      = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
 UNPAYWALL  = "https://api.unpaywall.org/v2"
@@ -82,6 +83,101 @@ def build_filename(year, authors, title):
     yr = year if year and re.match(r'^\d{4}$', str(year)) else "Unknown"
     return f"{yr}_{last_name(authors)}_{slug_title(title)}.pdf"
 
+# ---------- RC2: collision-safe destination + RC3: DOI<->content check ----------
+
+def _doi_hash(doi, n=6):
+    """Short, stable hex tag for a DOI, used to disambiguate colliding stems."""
+    import hashlib
+    return hashlib.sha1((doi or "").strip().lower().encode("utf-8")).hexdigest()[:n]
+
+
+def _doi_of_existing(pdf_path):
+    """Best-effort DOI already associated with an on-disk PDF (RC2).
+
+    Reads the sibling .ris (DO field) or .fulltext.json sidecar (doi field)
+    first; only if neither carries a DOI does it fall back to the PDF bytes.
+    Returns a normalized DOI or ''.
+    """
+    stem, _ = os.path.splitext(pdf_path)
+    ris_path = stem + ".ris"
+    if os.path.exists(ris_path):
+        try:
+            with open(ris_path, encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("DO  - "):
+                        d = lit_util.normalize_doi(line[6:].strip())
+                        if d:
+                            return d
+        except OSError:
+            pass
+    sc_path = stem + ".fulltext.json"
+    if os.path.exists(sc_path):
+        try:
+            import json as _json
+            with open(sc_path, encoding="utf-8") as f:
+                d = lit_util.normalize_doi((_json.load(f) or {}).get("doi") or "")
+            if d:
+                return d
+        except (OSError, ValueError):
+            pass
+    return doi_from_pdf_bytes(pdf_path)
+
+
+def doi_from_pdf_bytes(pdf_path, max_chars=5000):
+    """Extract the first well-formed DOI from a PDF's first ~5KB (RC3). '' on failure."""
+    try:
+        import fitz
+    except ImportError:
+        return ""
+    text = ""
+    try:
+        doc = fitz.open(str(pdf_path))
+        try:
+            for p in doc:
+                text += p.get_text()
+                if len(text) >= max_chars:
+                    break
+        finally:
+            doc.close()
+    except Exception:
+        return ""
+    return lit_util.extract_doi_from_text(text[:max_chars])
+
+
+def resolve_dest(lib_dir, fn, doi, written_this_run):
+    """Return a collision-safe destination path for `fn` (RC2).
+
+    - Never clobber a PDF written earlier in THIS run: if the stem was already
+      used, disambiguate with a DOI-hash suffix.
+    - If a PDF already exists on disk for a DIFFERENT DOI, disambiguate rather
+      than overwrite. (A same-DOI existing file is handled upstream as a skip.)
+    Returns (dest_path, collided: bool).
+    """
+    dest = os.path.join(lib_dir, fn)
+    collided = False
+    if dest in written_this_run:
+        collided = True
+    elif os.path.exists(dest):
+        existing_doi = _doi_of_existing(dest)
+        if existing_doi and doi and existing_doi != lit_util.normalize_doi(doi):
+            collided = True
+    if collided:
+        stem, ext = os.path.splitext(fn)
+        dest = os.path.join(lib_dir, f"{stem}_{_doi_hash(doi)}{ext}")
+    return dest, collided
+
+
+def pdf_doi_disagrees(pdf_path, queue_doi):
+    """RC3: True iff the PDF carries a DOI that disagrees with `queue_doi`.
+
+    Returns False when the PDF has no extractable DOI (can't disprove) or when
+    they agree. Only a confident disagreement returns True.
+    """
+    found = doi_from_pdf_bytes(pdf_path)
+    if not found:
+        return False
+    return found != lit_util.normalize_doi(queue_doi)
+
 # ---------- Unpaywall query ----------
 
 def unpaywall_lookup(doi, timeout=15):
@@ -129,6 +225,93 @@ def candidate_urls(upw):
 
 def looks_like_pdf(blob):
     return blob[:4] == b"%PDF"
+
+# Known publisher-boilerplate fingerprints. When Unpaywall's OA URL resolves to
+# a permissions / author-guidelines PDF instead of the article, the PDF is a
+# valid PDF (passes %PDF + size checks) but its text is the same boilerplate
+# across every DOI from that publisher. Listed by md5 + a fallback text snippet
+# (md5 catches the exact byte file; text snippet catches re-spun versions).
+#
+# Add new entries when the LWW-style trap is observed for other publishers. See
+# `notes/2026-05-22_lww_boilerplate_trap.md` for the post-mortem and how the
+# 3-PDF batch (Currier 2026, Lim 2022, Agostinho 2015) was diagnosed.
+KNOWN_BOILERPLATE_MD5 = {
+    "518fe51393a7ba381f861b58f296832e": "lww_author_permission_guidelines_v1",
+    # 2026-05-22 audit additions (Agent C cross-project sweep):
+    "9aeef9e74d08bbd6b39996fb963fd8cb": "plos_manuscript_body_formatting_template",
+    "b9d50b11d4901b8fb7d5eaab473193dc": "jmlr_scikit_learn_misfetch_for_jmir_dois",
+}
+KNOWN_BOILERPLATE_TEXT = (
+    # All matched against the first ~3000 chars of pdftotext output, lowercased
+    ("lippincott journal portfolio",      "lww_author_permission_guidelines"),
+    ("author permission guidelines",      "lww_author_permission_guidelines"),
+    # 2026-05-22 audit additions:
+    ("manuscript body formatting guidelines", "plos_template"),
+    ("cite figures as \"fig 1\"",             "plos_template"),
+    ("scikit-learn: machine learning in python", "jmlr_misfetch"),
+    ("portal de periódicos da capes",    "capes_redirect_page"),
+)
+
+
+# Publisher-host bypass: when Unpaywall has no url_for_pdf, the fetcher used to
+# fall back to following doi.org → publisher landing page. For some publishers
+# (notably LWW/Ovid and JMIR), the publisher serves a permissions / template
+# document instead of the article. Skip the publisher-host fallback for these
+# prefixes when no `url_for_pdf` exists — better to fail clean than ship trash.
+PUBLISHER_HOST_BYPASS_PREFIXES = (
+    "10.1249/",   # LWW (MSSE, ESSR, etc.)
+    "10.1519/",   # LWW (JSCR)
+    "10.2196/",   # JMIR family
+)
+
+
+def should_skip_publisher_host_pdf(doi: str, best_oa_location: dict) -> bool:
+    """Return True when we should NOT attempt the publisher-host PDF fallback.
+
+    Triggered when DOI prefix is in the bypass list AND Unpaywall has no
+    `url_for_pdf` on the best OA location — in that combination, the publisher
+    host has historically served boilerplate/template PDFs that pass our
+    %PDF magic and size checks but are not the article.
+    """
+    if not doi: return False
+    if not any(doi.lower().startswith(p) for p in PUBLISHER_HOST_BYPASS_PREFIXES):
+        return False
+    if not best_oa_location:
+        return True
+    return best_oa_location.get("url_for_pdf") in (None, "", False)
+
+
+def is_known_boilerplate(pdf_path):
+    """Return (True, tag) if the downloaded PDF matches a known publisher
+    boilerplate fingerprint; (False, None) otherwise.
+
+    Cheap path first (md5), then a 2-page pdftotext probe.
+    """
+    import hashlib
+    try:
+        with open(pdf_path, "rb") as f:
+            h = hashlib.md5(f.read()).hexdigest()
+        if h in KNOWN_BOILERPLATE_MD5:
+            return True, KNOWN_BOILERPLATE_MD5[h]
+    except Exception:
+        return False, None
+
+    import shutil, subprocess
+    pdftotext = shutil.which("pdftotext")
+    if not pdftotext:
+        return False, None
+    try:
+        r = subprocess.run([pdftotext, "-l", "2", "-enc", "UTF-8", pdf_path, "-"],
+                           capture_output=True, timeout=20)
+        if r.returncode != 0:
+            return False, None
+        snippet = r.stdout.decode("utf-8", "replace")[:3000].lower()
+    except Exception:
+        return False, None
+    for needle, tag in KNOWN_BOILERPLATE_TEXT:
+        if needle in snippet:
+            return True, tag
+    return False, None
 
 def extract_pdf_links_from_html(html_bytes, base_url):
     """Find PDF URLs embedded in an HTML landing page (citation_pdf_url meta,
@@ -183,6 +366,10 @@ def try_download(url, dest, timeout=30):
             if size < 10_000:
                 os.remove(dest)
                 return "TOO_SMALL", f"{size}B"
+            is_bp, tag = is_known_boilerplate(dest)
+            if is_bp:
+                os.remove(dest)
+                return "BOILERPLATE", f"{tag}:{size}B"
             return "OK", f"{size}"
         # HTML fallback
         return "HTML", b"".join(chunks)
@@ -253,8 +440,10 @@ def main():
     report_dir = os.path.dirname(out_report)
     if report_dir: os.makedirs(report_dir, exist_ok=True)
     existing = set(os.listdir(lib_dir))
+    written_this_run = set()  # RC2: dest paths written in this run; never clobber them
     results = []
     n_oa = n_dl = n_skip = n_no_oa = n_oa_no_url = n_fail = 0
+    n_mismatch = 0
 
     for i, row in enumerate(triage_top, 1):
         doi = (row.get("doi") or "").strip().lower()
@@ -270,12 +459,17 @@ def main():
                "winning_host": "", "winning_url": "",
                "attempts": "", "error": ""}
 
+        # RC2: skip only when the on-disk file is THIS doi (or carries no DOI to
+        # contradict it); a same-name file for a DIFFERENT doi is a collision that
+        # download() will disambiguate rather than blindly skip.
         if fn in existing:
-            n_skip += 1
-            out["oa_status"] = "SKIP_EXISTS"
-            results.append(out)
-            print(f"  [{i:>3}] {fn[:75]:<75} SKIP")
-            continue
+            existing_doi = _doi_of_existing(dest)
+            if (not existing_doi) or existing_doi == lit_util.normalize_doi(doi):
+                n_skip += 1
+                out["oa_status"] = "SKIP_EXISTS"
+                results.append(out)
+                print(f"  [{i:>3}] {fn[:75]:<75} SKIP")
+                continue
 
         upw = unpaywall_lookup(doi)
         time.sleep(1.0)
@@ -310,16 +504,31 @@ def main():
             print(f"  [{i:>3}] {fn[:60]:<60} OA: {len(cands)} cand, [0]={cands[0][2][:60]}")
             continue
 
+        # RC2: pick a collision-safe destination (never clobber an existing PDF for a
+        # different DOI, nor one written earlier in this run).
+        dest, collided = resolve_dest(lib_dir, fn, doi, written_this_run)
+        if collided:
+            fn = os.path.basename(dest)
+            out["filename"] = fn
+
         ok, attempts = download_with_fallback(cands, dest)
         out["attempts"] = " | ".join(f"{h}/{v}/{s}" for h,v,_,s,_ in attempts)
         if ok:
             n_dl += 1
             out["downloaded"] = True
+            written_this_run.add(dest)
+            existing.add(fn)
             winning = next((a for a in attempts if a[3] == "OK"), None)
             if winning:
                 out["winning_host"] = winning[0]; out["winning_url"] = winning[2]
             print(f"  [{i:>3}] {fn[:65]:<65} DL ({out['winning_host']}, {len(attempts)} tries)")
-            if not args.no_write_ris:
+            # RC3: verify the fetched bytes match the queue DOI before writing a
+            # confidently-wrong .ris. If the PDF's own DOI disagrees, flag + skip the .ris.
+            if pdf_doi_disagrees(dest, doi):
+                n_mismatch += 1
+                out["error"] = f"DOI_MISMATCH:pdf_doi={doi_from_pdf_bytes(dest)}"
+                print(f"        DOI_MISMATCH: pdf DOI != queue DOI ({doi}); skipping .ris")
+            elif not args.no_write_ris:
                 ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
                 print(f"        ris: {ris_status}")
         else:
@@ -331,12 +540,14 @@ def main():
         results.append(out)
         time.sleep(1.0)
 
-    with open(out_report, "w", encoding="utf-8", newline="") as f:
-        fields = ["rank","doi","year","cites","filename","title","oa_status",
-                   "n_locations","downloaded","winning_host","winning_url","attempts","error"]
-        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
-        w.writeheader()
-        w.writerows(results)
+    # RC4: build the CSV in memory then write atomically (tmp + os.replace).
+    fields = ["rank","doi","year","cites","filename","title","oa_status",
+               "n_locations","downloaded","winning_host","winning_url","attempts","error"]
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore", lineterminator="\n")
+    w.writeheader()
+    w.writerows(results)
+    lit_util.atomic_write_text(out_report, buf.getvalue())
 
     print(f"\n=== Summary ===")
     print(f"  Attempted:   {len(triage_top)}")
@@ -345,6 +556,7 @@ def main():
     print(f"  OA-no-URL:   {n_oa_no_url}")
     print(f"  OA usable:   {n_oa - n_oa_no_url}")
     print(f"  DOWNLOADED:  {n_dl}")
+    print(f"  DOI mismatch:{n_mismatch} (PDF DOI disagreed; .ris skipped)")
     print(f"  Failed:      {n_fail}")
     print(f"\nReport: {out_report}")
 

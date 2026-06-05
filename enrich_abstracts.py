@@ -15,6 +15,7 @@ Usage:
   python enrich_abstracts.py --sleep 0.3            # speed knob
 """
 import os, sys, io, re, time, argparse
+import urllib.parse
 import duckdb, requests
 
 try:
@@ -29,24 +30,61 @@ DB_PATH = os.path.expanduser(r"~\Projects\_references\portfolio.duckdb")
 CROSSREF = "https://api.crossref.org/works/{doi}"
 
 
+def connect_db(db_path, retries=5, delay=3.0):
+    """RC10: open the (Drive-synced) DuckDB with a short retry on lock errors.
+
+    portfolio.duckdb often lives under Google Drive, which holds the file open
+    and surfaces as a DuckDB lock/IO error. Retry briefly with a clear message
+    instead of crashing on a transient sync hold.
+    """
+    last = None
+    for attempt in range(1, retries + 1):
+        try:
+            return duckdb.connect(db_path)
+        except (duckdb.IOException, duckdb.Error) as e:
+            last = e
+            print(f"  DB locked (attempt {attempt}/{retries}) - suspect Google Drive "
+                  f"holding {db_path} open; retrying in {delay:.0f}s...", file=sys.stderr)
+            if attempt < retries:
+                time.sleep(delay)
+    raise SystemExit(
+        f"ERROR: could not open {db_path} after {retries} attempts - DB locked "
+        f"(suspect Google Drive sync holding it open; pause Drive and retry). Last error: {last}"
+    )
+
+
+class CrossRefError(Exception):
+    """Network/HTTP failure talking to CrossRef (distinct from a genuine no-abstract result)."""
+
+
 def crossref_abstract(doi: str, timeout=15) -> str:
-    """Return plain-text abstract or '' if not available."""
+    """Return plain-text abstract, or '' if the work genuinely has no abstract.
+
+    Raises CrossRefError on a network/transport failure or a non-200 HTTP status,
+    so the caller can distinguish an outage from a real 'no abstract' (RC6).
+    """
+    # RC12: URL-encode the DOI for the path segment so DOIs with ?#<> etc. don't
+    # silently miss (raw interpolation would corrupt the URL).
+    url = CROSSREF.format(doi=urllib.parse.quote(doi, safe=""))
     try:
-        r = requests.get(CROSSREF.format(doi=doi),
-                         headers={"User-Agent": UA}, timeout=timeout)
-        if r.status_code != 200: return ""
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=timeout)
+    except requests.exceptions.RequestException as e:
+        raise CrossRefError(str(e))
+    if r.status_code != 200:
+        raise CrossRefError(f"HTTP {r.status_code}")
+    try:
         msg = r.json().get("message", {})
-        raw = msg.get("abstract") or ""
-        if not raw: return ""
-        # Strip JATS-style XML tags + decode common entities
-        text = re.sub(r"<[^>]+>", " ", raw)
-        text = re.sub(r"&lt;", "<", text)
-        text = re.sub(r"&gt;", ">", text)
-        text = re.sub(r"&amp;", "&", text)
-        text = re.sub(r"\s+", " ", text).strip()
-        return text
-    except Exception:
-        return ""
+    except ValueError as e:
+        raise CrossRefError(f"bad JSON: {e}")
+    raw = msg.get("abstract") or ""
+    if not raw: return ""
+    # Strip JATS-style XML tags + decode common entities
+    text = re.sub(r"<[^>]+>", " ", raw)
+    text = re.sub(r"&lt;", "<", text)
+    text = re.sub(r"&gt;", ">", text)
+    text = re.sub(r"&amp;", "&", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 def main():
@@ -61,7 +99,7 @@ def main():
                     help="Only enrich DOIs we have PDFs for (skip candidates).")
     args = ap.parse_args()
 
-    con = duckdb.connect(args.db)
+    con = connect_db(args.db)
 
     # Pick DOIs missing abstract
     where_extra = ""
@@ -80,9 +118,18 @@ def main():
     print(f"Sleep:   {args.sleep}s between calls")
     print(f"ETA:     ~{(len(targets)*args.sleep)/60:.1f} min\n")
 
-    n_hit = n_miss = 0
+    n_hit = n_miss = n_err = 0
     for i, doi in enumerate(targets, 1):
-        abs_text = crossref_abstract(doi)
+        try:
+            abs_text = crossref_abstract(doi)
+        except CrossRefError as e:
+            # RC6: a network/HTTP failure is NOT a genuine 'no abstract' - tally it
+            # separately so a CrossRef outage doesn't masquerade as missing data.
+            n_err += 1
+            tag = "ER"
+            print(f"  [{i:>5}/{len(targets)}] {tag}  {doi}  ({e})", file=sys.stderr)
+            time.sleep(args.sleep)
+            continue
         if abs_text:
             con.execute("UPDATE paper_metadata SET abstract = ? WHERE doi = ?",
                         [abs_text, doi])
@@ -92,13 +139,14 @@ def main():
             n_miss += 1
             tag = "--"
         if i % 50 == 0 or i <= 10 or i == len(targets):
-            print(f"  [{i:>5}/{len(targets)}] {tag}  {doi}  hits={n_hit} misses={n_miss}")
+            print(f"  [{i:>5}/{len(targets)}] {tag}  {doi}  hits={n_hit} misses={n_miss} errs={n_err}")
         time.sleep(args.sleep)
 
     print(f"\n=== summary ===")
     print(f"  attempted:  {len(targets)}")
     print(f"  abstracts:  {n_hit} ({100*n_hit/max(1,len(targets)):.0f}%)")
-    print(f"  misses:     {n_miss}")
+    print(f"  no-abstract:{n_miss}")
+    print(f"  net errors: {n_err}")
     con.close()
 
 

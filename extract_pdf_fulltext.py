@@ -25,7 +25,7 @@ Usage:
   python extract_pdf_fulltext.py --lib-dir ... --limit 5            # smoke test
   python extract_pdf_fulltext.py --lib-dir ... --refresh            # re-extract
 """
-import os, sys, io, json, argparse, subprocess, shutil
+import os, sys, io, json, re, argparse, subprocess, shutil
 
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
@@ -34,8 +34,97 @@ except (AttributeError, OSError):
     pass
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pdf_text_clean import clean_pdf_text
+from jats_to_text import parse_jats
+import lit_util
 
 PDFTOTEXT = shutil.which("pdftotext")
+
+# pdfminer.six is the primary extractor as of 2026-05-22 (per the head-to-head
+# shootout under `eval_pdf_abstract_heuristic_2026-05-22/research_permissive_extractors/`).
+# License: MIT — clean for downstream MCP distribution. Slower than pdftotext
+# (~1.6 s vs 0.25 s per PDF) but produces materially better output on multi-column
+# papers (Frontiers median Jaccard 0.906 vs 0.179 in v2-downstream eval).
+try:
+    from pdfminer.high_level import extract_text as _pdfminer_extract_text
+    _PDFMINER_AVAILABLE = True
+except ImportError:
+    _PDFMINER_AVAILABLE = False
+
+
+def try_parse_jats_sibling(pdf_path):
+    """If <pdf_stem>.xml exists, parse it as JATS and return (sidecar_dict, err).
+    On failure, returns (None, error_str). The sidecar dict shape matches
+    jats_to_text.parse_jats() output.
+    """
+    xml_path = pdf_path[:-4] + ".xml"
+    if not os.path.isfile(xml_path):
+        return None, "no_xml_sibling"
+    try:
+        with open(xml_path, "rb") as f:
+            xml_bytes = f.read()
+        parsed = parse_jats(xml_bytes)
+        return parsed, None
+    except Exception as e:
+        return None, f"{type(e).__name__}:{str(e)[:80]}"
+
+# High-signal text patterns suggesting equations are present in the PDF.
+# Match against pdftotext output — pdftotext garbles math, but some artifacts survive.
+_MATH_PATTERNS = [
+    (r"\\(frac|sum|int|sqrt|alpha|beta|gamma|delta|theta|sigma|omega|mu|partial|nabla)\b", "latex_cmd"),
+    (r"<mml:math|<math\s+xmlns", "mathml_inline"),
+    (r"\$\$[^\$\n]{2,}\$\$|\\\[[^\]]{2,}\\\]", "tex_display_delim"),
+    (r"\b[Ee]q(?:uation|n)?\.?\s*\(?\d+\)?", "equation_label"),
+    (r"[∑∫∮√±∞≤≥≠≈⊕⊗∇∂Δ]", "math_unicode"),
+    (r"\b[A-Za-z]\s*=\s*[-+]?\d+(\.\d+)?\s*[+\-*/×·]\s*", "inline_assignment"),
+]
+_MATH_RE = [(re.compile(p, re.IGNORECASE), tag) for p, tag in _MATH_PATTERNS]
+
+
+def detect_math_indicators(text, pdf_path):
+    """Return formula_failures dict per `2026-05-21_bug_formulas_extractor.md` Tier 1.
+
+    The extractor itself does not parse equations from PDF text (pdftotext garbles
+    math). This function records *what we know* about a PDF's math content so
+    downstream callers can distinguish:
+      (a) "no math present" — safe to skip
+      (b) "math present but pipeline doesn't support PDF eqn extraction yet"
+      (c) "JATS XML sibling exists — Tier 2 (parse MathML from XML) is viable here"
+    """
+    hits = {}
+    for rx, tag in _MATH_RE:
+        m = rx.search(text)
+        if m:
+            hits[tag] = m.group(0)[:60]
+    jats_xml = pdf_path[:-4] + ".xml"
+    has_xml_sibling = os.path.isfile(jats_xml)
+
+    if not hits and not has_xml_sibling:
+        return {"status": "skipped_no_math_indicators",
+                "extractor_supports_equations": False}
+    if has_xml_sibling:
+        return {"status": "skipped_pdf_extractor_no_eqn_support_but_xml_sibling_available",
+                "extractor_supports_equations": False,
+                "jats_xml_sibling": os.path.basename(jats_xml),
+                "tier2_candidate": True,
+                "indicators_found": hits or None}
+    return {"status": "skipped_pdf_extractor_no_eqn_support",
+            "extractor_supports_equations": False,
+            "indicators_found": hits}
+
+
+def _load_existing_sidecar(sidecar_path):
+    """Return the parsed existing sidecar dict, or None if absent/unreadable.
+
+    Used on --refresh to merge-preserve enriched metadata (doi/title/year/authors/
+    figures) that fill_missing_dois / backfill wrote, instead of clobbering it with
+    a freshly re-extracted (text-only) record. See lit_util.merge_sidecar (RC5)."""
+    if not os.path.exists(sidecar_path):
+        return None
+    try:
+        with open(sidecar_path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
 
 
 def _empty_sidecar():
@@ -55,6 +144,17 @@ def _empty_sidecar():
         "extracted_from_pdf": True,
         "extractor": "",
     }
+
+
+def extract_with_pdfminer(pdf_path):
+    """Returns (text, status). MIT-licensed pure Python; primary extractor."""
+    if not _PDFMINER_AVAILABLE:
+        return "", "PDFMINER_NOT_INSTALLED"
+    try:
+        text = _pdfminer_extract_text(pdf_path) or ""
+        return text, "OK"
+    except Exception as e:
+        return "", f"PDFMINER_ERROR_{type(e).__name__}:{str(e)[:80]}"
 
 
 def extract_with_pdftotext(pdf_path):
@@ -91,14 +191,28 @@ def extract_with_pdfplumber(pdf_path):
 
 
 def extract(pdf_path):
-    """Returns (text, extractor, status)."""
-    text, st = extract_with_pdftotext(pdf_path)
+    """Returns (text, extractor, status).
+
+    Order chosen per 2026-05-22 head-to-head shootout (eval directory):
+      1. pdfminer.six (MIT) — best abstract-recoverability on multi-column
+         papers (median Jaccard 0.906 vs 0.179 for pdftotext on Frontiers).
+      2. pdftotext (poppler) — fast fallback; handles edge cases pdfminer
+         chokes on (unusual font encodings, encrypted PDFs).
+      3. pdfplumber — pure-Python last resort.
+
+    All three are subprocess-free for pdfminer + pdfplumber and minimal-overhead
+    for pdftotext.
+    """
+    text, st = extract_with_pdfminer(pdf_path)
     if text.strip():
-        return text, "pdftotext", st
-    text2, st2 = extract_with_pdfplumber(pdf_path)
+        return text, "pdfminer.six", st
+    text2, st2 = extract_with_pdftotext(pdf_path)
     if text2.strip():
-        return text2, "pdfplumber", st2
-    return "", "none", f"both_failed: pdftotext={st} pdfplumber={st2}"
+        return text2, "pdftotext", st2
+    text3, st3 = extract_with_pdfplumber(pdf_path)
+    if text3.strip():
+        return text3, "pdfplumber", st3
+    return "", "none", f"all_failed: pdfminer={st} pdftotext={st2} pdfplumber={st3}"
 
 
 def main():
@@ -117,7 +231,7 @@ def main():
     pdfs = sorted(f for f in os.listdir(lib) if f.endswith(".pdf"))
     print(f"Library: {lib}\n  {len(pdfs)} PDFs found  (pdftotext={'yes' if PDFTOTEXT else 'no'})")
 
-    n_dl = n_skip = n_fail = 0
+    n_dl = n_skip = n_fail = n_jats = 0
     for fn in pdfs:
         sidecar = os.path.join(lib, fn[:-4] + ".fulltext.json")
         if os.path.exists(sidecar) and not args.refresh:
@@ -127,6 +241,27 @@ def main():
         pdf_path = os.path.join(lib, fn)
         if args.dry_run:
             print(f"  DRY  {fn[:70]}"); continue
+
+        # Tier 1: JATS XML sibling wins when present (carries formulas, structured
+        # sections, abstract — none of which pdftotext gives us). Fall through to
+        # PDF extraction on parse error or empty text.
+        jats_rec, jats_err = try_parse_jats_sibling(pdf_path)
+        if jats_rec is not None and (jats_rec.get("text") or "").strip():
+            jats_rec["extracted_from_pdf"] = False
+            jats_rec["extractor"] = "jats_xml_sibling"
+            # RC5: on --refresh, never DROP enriched metadata (doi/title/year/authors/
+            # figures) a prior fill/backfill wrote that this JATS parse lacks.
+            if args.refresh:
+                jats_rec = lit_util.merge_sidecar(_load_existing_sidecar(sidecar), jats_rec)
+            lit_util.atomic_write_json(sidecar, jats_rec)  # RC4: crash-safe
+            print(f"  JATS xml_sibling {len(jats_rec.get('text') or ''):>6}c "
+                  f"({jats_rec.get('n_formulas',0)} formulas) -> {fn[:50]}")
+            n_dl += 1; n_jats += 1
+            continue
+        if jats_err and jats_err != "no_xml_sibling":
+            print(f"  WARN JATS parse failed ({jats_err}) for {fn[:55]} — falling back to PDF",
+                  file=sys.stderr)
+
         text, extractor, status = extract(pdf_path)
         if not text.strip():
             print(f"  FAIL {fn[:65]} ({status})", file=sys.stderr)
@@ -135,15 +270,21 @@ def main():
         rec = _empty_sidecar()
         rec["text"] = text
         rec["extractor"] = extractor
-        with open(sidecar, "w", encoding="utf-8") as f:
-            json.dump(rec, f, indent=2, ensure_ascii=False)
+        rec["formula_failures"] = detect_math_indicators(text, pdf_path)
+        # RC5: on --refresh, _empty_sidecar() has blank doi/title/year/authors/figures;
+        # merge_sidecar preserves whatever fill_missing_dois/backfill already wrote
+        # (this is the confirmed PD DOI-wipe bug). Plain re-extract only touches
+        # text/extractor/formula_failures. RC4: write atomically.
+        if args.refresh:
+            rec = lit_util.merge_sidecar(_load_existing_sidecar(sidecar), rec)
+        lit_util.atomic_write_json(sidecar, rec)
         print(f"  DL   {extractor:<11} {len(text):>7}c -> {fn[:60]}")
         n_dl += 1
 
     print(f"\n=== Summary ===")
     print(f"  PDFs in library:        {len(pdfs)}")
     print(f"  Sidecars already there: {n_skip}")
-    print(f"  Sidecars NEW:           {n_dl}")
+    print(f"  Sidecars NEW:           {n_dl}  (of which JATS-XML-sibling: {n_jats})")
     print(f"  Extraction failed:      {n_fail}")
 
 

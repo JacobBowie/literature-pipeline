@@ -38,6 +38,8 @@ try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 except (AttributeError, OSError):
     pass
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lit_util
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
@@ -154,8 +156,7 @@ def fetch_figures_for_sidecar(sidecar_path, force=False, sleep_after=1.0):
         time.sleep(0.4)
 
     if saved:
-        with open(sidecar_path, "w", encoding="utf-8") as f:
-            json.dump(sc, f, indent=2, ensure_ascii=False)
+        lit_util.atomic_write_json(sidecar_path, sc)  # RC4: crash-safe rewrite
 
     return "ok", saved, len(figs)
 

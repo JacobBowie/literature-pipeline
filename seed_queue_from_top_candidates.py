@@ -22,6 +22,8 @@ from pathlib import Path
 
 import duckdb
 
+import lit_util  # RC4: atomic_write_text for crash-safe draft writes
+
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -60,37 +62,63 @@ def main():
     out_path = Path(args.output) if args.output else (
         PROJECTS_ROOT / args.project / "lit_pull_queue.draft.csv")
 
-    con = duckdb.connect(str(DB_PATH), read_only=True)
-    try:
-        rows = con.execute("""
-            SELECT t.doi, t.title, m.authors, t.year,
-                   t.n_seeds_pointing, t.max_cited_by, t.sources
-            FROM top_candidates t
-            LEFT JOIN paper_metadata m ON m.doi = t.doi
-            WHERE t.via_projects LIKE ?
+    # RC11: `via_projects` is a comma-joined STRING_AGG of source_project names.
+    # The old `LIKE '%project%'` substring match leaked subproject candidates
+    # into the parent (e.g. 'Physiological_Data' matched the token
+    # 'Physiological_Data/Yitts'). Anchor on the comma delimiters so we match a
+    # WHOLE token only: wrap both the column and the needle in commas.
+    project_token_match = "(',' || t.via_projects || ',') LIKE ?"
+    project_needle = f"%,{args.project},%"
+    where_clause = f"""
+            WHERE {project_token_match}
               AND t.year >= ?
               AND t.n_seeds_pointing >= ?
               AND t.max_cited_by >= ?
               AND t.title IS NOT NULL
               AND substr(t.title, 1, 1) ~ '[A-Za-z]'
+    """
+    filter_params = [project_needle, args.year_min, args.min_seeds, args.min_cites]
+
+    con = duckdb.connect(str(DB_PATH), read_only=True)
+    try:
+        # Count the full filtered set first so we can warn on silent truncation.
+        total_matching = con.execute(
+            f"SELECT COUNT(*) FROM top_candidates t {where_clause}",
+            filter_params).fetchone()[0]
+        rows = con.execute(f"""
+            SELECT t.doi, t.title, m.authors, t.year,
+                   t.n_seeds_pointing, t.max_cited_by, t.sources
+            FROM top_candidates t
+            LEFT JOIN paper_metadata m ON m.doi = t.doi
+            {where_clause}
             ORDER BY t.n_seeds_pointing DESC, t.max_cited_by DESC
             LIMIT ?
-        """, [f"%{args.project}%", args.year_min, args.min_seeds, args.min_cites, args.limit]).fetchall()
+        """, filter_params + [args.limit]).fetchall()
     finally:
         con.close()
 
+    if total_matching > args.limit:
+        print(f"[WARN] {total_matching} candidates passed the filters but "
+              f"--limit={args.limit} truncated the draft to the top {args.limit}. "
+              f"Raise --limit (or tighten --min-seeds/--year-min) to see the rest.",
+              file=sys.stderr)
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
-        f.write(f"# REVIEW BEFORE SWEEP — drop irrelevant rows, then `mv {out_path.name} lit_pull_queue.csv`\n")
-        f.write(f"# Source: top_candidates view, project={args.project}\n")
-        f.write(f"# Filters: year>={args.year_min}, n_seeds>={args.min_seeds}, max_cited_by>={args.min_cites}, limit={args.limit}\n")
-        f.write(f"# Total rows: {len(rows)}\n")
-        w = csv.writer(f)
-        w.writerow(["doi", "title", "authors", "year", "destination", "notes"])
-        for doi, title, authors, year, seeds, cites, sources in rows:
-            note = f"n_seeds={seeds} cites={cites} src={sources}"
-            w.writerow([doi, (title or "").strip(), authors or "", year or "",
-                        destination, note])
+    # Build the draft in-memory, then write atomically (RC4): a crash/Ctrl-C
+    # mid-write must never leave a truncated draft that the stager would treat
+    # as a valid queue.
+    buf = io.StringIO()
+    buf.write(f"# REVIEW BEFORE SWEEP — drop irrelevant rows, then `mv {out_path.name} lit_pull_queue.csv`\n")
+    buf.write(f"# Source: top_candidates view, project={args.project}\n")
+    buf.write(f"# Filters: year>={args.year_min}, n_seeds>={args.min_seeds}, max_cited_by>={args.min_cites}, limit={args.limit}\n")
+    buf.write(f"# Total rows: {len(rows)}\n")
+    w = csv.writer(buf)
+    w.writerow(["doi", "title", "authors", "year", "destination", "notes"])
+    for doi, title, authors, year, seeds, cites, sources in rows:
+        note = f"n_seeds={seeds} cites={cites} src={sources}"
+        w.writerow([doi, (title or "").strip(), authors or "", year or "",
+                    destination, note])
+    lit_util.atomic_write_text(str(out_path), buf.getvalue())
 
     print(f"Wrote {len(rows)} draft rows to {out_path}")
     print(f"Next: review, drop irrelevant rows, then:")

@@ -37,3 +37,12 @@ lit_pull_queue.csv
 lit_pull_queue.*.processed.csv
 lit_pull_queue.draft.csv
 projects.json
+
+# Internal / cross-session docs — NEVER publish (leak portfolio structure, paths, audit notes)
+CURRENT_STATE.md
+_PORTFOLIO_BRIEF.md
+LOOSE_ENDS.md
+POLISH_PUNCHLIST.md
+notes/
+# Research scratch (heavy absolute-path + project-name leaks; not portfolio content)
+eval_pdf_abstract_heuristic_2026-05-22/

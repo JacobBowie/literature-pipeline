@@ -25,6 +25,8 @@ Usage:
 import os, sys, io, re, csv, json, time, argparse
 from pathlib import Path
 
+import lit_util
+
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -82,7 +84,9 @@ def split_refs(refs_text: str):
 def parse_one(raw: str) -> dict:
     raw_clean = re.sub(r'\s+', ' ', raw).strip()
     year = (m.group(1) if (m := YEAR_RE.search(raw_clean)) else "")
-    doi  = (m.group(0).rstrip('.,;') if (m := DOI_RE.search(raw_clean)) else "")
+    # RC1: extract from the un-collapsed text so line-wrapped DOIs are re-joined
+    # rather than truncated; helper drops malformed/suspicious (truncated) DOIs.
+    doi  = lit_util.extract_doi_from_text(raw)
     first_author = ""
     m = re.match(r'^([A-Z][A-Za-z\-\']+)(?:,\s*[A-Z]|\s+[A-Z]\.)', raw_clean)
     if m: first_author = m.group(1)
@@ -111,7 +115,11 @@ def text_from_sidecar_refs(sc_path: Path):
         out = []
         for r in refs:
             if isinstance(r, dict):
-                doi = (r.get("doi") or "").lower()
+                # RC1: normalize + validity-gate the sidecar-supplied DOI so
+                # truncated/malformed values never reach the output CSV.
+                doi = lit_util.normalize_doi(r.get("doi") or "")
+                if not lit_util.is_valid_doi(doi) or lit_util.is_suspicious_doi(doi):
+                    doi = ""
                 out.append({
                     "first_author": r.get("first_author") or "",
                     "year":         str(r.get("year") or ""),
@@ -247,22 +255,24 @@ def main():
             parsed["seed"] = pdf.name
             parsed_records.append(parsed)
 
-    # Write outputs
+    # Write outputs (RC4: build full content, then atomic write)
     out_prefix.parent.mkdir(parents=True, exist_ok=True)
     jsonl = out_prefix.with_suffix(".jsonl")
-    with open(jsonl, "w", encoding="utf-8") as f:
-        for r in raw_records: f.write(json.dumps(r) + "\n")
+    lit_util.atomic_write_text(
+        str(jsonl), "".join(json.dumps(r) + "\n" for r in raw_records))
 
     parsed_csv = out_prefix.parent / (out_prefix.name + "_parsed.csv")
-    with open(parsed_csv, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["seed","first_author","year","title_snippet","doi","raw"])
-        w.writeheader(); w.writerows(parsed_records)
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=["seed","first_author","year","title_snippet","doi","raw"])
+    w.writeheader(); w.writerows(parsed_records)
+    lit_util.atomic_write_text(str(parsed_csv), buf.getvalue())
 
     dois = sorted({r["doi"] for r in parsed_records if r.get("doi")})
     uniq_csv = out_prefix.parent / (out_prefix.name + "_unique.csv")
-    with open(uniq_csv, "w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f); w.writerow(["doi"])
-        for d in dois: w.writerow([d])
+    buf = io.StringIO()
+    w = csv.writer(buf); w.writerow(["doi"])
+    for d in dois: w.writerow([d])
+    lit_util.atomic_write_text(str(uniq_csv), buf.getvalue())
 
     print(f"\n=== summary ===")
     print(f"  PDFs:                  {len(pdfs)}")

@@ -20,7 +20,7 @@ except (AttributeError, OSError):
     pass
 
 if 'TESSDATA_PREFIX' not in os.environ:
-    default_tessdata = r'C:\Users\jab18015\AppData\Local\miniconda3\share\tessdata'
+    default_tessdata = os.path.expanduser(r'~\AppData\Local\miniconda3\share\tessdata')
     if os.path.isdir(default_tessdata):
         os.environ['TESSDATA_PREFIX'] = default_tessdata
 

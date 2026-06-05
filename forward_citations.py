@@ -29,6 +29,8 @@ Outputs (default location: <lib-dir>/_forward_citations.csv):
 import os, sys, io, csv, re, json, time, argparse
 from pathlib import Path
 
+import lit_util
+
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -45,13 +47,21 @@ S2    = "https://api.semanticscholar.org/graph/v1"
 import requests
 
 
+def _gate_doi(doi: str) -> str:
+    """RC1: normalize then drop malformed/suspicious (truncated) DOIs."""
+    d = lit_util.normalize_doi(doi)
+    if not lit_util.is_valid_doi(d) or lit_util.is_suspicious_doi(d):
+        return ""
+    return d
+
+
 def doi_from_ris(ris_path: Path) -> str:
     if not ris_path.exists(): return ""
     try:
         with open(ris_path, encoding="utf-8") as f:
             for line in f:
                 m = re.match(r"^DO\s{2}-\s?(.+)$", line)
-                if m: return m.group(1).strip().lower()
+                if m: return _gate_doi(m.group(1))
     except OSError: pass
     return ""
 
@@ -61,7 +71,7 @@ def doi_from_sidecar(sc_path: Path) -> str:
     try:
         with open(sc_path, encoding="utf-8") as f:
             d = json.load(f)
-        return (d.get("doi") or "").lower()
+        return _gate_doi(d.get("doi") or "")
     except (OSError, ValueError): return ""
 
 
@@ -80,9 +90,8 @@ def doi_from_pdf(pdf_path: Path, max_chars=5000) -> str:
         finally:
             doc.close()
     except Exception: return ""
-    m = re.search(r"\b(10\.\d{4,9}/[^\s\)\]\>\"',]+)", text[:max_chars])
-    if m: return re.sub(r"[.,;:\)\]\}\>]+$", "", m.group(1)).rstrip(".").lower()
-    return ""
+    # RC1: re-joins line-wrapped DOIs and drops truncated/suspicious ones.
+    return lit_util.extract_doi_from_text(text, max_chars=max_chars)
 
 
 def get_doi(pdf: Path) -> str:
@@ -195,11 +204,14 @@ def main():
             cp = c.get("citingPaper", {}) if "citingPaper" in c else c
             ext = cp.get("externalIds") or {}
             authors = cp.get("authors") or []
+            # RC1: gate the S2-supplied citing DOI so malformed values don't
+            # reach the CSV / unique-DOI list that feeds sweep.py.
+            citing_doi = _gate_doi(ext.get("DOI") or "")
             rows.append({
                 "seed_pdf":         pdf.name,
                 "seed_doi":         doi,
                 "citing_paper_id":  cp.get("paperId",""),
-                "citing_doi":       (ext.get("DOI") or "").lower(),
+                "citing_doi":       citing_doi,
                 "citing_title":     cp.get("title",""),
                 "citing_year":      cp.get("year",""),
                 "citing_authors":   "; ".join(a.get("name","") for a in authors),
@@ -210,15 +222,18 @@ def main():
         print(f"  [{i:>3}/{len(pdfs)}] {pdf.name[:50]:<50} {doi[:30]:<30} {len(data):>4} citing")
 
     out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
-        w.writeheader(); w.writerows(rows)
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
+    w.writeheader(); w.writerows(rows)
+    lit_util.atomic_write_text(str(out), buf.getvalue())
 
     # Unique citing-DOI summary
     uniq_dois = sorted({r["citing_doi"] for r in rows if r["citing_doi"]})
-    with open(out.with_name(out.stem + "_unique_dois.csv"), "w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f); w.writerow(["doi"])
-        for d in uniq_dois: w.writerow([d])
+    uniq_path = out.with_name(out.stem + "_unique_dois.csv")
+    buf = io.StringIO()
+    w = csv.writer(buf); w.writerow(["doi"])
+    for d in uniq_dois: w.writerow([d])
+    lit_util.atomic_write_text(str(uniq_path), buf.getvalue())
 
     print()
     print("=== summary ===")

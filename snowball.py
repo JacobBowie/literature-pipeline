@@ -26,8 +26,7 @@ from pathlib import Path
 import duckdb
 
 try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 except (AttributeError, OSError):
     pass
 
@@ -53,20 +52,53 @@ def py(): return sys.executable
 
 
 def candidate_count(project: str) -> int:
-    """Total unique candidate DOIs sourced from a project (forward+reverse+recs)."""
+    """Unique *unowned* candidate DOIs sourced from a project (forward+reverse+recs).
+
+    RC9: the old query counted COUNT(DISTINCT doi) FROM candidates only — which
+    (a) ignored the `recommendations` signal entirely, so a snowball iteration
+    that grew only via recs read as zero growth (false convergence), and
+    (b) counted candidates already in the library, unlike the `top_candidates`
+    view the seeder actually consumes (which filters NOT EXISTS paper_locations).
+    Convergence must track the same quantity the downstream queue draws from, so
+    we now mirror top_candidates' ownership filter AND union the recommendations
+    table (attributed to the project via its seed paper's library location)."""
     if not DB_PATH.exists(): return 0
     con = duckdb.connect(str(DB_PATH), read_only=True)
-    n = con.execute(
-        "SELECT COUNT(DISTINCT doi) FROM candidates WHERE source_project = ?",
-        [project]).fetchone()[0]
-    con.close()
+    try:
+        n = con.execute(
+            """
+            WITH proj_candidates AS (
+                -- forward + reverse discovery, restricted to this project,
+                -- excluding papers already owned anywhere (top_candidates parity)
+                SELECT DISTINCT c.doi
+                FROM candidates c
+                WHERE c.source_project = ?
+                  AND NOT EXISTS (SELECT 1 FROM paper_locations l WHERE l.doi = c.doi)
+                UNION
+                -- S2 recommendations: the table has no source_project, so attribute
+                -- a recommendation to this project when its SEED paper lives in this
+                -- project's library; same NOT-EXISTS unowned filter
+                SELECT DISTINCT r.recommended_doi AS doi
+                FROM recommendations r
+                JOIN paper_locations sl ON sl.doi = r.seed_doi AND sl.project = ?
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM paper_locations l WHERE l.doi = r.recommended_doi)
+            )
+            SELECT COUNT(DISTINCT doi) FROM proj_candidates
+            """,
+            [project, project]).fetchone()[0]
+    finally:
+        con.close()
     return n
 
 
 def run(cmd, label):
-    print(f"\n>>> {label}")
+    t0 = datetime.datetime.now().strftime("%H:%M:%S")
+    print(f"\n>>> [{t0}] {label}")
     print(f"    {' '.join(cmd)}")
     r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    t1 = datetime.datetime.now().strftime("%H:%M:%S")
+    print(f"    ... done at {t1}")
     out = (r.stdout or "")[-1500:]
     print(out)
     if r.returncode != 0:
@@ -78,7 +110,13 @@ def run(cmd, label):
 
 def one_iteration(project: str, skip_forward: bool, skip_reverse: bool,
                   skip_recs: bool, skip_abstracts: bool):
-    """Run one snowball pass for a project. Returns the new candidate count."""
+    """Run one snowball pass for a project.
+
+    Returns (new_candidate_count, ok) where `ok` is False if ANY step's
+    subprocess exited non-zero. RC6: a failed discovery step (DNS/timeout/5xx
+    swallowed into an empty result) must NOT be read as zero growth and trip
+    false convergence — the caller refuses to declare convergence when ok is
+    False."""
     tools = []
     if not skip_forward:
         tools.append(([py(), str(HERE / "forward_citations.py"),
@@ -90,19 +128,20 @@ def one_iteration(project: str, skip_forward: bool, skip_reverse: bool,
         tools.append(([py(), str(HERE / "enrich_recommendations.py")],
                       "enrich_recommendations (portfolio-wide)"))
 
+    ok = True
     for cmd, label in tools:
-        run(cmd, label)
+        ok = run(cmd, label) and ok
 
     # Refresh the index (cheap: ~few seconds per project)
-    run([py(), str(HERE / "index_portfolio.py"),
-         "--project", project], f"index_portfolio({project})")
+    ok = run([py(), str(HERE / "index_portfolio.py"),
+              "--project", project], f"index_portfolio({project})") and ok
 
     if not skip_abstracts:
         # Only enrich abstracts for DOIs we don't already have one for
-        run([py(), str(HERE / "enrich_abstracts.py")],
-            "enrich_abstracts (incremental — only missing)")
+        ok = run([py(), str(HERE / "enrich_abstracts.py")],
+                 "enrich_abstracts (incremental — only missing)") and ok
 
-    return candidate_count(project)
+    return candidate_count(project), ok
 
 
 def main():
@@ -133,6 +172,7 @@ def main():
     else:
         print("[ERR] Pass --project NAME or --all", file=sys.stderr); sys.exit(2)
 
+    any_failure = False
     for project in projects:
         print(f"\n{'='*72}\n  SNOWBALL: {project}\n{'='*72}")
         n_before = candidate_count(project)
@@ -140,20 +180,33 @@ def main():
 
         for it in range(1, args.max_iter + 1):
             print(f"\n--- iteration {it}/{args.max_iter} ---")
-            n_after = one_iteration(project,
-                                     args.skip_forward, args.skip_reverse,
-                                     args.skip_recs, args.skip_abstracts)
+            n_after, ok = one_iteration(project,
+                                        args.skip_forward, args.skip_reverse,
+                                        args.skip_recs, args.skip_abstracts)
             growth = n_after - n_before
             growth_pct = (100 * growth / max(1, n_before)) if n_before else float("inf")
             print(f"\n  iter {it}: {n_before} → {n_after} candidates "
                   f"(+{growth}, +{growth_pct:.1f}%)")
             log_iteration(project, it, n_before, n_after, growth_pct)
+            if not ok:
+                # RC6: a step failed this iteration; flat/zero growth here is
+                # NOT trustworthy as convergence. Stop the loop but flag it as a
+                # failure rather than silently logging false convergence.
+                any_failure = True
+                print(f"  [WARN] a step failed this iteration; stopping WITHOUT "
+                      f"declaring convergence (results may be incomplete)")
+                break
             if not args.until_convergence: break
             if it >= args.max_iter: break
             if n_before > 0 and growth_pct < 1.0:
                 print(f"  converged (growth < 1%); stopping")
                 break
             n_before = n_after
+
+    if any_failure:
+        # Non-zero exit so an overnight `--all --until-convergence` run that
+        # silently no-op'd on errors is visible to the orchestrator/operator.
+        sys.exit(1)
 
 
 if __name__ == "__main__":

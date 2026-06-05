@@ -22,6 +22,10 @@ from urllib.parse import urljoin
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jats_to_text import parse_jats
 import ris_emit as _R
+import lit_util  # RC2/RC3/RC4 audit-remediation helpers
+# RC2/RC3: reuse the collision-safe dest + DOI<->content helpers (single source of truth).
+from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
+                                doi_from_pdf_bytes, _doi_of_existing)
 
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
@@ -128,8 +132,7 @@ def fetch_fulltext_sidecar(pmcid, sidecar_path):
         if not r.content or not r.content.strip().startswith(b"<"):
             return False, "EMPTY_OR_NON_XML"
         parsed = parse_jats(r.content)
-        with open(sidecar_path, "w", encoding="utf-8") as f:
-            json.dump(parsed, f, indent=2, ensure_ascii=False)
+        lit_util.atomic_write_json(sidecar_path, parsed)  # RC4: crash-safe write
         return True, "OK"
     except Exception as e:
         return False, f"ERROR_{str(e)[:60]}"
@@ -206,8 +209,10 @@ def main():
     report_dir = os.path.dirname(report_out)
     if report_dir: os.makedirs(report_dir, exist_ok=True)
     existing = set(os.listdir(lib_dir))
+    written_this_run = set()  # RC2: PDFs written this run; never clobber them
     out_rows = []
     n_dl = n_skip = n_no_pmc = n_fail = 0
+    n_mismatch = 0
     n_sidecar = n_sidecar_skip = n_sidecar_na = 0
 
     for r in rows:
@@ -215,12 +220,18 @@ def main():
         fn  = safe_filename(r["filename"])
         dest = os.path.join(lib_dir, fn)
         rec = {"doi": doi, "filename": fn, "pmcid": "", "downloaded": False,
-               "winning_source": "", "attempts": "", "error": "",
+               "skipped": False, "winning_source": "", "attempts": "", "error": "",
                "sidecar": False, "sidecar_status": ""}
 
-        if fn in existing:
+        # RC2: skip only when the on-disk file is THIS doi (or carries no DOI to
+        # contradict it); a same-name file for a DIFFERENT doi is a collision.
+        if fn in existing and ((not _doi_of_existing(dest))
+                                or _doi_of_existing(dest) == lit_util.normalize_doi(doi)):
             n_skip += 1
-            rec["downloaded"] = True; rec["winning_source"] = "ALREADY_EXISTS"
+            # RC2 (sweep dedupe): ALREADY_EXISTS must NOT report downloaded=True —
+            # use a distinct `skipped` flag so sweep doesn't treat a pre-existing
+            # file as a fresh download and poison its dedupe tally.
+            rec["skipped"] = True; rec["winning_source"] = "ALREADY_EXISTS"
             out_rows.append(rec)
             print(f"  SKIP {fn[:75]}")
             continue
@@ -239,15 +250,33 @@ def main():
             print(f"  DRY  {pmcid:<12} -> {fn[:60]}")
             continue
 
+        # RC2: pick a collision-safe destination (never clobber an existing PDF for a
+        # different DOI, nor one written earlier in this run). Recompute fn so the
+        # sidecar stem tracks the (possibly disambiguated) PDF name.
+        dest, collided = resolve_dest(lib_dir, fn, doi, written_this_run)
+        if collided:
+            fn = os.path.basename(dest)
+            rec["filename"] = fn
+
         ok, attempts = fetch_pmc_pdf(pmcid, dest)
         rec["attempts"] = " | ".join(f"{src}/{st}" for src,_,st,_ in attempts)
+        doi_mismatch = False
         if ok:
             n_dl += 1
             rec["downloaded"] = True
+            written_this_run.add(dest)
+            existing.add(fn)
             winning = next((a for a in attempts if a[2] == "OK"), None)
             if winning: rec["winning_source"] = winning[0]
             print(f"  DL   {pmcid:<12} -> {fn[:60]} ({rec['winning_source']})")
-            if not args.no_write_ris:
+            # RC3: verify the fetched bytes match the queue DOI before writing a
+            # confidently-wrong .ris/sidecar.
+            if pdf_doi_disagrees(dest, doi):
+                doi_mismatch = True
+                n_mismatch += 1
+                rec["error"] = f"DOI_MISMATCH:pdf_doi={doi_from_pdf_bytes(dest)}"
+                print(f"       DOI_MISMATCH: pdf DOI != queue DOI ({doi}); skipping .ris/sidecar")
+            elif not args.no_write_ris:
                 ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
                 print(f"       ris: {ris_status}")
         else:
@@ -255,8 +284,10 @@ def main():
             rec["error"] = attempts[-1][2] if attempts else "no candidates"
             print(f"  FAIL {pmcid:<12} -> {fn[:55]} ({rec['error']})")
 
-        # Sidecar: try regardless of PDF outcome (gated PDFs sometimes still have JATS)
-        if not args.no_sidecar:
+        # Sidecar: try regardless of PDF outcome (gated PDFs sometimes still have JATS),
+        # UNLESS the fetched PDF's own DOI contradicted the queue DOI (RC3) — in that case
+        # the PMCID provenance for THIS file is suspect, so don't attach a sidecar to it.
+        if not args.no_sidecar and not doi_mismatch:
             sidecar_path = os.path.join(lib_dir, fn[:-4] + ".fulltext.json")
             if os.path.exists(sidecar_path):
                 n_sidecar_skip += 1
@@ -276,11 +307,15 @@ def main():
         out_rows.append(rec)
         time.sleep(0.8)
 
-    with open(report_out, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["doi","filename","pmcid","downloaded",
-                                            "winning_source","attempts","error",
-                                            "sidecar","sidecar_status"])
-        w.writeheader(); w.writerows(out_rows)
+    # RC4: build CSV in memory, write atomically. `skipped` is distinct from `downloaded`
+    # so sweep's dedupe treats ALREADY_EXISTS as a non-fetch.
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=["doi","filename","pmcid","downloaded","skipped",
+                                          "winning_source","attempts","error",
+                                          "sidecar","sidecar_status"],
+                       extrasaction="ignore", lineterminator="\n")
+    w.writeheader(); w.writerows(out_rows)
+    lit_util.atomic_write_text(report_out, buf.getvalue())
 
     print(f"\n=== Summary ===")
     print(f"  Total candidates:    {len(rows)}")
@@ -288,6 +323,7 @@ def main():
     print(f"  No PMCID found:      {n_no_pmc}")
     print(f"  PDFs DOWNLOADED:     {n_dl}")
     print(f"  PDFs failed:         {n_fail}")
+    print(f"  DOI mismatch:        {n_mismatch} (PDF DOI disagreed; .ris/sidecar skipped)")
     if not args.no_sidecar:
         print(f"  Sidecars NEW:        {n_sidecar}")
         print(f"  Sidecars existed:    {n_sidecar_skip}")

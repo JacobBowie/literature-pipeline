@@ -47,25 +47,36 @@ TYPOGRAPHIC = {
 def clean_pdf_text(text: str,
                     *,
                     expand_ligatures: bool = True,
-                    dehyphenate: bool = True,
-                    strip_page_numbers: bool = True,
+                    aggressive_dehyphenate: bool = False,
+                    strip_page_numbers: bool = False,
                     normalize_typography: bool = False) -> str:
     """Post-process pymupdf-extracted text for clean string matching.
 
     Each transformation is independently toggleable in case a downstream consumer
     needs the raw form (e.g., preserving "—" semantics in dialog).
 
+    Ligature expansion is the only non-destructive transform, so it stays on by
+    default. The other three are DESTRUCTIVE and default OFF (RC7, 2026-06-05 audit):
+      - aggressive_dehyphenate fuses words across a line-break hyphen, which also
+        fuses real compounds ("core-\\nbody" -> "corebody").
+      - strip_page_numbers deletes any lone 1-4-digit line, which silently removes
+        data values and years, not just page numbers.
+      - normalize_typography rewrites smart quotes/dashes (unvalidated).
+    Enable them explicitly only on text where the loss is acceptable.
+
     Returns the cleaned text. Idempotent — running twice produces the same output.
     """
     if expand_ligatures:
         text = text.translate(LIGATURES)
-    if dehyphenate:
+    if aggressive_dehyphenate:
         # word-<whitespace>newline<whitespace>word → wordword
-        # Only matches when there's a newline between the hyphen and the next word,
-        # which is specifically a layout-induced line break (not a real hyphenated compound).
+        # Matches a layout-induced line break after a hyphen, but ALSO fuses real
+        # hyphenated compounds split across lines ("core-\nbody" -> "corebody"),
+        # so it is opt-in.
         text = re.sub(r"(\w+)-\s*\n\s*(\w+)", r"\1\2", text)
     if strip_page_numbers:
         # Lines whose only content is 1-4 digits, optionally surrounded by whitespace.
+        # Also deletes lone numeric data values / years, so it is opt-in.
         text = re.sub(r"(?m)^\s*\d{1,4}\s*$\n?", "", text)
     if normalize_typography:
         text = text.translate(TYPOGRAPHIC)

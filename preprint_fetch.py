@@ -31,6 +31,12 @@ from difflib import SequenceMatcher
 from urllib.parse import urlencode
 from xml.etree import ElementTree as ET
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lit_util  # RC2/RC3/RC4 audit-remediation helpers
+# RC2/RC3: reuse the collision-safe dest + DOI<->content helpers (single source of truth).
+from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
+                                doi_from_pdf_bytes, _doi_of_existing)
+
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -330,9 +336,11 @@ def main():
 
     os.makedirs(args.lib_dir, exist_ok=True)
     existing = set(os.listdir(args.lib_dir))
+    written_this_run = set()  # RC2: PDFs written this run; never clobber them
 
     report = []
     n_found = n_dl = n_skip = n_no_match = n_fail = 0
+    n_mismatch = 0
 
     for i, row in enumerate(rows, 1):
         title = (row.get("title") or "").strip()
@@ -346,11 +354,16 @@ def main():
 
         rec = {"doi": doi, "title": title[:80], "year": year,
                "preprint_filename": fn, "found": False, "source": "",
-               "match_id": "", "similarity": "", "downloaded": False, "status": ""}
+               "match_id": "", "similarity": "", "downloaded": False,
+               "skipped": False, "status": ""}
 
-        if fn in existing:
+        # RC2: skip only when the on-disk preprint is THIS doi (or carries no DOI to
+        # contradict it); a same-name file for a DIFFERENT doi is a collision.
+        if fn in existing and ((not _doi_of_existing(dest))
+                                or _doi_of_existing(dest) == lit_util.normalize_doi(doi)):
             n_skip += 1
-            rec["status"] = "ALREADY_EXISTS"; rec["downloaded"] = True
+            # RC2 (sweep dedupe): ALREADY_EXISTS is a skip, not a fresh download.
+            rec["status"] = "ALREADY_EXISTS"; rec["skipped"] = True
             report.append(rec)
             print(f"  [{i:>3}/{len(rows)}] SKIP {fn[:75]}")
             continue
@@ -384,12 +397,33 @@ def main():
             time.sleep(0.4)
             continue
 
+        # RC2: collision-safe destination. Disambiguate on the preprint's own DOI when
+        # known (the artifact's identity), else the queue DOI.
+        preprint_doi = (match.get("doi") or "").strip().lower()
+        dest, collided = resolve_dest(args.lib_dir, fn, preprint_doi or doi, written_this_run)
+        if collided:
+            fn = os.path.basename(dest)
+            rec["preprint_filename"] = fn
+
         ok, st = fetch_pdf(match["pdf_url"], dest)
         rec["downloaded"] = ok; rec["status"] = st
         if ok:
             n_dl += 1
+            written_this_run.add(dest)
+            existing.add(fn)
             print(f"  [{i:>3}/{len(rows)}] DL   {match['source']:<14} sim={match['sim']:.2f} -> {fn[:55]}")
-            if not args.no_write_ris and doi:
+            # RC3: a preprint legitimately carries a DIFFERENT DOI from the published
+            # (queue) paper, so a queue-DOI disagreement alone is NOT a wrong-paper signal.
+            # Only flag when the PDF's DOI matches NEITHER the queue DOI NOR the matched
+            # preprint's own DOI -- i.e. the bytes are some third, unrelated paper.
+            found_pdf_doi = doi_from_pdf_bytes(dest)
+            mismatch = bool(found_pdf_doi) and pdf_doi_disagrees(dest, doi) and (
+                (not preprint_doi) or found_pdf_doi != lit_util.normalize_doi(preprint_doi))
+            if mismatch:
+                n_mismatch += 1
+                rec["status"] = f"DOI_MISMATCH:pdf_doi={found_pdf_doi}"
+                print(f"        DOI_MISMATCH: pdf DOI {found_pdf_doi} != queue/preprint DOI; skipping .ris")
+            elif not args.no_write_ris and doi:
                 ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
                 print(f"        ris: {ris_status}")
         else:
@@ -398,21 +432,24 @@ def main():
         report.append(rec)
         time.sleep(0.6)
 
-    # Write report
+    # Write report (RC4: build in memory, write atomically).
     out_csv = args.report or "data/prior_art/discovered/preprint_fetch_report.csv"
     out_dir = os.path.dirname(out_csv)
     if out_dir: os.makedirs(out_dir, exist_ok=True)
-    with open(out_csv, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["doi","title","year","preprint_filename",
-                                            "found","source","match_id","similarity",
-                                            "downloaded","status"])
-        w.writeheader(); w.writerows(report)
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=["doi","title","year","preprint_filename",
+                                          "found","source","match_id","similarity",
+                                          "downloaded","skipped","status"],
+                       extrasaction="ignore", lineterminator="\n")
+    w.writeheader(); w.writerows(report)
+    lit_util.atomic_write_text(out_csv, buf.getvalue())
 
     print(f"\n=== Summary ===")
     print(f"  Rows processed:    {len(rows)}")
     print(f"  Already had file:  {n_skip}")
     print(f"  Preprints found:   {n_found}")
     print(f"  Downloaded:        {n_dl}")
+    print(f"  DOI mismatch:      {n_mismatch} (PDF DOI unrelated; .ris skipped)")
     print(f"  Download failed:   {n_fail}")
     print(f"  No match:          {n_no_match}")
     print(f"\nReport: {out_csv}")

@@ -20,7 +20,7 @@ Usage:
 
   # Use queue-history CSVs to recover DOIs for older scans without machine-readable DOI text:
   python audit_filenames.py --lib-dir DIR \
-      --queue-history "/c/Users/jab18015/Projects/thermalphys/lit_pull_queue.*.processed.csv"
+      --queue-history "/c/Users/<user>/Projects/thermalphys/lit_pull_queue.*.processed.csv"
   # Multiple globs comma-separated:
   python audit_filenames.py --lib-dir DIR \
       --queue-history "<proj>/lit_pull_queue.*.processed.csv,<proj2>/lit_pull_queue.*.processed.csv"
