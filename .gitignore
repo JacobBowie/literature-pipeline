@@ -34,7 +34,7 @@ portfolio.duckdb*
 
 # Concrete queue files (only the template ships with the repo)
 lit_pull_queue.csv
-lit_pull_queue.*.processed.csv
+lit_pull_queue.*.processed*.csv
 lit_pull_queue.draft.csv
 projects.json
 

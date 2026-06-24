@@ -203,6 +203,22 @@ def extract(pdf_path):
     All three are subprocess-free for pdfminer + pdfplumber and minimal-overhead
     for pdftotext.
     """
+    # Large PDFs (usually scanned/image-heavy) can hang the in-process,
+    # timeout-less pdfminer AND pdfplumber indefinitely — a 47 MB scan stalled a
+    # whole sweep on 2026-06-23. Above a size threshold, use only the
+    # subprocess-timeout-protected pdftotext so one giant scan can't wedge the run.
+    LARGE_PDF_BYTES = 30 * 1024 * 1024
+    try:
+        too_large = os.path.getsize(pdf_path) > LARGE_PDF_BYTES
+    except OSError:
+        too_large = False
+
+    if too_large:
+        text2, st2 = extract_with_pdftotext(pdf_path)
+        if text2.strip():
+            return text2, "pdftotext", st2
+        return "", "none", f"all_failed (large, pdfminer/pdfplumber skipped): pdftotext={st2}"
+
     text, st = extract_with_pdfminer(pdf_path)
     if text.strip():
         return text, "pdfminer.six", st

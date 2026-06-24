@@ -20,10 +20,10 @@ Usage:
 
   # Use queue-history CSVs to recover DOIs for older scans without machine-readable DOI text:
   python audit_filenames.py --lib-dir DIR \
-      --queue-history "/c/Users/<user>/Projects/thermalphys/lit_pull_queue.*.processed.csv"
+      --queue-history "/c/Users/<user>/Projects/thermalphys/lit_pull_queue.*.processed*.csv"
   # Multiple globs comma-separated:
   python audit_filenames.py --lib-dir DIR \
-      --queue-history "<proj>/lit_pull_queue.*.processed.csv,<proj2>/lit_pull_queue.*.processed.csv"
+      --queue-history "<proj>/lit_pull_queue.*.processed*.csv,<proj2>/lit_pull_queue.*.processed*.csv"
 """
 import os, sys, io, re, json, csv, time, glob, argparse, unicodedata
 import requests
@@ -201,8 +201,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Queue-history fallback (for older scans without machine-readable DOI text):
   python audit_filenames.py --lib-dir DIR \\
-      --queue-history "<proj>/lit_pull_queue.*.processed.csv"
-  # Multiple globs comma-separated.""")
+      --queue-history "<proj>/lit_pull_queue.*.processed*.csv"
+  # Multiple globs comma-separated. Note the second '*': same-day re-sweeps
+  # produce lit_pull_queue.<date>.processed.2.csv etc., so glob 'processed*.csv'.""")
     ap.add_argument("--lib-dir", required=True)
     ap.add_argument("--execute", action="store_true",
                      help="Apply renames. Without this, dry-run only.")
@@ -210,8 +211,9 @@ def main():
                      help="Only process PDFs whose filename starts with this")
     ap.add_argument("--queue-history", default=None,
                      help="Glob (or comma-separated globs) of processed queue CSVs "
-                          "(<project>/lit_pull_queue.*.processed.csv) consulted as a "
-                          "DOI fallback when neither sidecar nor PDF text yields a DOI.")
+                          "(<project>/lit_pull_queue.*.processed*.csv — the second '*' "
+                          "catches same-day re-sweep .processed.2.csv variants) consulted "
+                          "as a DOI fallback when neither sidecar nor PDF text yields a DOI.")
     ap.add_argument("--report", default=None)
     args = ap.parse_args()
 

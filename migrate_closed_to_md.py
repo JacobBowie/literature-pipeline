@@ -175,13 +175,16 @@ def main():
 
     existing = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
 
-    # Skip if this sweep date's residual block was already migrated. Re-running
-    # migrate for the same date (e.g. a re-run of run_daily) would otherwise
-    # append a duplicate "## Sweep residuals <date>" section.
-    if re.search(rf"^## Sweep residuals {re.escape(sweep_date)}\b",
-                 existing, flags=re.MULTILINE):
+    # Content-aware dedup (replaces the old date-header skip). Drop residual rows
+    # whose DOI is already present in the .md, rather than skipping the whole date.
+    # A legit same-day SECOND sweep (different queue; .unpaywall/.pmc/.preprint
+    # overwritten) carries NEW DOIs that a date-level skip would silently drop.
+    # DOIs are rendered backtick-wrapped (`DOI \`<doi>\``) by render_md_block below.
+    existing_dois = set(re.findall(r"DOI `([^`]+)`", existing))
+    rows = [r for r in rows if r["doi"] not in existing_dois]
+    if not rows:
         print(f"[--] {args.project}: sweep {sweep_date} residuals already in "
-              f"{md_path.name}; skipping (no duplicate append)")
+              f"{md_path.name}; nothing new to append")
         return 0
 
     # Init the md file with a header if absent

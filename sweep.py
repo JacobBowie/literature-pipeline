@@ -14,6 +14,7 @@ This script:
      `<project>/<destination>/` from the CSV (uses the first row's destination —
      all rows in one queue should share a destination)
   3. Renames the queue to `lit_pull_queue.<YYYY-MM-DD>.processed.csv`
+     (a same-day re-sweep gets a numeric suffix: `.processed.2.csv`, `.3.csv`, ...)
   4. Writes a `lit_pull_queue.<YYYY-MM-DD>.report.csv` next to it
   5. Appends a `✅ Lit pull done:` line to LOOSE_ENDS.md
 
@@ -192,8 +193,14 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
     if r4.returncode != 0:
         print(f"  WARN pdf-extract stage failed (continuing):\n{r4.stderr[-500:]}")
 
-    # Mark queue as processed
+    # Mark queue as processed. A same-day re-sweep would collide on this name
+    # (FileExistsError on Windows os.rename), so disambiguate with a numeric suffix.
     processed = queue_csv.with_name(f"lit_pull_queue.{today}.processed.csv")
+    if processed.exists():
+        n = 2
+        while queue_csv.with_name(f"lit_pull_queue.{today}.processed.{n}.csv").exists():
+            n += 1
+        processed = queue_csv.with_name(f"lit_pull_queue.{today}.processed.{n}.csv")
     queue_csv.rename(processed)
     norm_csv.unlink(missing_ok=True)
 

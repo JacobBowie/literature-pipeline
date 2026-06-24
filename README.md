@@ -199,7 +199,7 @@ python seed_queue_from_top_candidates.py --project Physiological_Data
 # Library hygiene:
 python audit_filenames.py --lib-dir <path>                # CrossRef-canonical rename pass (cascades PDF + .ris + sidecar)
 python audit_filenames.py --lib-dir <path> \
-       --queue-history '<project>/lit_pull_queue.*.processed.csv'  # fall back to queue history for un-OCR'd scans
+       --queue-history '<project>/lit_pull_queue.*.processed*.csv'  # fall back to queue history for un-OCR'd scans (processed*.csv also catches same-day re-sweep .processed.2.csv)
 python backfill_ris.py --lib-dir <path>                   # write .ris next to existing PDFs
 python backfill_fulltext.py --lib-dir <path>              # retro-fetch JATS sidecars (Tier 1)
 python build_pdf_library.py --base-dir <project>          # text dumps + metadata + library_report (Tier 1)
