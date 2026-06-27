@@ -164,7 +164,13 @@ ORDER BY n_projects DESC;
 # ---------- helpers ----------
 
 def parse_ris(ris_path: Path) -> dict:
-    """Pull the canonical metadata fields out of a .ris file."""
+    """Pull the canonical metadata fields out of a .ris file.
+
+    T6 (2026-06-25 audit): handles continuation lines (a wrapped TI/JO value continues on an
+    untagged line) so a line-wrapped title is not truncated into the canonical stem, and falls
+    back to a DOI in a UR line when no DO tag is present (hand-dropped EndNote/Zotero .ris often
+    carry the DOI only as a doi.org URL). Pipeline-written .ris are single-line with a DO tag,
+    so canonical sidecars are unaffected."""
     out = {"doi": "", "year": None, "lastname": "", "title": "",
            "venue": "", "authors": []}
     try:
@@ -172,11 +178,21 @@ def parse_ris(ris_path: Path) -> dict:
             text = f.read()
     except OSError:
         return out
+    ur_vals = []
+    cur_tag = None
     for line in text.splitlines():
         m = re.match(r"^([A-Z][A-Z0-9])\s{2}-\s?(.*)$", line)
-        if not m: continue
+        if not m:
+            cont = line.strip()
+            if cont and cur_tag in ("TI", "T1") and out["title"]:
+                out["title"] = (out["title"] + " " + cont).strip()
+            elif cont and cur_tag == "JO" and out["venue"]:
+                out["venue"] = (out["venue"] + " " + cont).strip()
+            continue
         tag, val = m.group(1), m.group(2).strip()
+        cur_tag = tag
         if tag == "DO" and not out["doi"]: out["doi"] = val.lower()
+        elif tag == "UR": ur_vals.append(val)
         elif tag == "PY" and not out["year"] and val[:4].isdigit(): out["year"] = int(val[:4])
         elif tag in ("TI", "T1") and not out["title"]: out["title"] = val
         elif tag == "JO" and not out["venue"]: out["venue"] = val
@@ -184,6 +200,13 @@ def parse_ris(ris_path: Path) -> dict:
             out["authors"].append(val)
             if not out["lastname"]:
                 out["lastname"] = val.split(",")[0].strip() if "," in val else val.split()[0].strip()
+    # T6: UR-only-DOI fallback -- a .ris with no DO but a doi.org UR still carries a DOI.
+    if not out["doi"]:
+        for u in ur_vals:
+            d = lit_util.extract_doi_from_text(u)
+            if d:
+                out["doi"] = d
+                break
     return out
 
 
@@ -207,9 +230,8 @@ def ingest_papers(con, name: str, lib: Path):
     meta_rows = []; loc_rows = []; rows_no_doi = []
 
     for pdf in sorted(lib.glob("*.pdf")):
-        stem = pdf.with_suffix("")
-        ris = stem.with_suffix(".ris")
-        sc  = stem.with_suffix(".fulltext.json")
+        ris = lit_util.companion_path(pdf, ".ris")
+        sc  = lit_util.companion_path(pdf, ".fulltext.json")
         meta = parse_ris(ris) if ris.exists() else {}
         has_sc, sc_len = sidecar_info(sc)
         if not meta.get("doi"):
@@ -278,6 +300,18 @@ def ingest_papers(con, name: str, lib: Path):
             VALUES (?,?,?,?,?,?,?,?,?)
         """, dedup_loc)
 
+    # T2 (2026-06-25): prune papers_no_doi project-wide, mirroring the paper_locations prune
+    # above. A PDF that GAINS a DOI / is renamed / is deleted must lose its stale no-DOI row
+    # (else it persists forever, inflating the 'PDFs without DOI' count and defeating the
+    # backfill fix). Runs UNCONDITIONALLY so a project whose last no-DOI PDF got fixed clears.
+    current_nodoi = sorted({r[0] for r in rows_no_doi})
+    if current_nodoi:
+        _ph = ",".join(["?"] * len(current_nodoi))
+        cur.execute(f"DELETE FROM papers_no_doi WHERE project = ? AND pdf_filename NOT IN ({_ph})",
+                    [name, *current_nodoi])
+    else:
+        cur.execute("DELETE FROM papers_no_doi WHERE project = ?", [name])
+
     if rows_no_doi:
         keys = [(r[0], r[1]) for r in rows_no_doi]
         cur.executemany("DELETE FROM papers_no_doi WHERE pdf_filename=? AND project=?", keys)
@@ -291,6 +325,33 @@ def ingest_papers(con, name: str, lib: Path):
 def safe_int(s, default=0):
     try: return int(s)
     except (ValueError, TypeError): return default
+
+
+def prune_citations(con, name, kind):
+    """T2: delete a project's candidate/cite rows for one citation 'kind' ('forward'|'reverse').
+    Called from ingest_forward/ingest_reverse AND from main() when the CSV is ABSENT, so a
+    DELETED citation CSV (not just a shrunk one) cannot leave orphan candidate/cite rows that
+    inflate top_candidates."""
+    cur = con.cursor()
+    cur.execute("DELETE FROM candidates WHERE source_project=? AND source_type=?", [name, kind])
+    cur.execute("DELETE FROM cites WHERE source_project=? AND source_pipeline=?", [name, kind])
+
+
+def gc_orphan_metadata(con):
+    """T2: delete paper_metadata rows referenced by NOTHING (no location/candidate/cite/
+    recommendation) and return the count reclaimed. Conservative -- a row pinned by even a
+    stale candidate survives. Gated behind main()'s --gc; shared so the test guards the real SQL."""
+    cur = con.cursor()
+    before = cur.execute("SELECT COUNT(*) FROM paper_metadata").fetchone()[0]
+    cur.execute("""
+        DELETE FROM paper_metadata m
+        WHERE NOT EXISTS (SELECT 1 FROM paper_locations l WHERE l.doi = m.doi)
+          AND NOT EXISTS (SELECT 1 FROM candidates c WHERE c.doi = m.doi OR c.source_seed_doi = m.doi)
+          AND NOT EXISTS (SELECT 1 FROM cites ci WHERE ci.citing_doi = m.doi OR ci.cited_doi = m.doi)
+          AND NOT EXISTS (SELECT 1 FROM recommendations r WHERE r.seed_doi = m.doi OR r.recommended_doi = m.doi)
+    """)
+    after = cur.execute("SELECT COUNT(*) FROM paper_metadata").fetchone()[0]
+    return before - after
 
 
 def ingest_forward(con, name: str, csv_path: Path, lib: Path):
@@ -330,6 +391,11 @@ def ingest_forward(con, name: str, csv_path: Path, lib: Path):
                 now,
             ))
             cite_rows.append((cited, seed, "forward", name))  # citing=candidate, cited=seed
+
+    # T2 (2026-06-25): rewrite the full per-(project, source_type) set from this CSV. Without a
+    # scope-wide prune a SHRUNK forward CSV leaves orphan candidate/cite rows that inflate
+    # top_candidates. (main() also prunes when the CSV is ABSENT -> deleted-CSV case.)
+    prune_citations(con, name, "forward")
 
     if cand_rows:
         seen = set(); dedup = []
@@ -438,6 +504,10 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
             # a truncated seed DOI would pollute the cites graph with a bad endpoint.
             if seed_doi and lit_util.is_valid_doi(seed_doi) and not lit_util.is_suspicious_doi(seed_doi):
                 cite_rows.append((seed_doi, cited_doi, "reverse", name))
+
+    # T2 (2026-06-25): rewrite the full per-(project, source_type) set from this CSV (see
+    # ingest_forward). A shrunk/deleted reverse CSV must not leave orphan candidate/cite rows.
+    prune_citations(con, name, "reverse")
 
     if cand_rows:
         seen = set(); dedup = []
@@ -560,6 +630,9 @@ def main():
                          "enrich_abstracts CrossRef abstract layer — abstracts live ONLY in the DB, not in "
                          ".ris/sidecar — so re-run enrich_abstracts.py afterward. A plain (non-rebuild) "
                          "re-index PRESERVES abstracts; use --rebuild only to flush stale candidate rows.")
+    ap.add_argument("--gc", action="store_true",
+                    help="Garbage-collect paper_metadata rows with zero references (no location, "
+                         "candidate, cite, or recommendation). Off by default; best after a full index.")
     args = ap.parse_args()
 
     db_path = Path(args.db)
@@ -604,11 +677,18 @@ def main():
             if fwd:
                 n = ingest_forward(con, name, fwd, lib)
                 print(f"  forward citations from {fwd.name}: {n} candidates")
+            else:
+                prune_citations(con, name, "forward")   # T2: deleted CSV -> drop orphan rows
             rev = find_reverse_csv(lib, data)
             if rev:
                 n = ingest_reverse(con, name, rev, lib)
                 print(f"  reverse citations from {rev.name}: {n} candidates")
+            else:
+                prune_citations(con, name, "reverse")   # T2: deleted CSV -> drop orphan rows
             if not (fwd or rev): print(f"  (no citation CSVs found)")
+
+        if args.gc:
+            print(f"\n  [--gc] reclaimed {gc_orphan_metadata(con)} orphan paper_metadata rows")
 
         n_meta     = con.execute("SELECT COUNT(*) FROM paper_metadata").fetchone()[0]
         n_loc      = con.execute("SELECT COUNT(*) FROM paper_locations").fetchone()[0]

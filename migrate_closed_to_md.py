@@ -95,6 +95,11 @@ def read_report_chain(project_root: Path, sweep_date: str):
                         not_downloaded.pop(doi)
                     else:
                         not_downloaded[doi]["stage_pmc"] = "no_pmcid" if not r.get("pmcid") else "fail"
+    else:
+        # T3 (2026-06-25): PMC report ABSENT (stage crashed or never ran). We cannot conclude
+        # these are closed-access (PMC may have fetched them). Tag so render flags 're-sweep'.
+        for v in not_downloaded.values():
+            v["stage_pmc"] = "no_report"
 
     # Mark preprint successes
     if preprint_path.exists():
@@ -106,6 +111,10 @@ def read_report_chain(project_root: Path, sweep_date: str):
                         not_downloaded.pop(doi)
                     else:
                         not_downloaded[doi]["stage_preprint"] = "no_match"
+    else:
+        for v in not_downloaded.values():
+            if v["stage_preprint"] == "skip":
+                v["stage_preprint"] = "no_report"
 
     return list(not_downloaded.values())
 
@@ -124,6 +133,10 @@ def render_md_block(project: str, sweep_date: str, rows: list) -> str:
         "Each row failed Unpaywall + PMC + preprint fetcher chain. ILLIAD candidates.",
         "",
     ]
+    if any(r["stage_pmc"] == "no_report" or r["stage_preprint"] == "no_report" for r in rows):
+        lines.append("> NOTE: rows tagged `pmc=no_report` / `preprint=no_report` had that stage's report "
+                     "ABSENT (crash or skip) -- they are NOT confirmed closed-access. RE-SWEEP before ILLIAD.")
+        lines.append("")
     for r in rows:
         title = r["title"] or "(no title)"
         # Compact stage trace

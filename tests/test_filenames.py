@@ -15,6 +15,9 @@ from ris_emit import safe_ascii
 from unpaywall_fetch_v2 import build_filename, last_name, slug_title
 from audit_filenames import canonical_filename, slug
 from preprint_fetch import slug_filename
+from lit_util import companion_path
+import os
+from pathlib import Path
 
 
 # ---------- safe_ascii primitive ----------
@@ -127,3 +130,42 @@ def test_slug_title_unpaywall_equivalent():
         a = slug_title(s)
         b = slug(s)
         assert a == b, f"slug drift on {s!r}: writer={a!r} auditor={b!r}"
+
+
+# ---------- companion_path: dot-safe sidecar naming (2026-06-25 dot-suffix bug regression) ----------
+
+@pytest.mark.parametrize("pdf_name,ext,want", [
+    ("2010_Smith_HeatStress.pdf",  ".ris",           "2010_Smith_HeatStress.ris"),
+    ("2010_Smith_Heat.4.26.pdf",   ".ris",           "2010_Smith_Heat.4.26.ris"),    # LWW article-number dot
+    ("heat_versus_altitude.7.pdf", ".ris",           "heat_versus_altitude.7.ris"),
+    ("2024_Pelland_RT_v1.2.pdf",   ".ris",           "2024_Pelland_RT_v1.2.ris"),    # version-string dot
+    ("9782889634996.PDF",          ".ris",           "9782889634996.ris"),           # uppercase .PDF
+    ("2010_Smith_Heat.4.26.pdf",   ".fulltext.json", "2010_Smith_Heat.4.26.fulltext.json"),
+    ("normal.pdf",                 ".txt",           "normal.txt"),
+])
+def test_companion_path_is_dot_safe(pdf_name, ext, want):
+    assert companion_path(Path(pdf_name), ext).name == want
+
+
+@pytest.mark.parametrize("pdf_name", [
+    "2010_Smith_HeatStress.pdf", "2010_Smith_Heat.4.26.pdf",
+    "heat_versus_altitude.7.pdf", "2024_Pelland_RT_v1.2.pdf", "9782889634996.PDF",
+])
+def test_companion_reader_equals_writer(pdf_name):
+    """The index/backfill/audit READER (companion_path) must name the .ris exactly as the
+    WRITERS do: ris_emit.emit_ris_for_pdf uses os.path.splitext; extract_pdf_fulltext /
+    pmc_fetch use fn[:-4]. A mismatch silently de-links the sidecar (the 2026-06-25 bug)."""
+    reader = companion_path(Path(pdf_name), ".ris").name
+    writer_splitext = os.path.basename(os.path.splitext(pdf_name)[0] + ".ris")  # ris_emit rule
+    writer_slice    = pdf_name[:-4] + ".ris"                                    # extract/pmc fn[:-4] rule
+    assert reader == writer_splitext == writer_slice
+
+
+def test_companion_path_differs_from_old_buggy_idiom_on_dotted_stems():
+    """Regression: the OLD idiom `pdf.with_suffix("").with_suffix(ext)` mis-derived dotted
+    stems (foo.26.pdf -> foo.ris). companion_path must NOT reproduce that."""
+    pdf = Path("2010_Smith_Heat.4.26.pdf")
+    buggy = pdf.with_suffix("").with_suffix(".ris").name   # documents the OLD wrong behavior
+    fixed = companion_path(pdf, ".ris").name
+    assert buggy == "2010_Smith_Heat.4.ris"
+    assert fixed == "2010_Smith_Heat.4.26.ris" and fixed != buggy

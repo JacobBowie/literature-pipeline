@@ -124,7 +124,7 @@ def main():
             abstract = extract_abstract(full_text)
             venue = infer_venue(full_text)
 
-            txt_path = os.path.join(text_dir, fn.replace(".pdf", ".txt"))
+            txt_path = os.path.join(text_dir, os.path.splitext(fn)[0] + ".txt")
             with open(txt_path, "w", encoding="utf-8") as f:
                 f.write(full_text)
 

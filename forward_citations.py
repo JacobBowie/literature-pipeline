@@ -95,9 +95,8 @@ def doi_from_pdf(pdf_path: Path, max_chars=5000) -> str:
 
 
 def get_doi(pdf: Path) -> str:
-    stem = pdf.with_suffix("")
-    return (doi_from_ris(stem.with_suffix(".ris"))
-         or doi_from_sidecar(stem.with_suffix(".fulltext.json"))
+    return (doi_from_ris(lit_util.companion_path(pdf, ".ris"))
+         or doi_from_sidecar(lit_util.companion_path(pdf, ".fulltext.json"))
          or doi_from_pdf(pdf))
 
 

@@ -21,6 +21,8 @@ Usage:
 import os, sys, io, csv, json, argparse, re
 from pathlib import Path
 
+from lit_util import companion_path  # dot-safe sidecar naming
+
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -147,17 +149,17 @@ def audit_queue(proj: Path) -> dict:
     return {"reports": len(reports), "failures": failures, "latest": latest.name}
 
 
-def doi_from_sources(stem: Path, pdf: Path) -> dict:
+def doi_from_sources(pdf: Path) -> dict:
     """Get DOI from sidecar, ris, and PDF text. Return all three for comparison."""
     out = {"sidecar": "", "ris": "", "pdf": ""}
-    sc = stem.with_suffix(".fulltext.json")
+    sc = companion_path(pdf, ".fulltext.json")
     if sc.exists():
         try:
             with open(sc, encoding="utf-8") as fh:
                 d = json.load(fh)
             out["sidecar"] = (d.get("doi") or "").lower()
         except (OSError, json.JSONDecodeError, UnicodeDecodeError): pass
-    rp = stem.with_suffix(".ris")
+    rp = companion_path(pdf, ".ris")
     if rp.exists():
         try:
             with open(rp, encoding="utf-8") as fh:
@@ -172,16 +174,15 @@ def deep_audit_lib(lib: Path) -> dict:
     """Deeper checks: DOI consistency + validity + sidecar text length + filename alignment."""
     from lit_util import is_valid_doi as _valid_doi, is_suspicious_doi as _susp_doi
     pdfs = sorted(p for p in lib.iterdir() if p.is_file() and p.suffix.lower() == ".pdf")
-    sidecar_lens = []        # (stem, len)
-    doi_mismatch = []        # (stem, sources)
+    sidecar_lens = []        # (filename, len)
+    doi_mismatch = []        # (filename, sources)
     malformed_dois = []      # (filename, source, doi) — RC1: truncated/invalid DOIs on disk
     fn_misalign = []         # (filename, expected_lastname, expected_year)
     doi_to_files = {}        # doi -> [(project_lib, filename)]
 
     for pdf in pdfs:
-        stem = pdf.with_suffix("")
         # Sidecar text length
-        sc = stem.with_suffix(".fulltext.json")
+        sc = companion_path(pdf, ".fulltext.json")
         if sc.exists():
             try:
                 with open(sc, encoding="utf-8") as fh:
@@ -191,7 +192,7 @@ def deep_audit_lib(lib: Path) -> dict:
             except (OSError, json.JSONDecodeError, UnicodeDecodeError): pass
 
         # DOI consistency across sidecar + ris
-        dois = doi_from_sources(stem, pdf)
+        dois = doi_from_sources(pdf)
         non_empty = {k: v for k, v in dois.items() if v}
         if len(set(non_empty.values())) > 1:
             doi_mismatch.append((pdf.name, dois))
@@ -205,9 +206,9 @@ def deep_audit_lib(lib: Path) -> dict:
 
         # Filename alignment with sidecar/ris metadata
         m = re.match(r"^(\d{4})_([A-Za-z][\w\-]*)_", pdf.name)
-        if m and (sc.exists() or stem.with_suffix(".ris").exists()):
+        if m and (sc.exists() or companion_path(pdf, ".ris").exists()):
             fn_year, fn_last = m.group(1), m.group(2)
-            rp = stem.with_suffix(".ris")
+            rp = companion_path(pdf, ".ris")
             if rp.exists():
                 with open(rp, encoding="utf-8") as fh:
                     ris = fh.read()

@@ -127,6 +127,14 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
     print(f"  -> {' '.join(cmd2)}")
     r2 = subprocess.run(cmd2, capture_output=True, text=True, encoding="utf-8", errors="replace")
     print(r2.stdout[-1500:] if r2.stdout else "")
+    if r2.returncode != 0 or not report_pmc.exists():
+        # T3 (2026-06-25): PMC stage crashed (non-zero exit or no report) -> its successes go
+        # uncounted and migrate_closed_to_md may list PMC-fetchable papers as ILL. WARN loudly;
+        # a missing report must NOT read as 'PMC found nothing'.
+        print(f"  [WARN] PMC stage did NOT complete (exit {r2.returncode}, "
+              f"report={'present' if report_pmc.exists() else 'MISSING'}); residuals may be "
+              f"mis-routed to ILL -- re-sweep before treating them as closed-access."
+              + (f"\n{r2.stderr[-400:]}" if r2.stderr else ""))
 
     # Stage 3: preprint_fetch (arXiv/bioRxiv/OSF/Europe PMC preprints) for any
     # rows that BOTH unpaywall and PMC failed on. Filter to those before calling
@@ -157,6 +165,10 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
         print(f"  -> {' '.join(cmd3)}")
         r3 = subprocess.run(cmd3, capture_output=True, text=True, encoding="utf-8", errors="replace")
         print(r3.stdout[-1500:] if r3.stdout else "")
+        if r3.returncode != 0 or not report_ppr.exists():
+            print(f"  [WARN] preprint stage did NOT complete (exit {r3.returncode}, "
+                  f"report={'present' if report_ppr.exists() else 'MISSING'})."
+                  + (f"\n{r3.stderr[-400:]}" if r3.stderr else ""))
         if report_ppr.exists():
             with open(report_ppr, encoding="utf-8") as fh:
                 n_ppr = sum(1 for r in csv.DictReader(fh)

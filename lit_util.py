@@ -13,6 +13,21 @@ Centralizes the fixes for the cross-cutting failure modes found in the 2026-06-0
 Pure stdlib; safe to import from any pipeline script.
 """
 import os, re, json, tempfile
+from pathlib import Path
+
+# ---------------------------------------------------------------- companion (sidecar) paths
+def companion_path(pdf, ext):
+    """Path of a PDF's companion file (.ris, .fulltext.json, .txt, ...), replacing ONLY the
+    final .pdf/.PDF suffix. Dot-safe and byte-identical to the writers (ris_emit os.path.splitext
+    + ext; extract_pdf_fulltext / pmc_fetch fn[:-4] + ext).
+
+    NEVER derive a companion via `pdf.with_suffix("").with_suffix(ext)`: that two-step idiom
+    strips an *interior* dotted segment ("2010_Smith.4.26.pdf" -> "2010_Smith.4.ris") and
+    silently de-links the sidecar from its PDF, so the index reads the paper as no-DOI
+    (the 2026-06-25 dot-suffix bug). A single `with_suffix(ext)` replaces only the last suffix
+    and is correct; this helper makes that the one named convention. Returns a pathlib.Path.
+    """
+    return Path(pdf).with_suffix(ext)
 
 # ---------------------------------------------------------------- RC4: atomic writes
 def atomic_write_text(path, text, newline="\n"):

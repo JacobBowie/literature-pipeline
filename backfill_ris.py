@@ -34,6 +34,7 @@ except (AttributeError, OSError):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as R
+import lit_util  # companion_path (dot-safe sidecar naming)
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
 DEFAULT_LIB = os.path.expanduser(r"~\Projects\Physiological_Data\docs\literature")
@@ -101,8 +102,7 @@ def main():
              "no_doi": 0, "crossref_fail": 0}
 
     for i, pdf in enumerate(pdfs, 1):
-        stem = pdf.with_suffix("")
-        ris_out = stem.with_suffix(".ris")
+        ris_out = lit_util.companion_path(pdf, ".ris")
 
         if ris_out.exists() and not args.overwrite:
             stats["skip_existing"] += 1
@@ -111,7 +111,7 @@ def main():
             continue
 
         # Try sidecar first
-        side = stem.with_suffix(".fulltext.json")
+        side = lit_util.companion_path(pdf, ".fulltext.json")
         doi = doi_from_sidecar(side)
         doi_src = "sidecar" if doi else ""
         if doi: stats["doi_sidecar"] += 1
