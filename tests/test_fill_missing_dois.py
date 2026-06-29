@@ -219,15 +219,15 @@ def test_update_sidecar_writes_doi_and_preserves_existing(tmp_path):
     }
     p.write_text(json.dumps(pre), encoding="utf-8")
     match = {
-        "doi": "10.1/new",
+        "doi": "10.1234/new",  # well-formed (is_valid_doi gate, T7)
         "title": "CrossRef Title",
         "year": "2020",
         "journal": "CrossRef Journal",
         "authors": [{"surname": "X", "given": "Y", "source": "crossref"}],
     }
-    update_sidecar(str(p), pre, match)
+    assert update_sidecar(str(p), pre, match) is True
     after = json.loads(p.read_text(encoding="utf-8"))
-    assert after["doi"] == "10.1/new"
+    assert after["doi"] == "10.1234/new"
     assert after["title"] == "Pre-existing curated title"  # preserved
     assert after["year"] == "2020"                         # was empty → set
     assert after["journal"] == "CrossRef Journal"          # was empty → set
@@ -250,15 +250,40 @@ def test_update_sidecar_only_overwrites_doi_when_other_fields_populated(tmp_path
         "authors": [{"surname": "Pre", "given": "", "source": "manual"}],
     }
     p.write_text(json.dumps(pre), encoding="utf-8")
-    match = {"doi": "10.1/new", "title": "CR", "year": "2020",
+    match = {"doi": "10.1234/new", "title": "CR", "year": "2020",
              "journal": "CR J", "authors": [{"surname": "Crref"}]}
-    update_sidecar(str(p), pre, match)
+    assert update_sidecar(str(p), pre, match) is True
     after = json.loads(p.read_text(encoding="utf-8"))
-    assert after["doi"] == "10.1/new"
+    assert after["doi"] == "10.1234/new"
     assert after["title"] == "Existing"
     assert after["year"] == "1999"
     assert after["journal"] == "Old J"
     assert after["authors"][0]["surname"] == "Pre"
+
+
+# ---------- T7 (2026-06-25 audit): DOI-validity gate + type-mismatch corroboration ----------
+
+def test_update_sidecar_rejects_malformed_doi(tmp_path):
+    """A malformed candidate DOI must NOT be written (the index keys on it)."""
+    p = tmp_path / "x.fulltext.json"
+    pre = {"doi": "", "title": "Keep", "year": "", "journal": "", "authors": []}
+    p.write_text(json.dumps(pre), encoding="utf-8")
+    match = {"doi": "not-a-doi", "title": "CR", "year": "2020",
+             "journal": "CR J", "authors": [{"surname": "Crref"}]}
+    assert update_sidecar(str(p), pre, match) is False
+    after = json.loads(p.read_text(encoding="utf-8"))
+    assert after["doi"] == ""          # untouched
+    assert after["title"] == "Keep"    # nothing written
+
+
+def test_score_med_type_mismatch_demoted_no_corroboration_is_review_only():
+    """Demoted-only hit with NEITHER author nor year agreeing must not return the
+    writable MED_TYPE_MISMATCH label -- it demotes to review-only AMBIG."""
+    raw = [_full(150, "10.1234/a", "dataset", "T", "Zzz", "1990")]
+    pref, _ = filter_by_type(raw)
+    label, meta, _, _ = score_match("2020", "Bishop", pref, raw)  # author+year both disagree
+    assert label == "AMBIG"
+    assert meta is not None and meta["doi"] == "10.1234/a"  # DOI still surfaced for the reviewer
 
 
 # ---------- sidecar_title_hint ----------

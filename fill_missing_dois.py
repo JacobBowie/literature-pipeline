@@ -18,6 +18,12 @@ Usage:
   python fill_missing_dois.py --project getpaid --execute --min-confidence MED
   python fill_missing_dois.py --all                                # dry-run all active projects
   python fill_missing_dois.py --all --execute                      # apply across all
+
+IMPORTANT (--execute): resolved DOIs are written to the .fulltext.json SIDECAR only.
+index_portfolio reads the DOI from the .ris, so each fill stays invisible to the index
+until you regenerate the .ris and re-index:
+  python backfill_ris.py --lib-dir <lib> --overwrite   # backfill SKIPS existing .ris without --overwrite
+  python index_portfolio.py --project <name>
 """
 import argparse
 import csv
@@ -41,6 +47,7 @@ except (AttributeError, OSError):
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ris_emit import load_projects_config
 from audit_filenames import safe_ascii
+import lit_util  # T7 (2026-06-25 audit): is_valid_doi gate + atomic sidecar write
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
 UA = f"GETPAID-doi-fill/1.0 (mailto:{EMAIL})"
@@ -174,7 +181,10 @@ def extract_metadata(item):
     authors = item.get("author") or []
     first_family = (authors[0].get("family") or "").strip() if authors else ""
     year = ""
-    for k in ("published-print", "published-online", "issued", "created"):
+    # T7 (2026-06-25 audit): 'created' is the CrossRef DEPOSIT timestamp, not a publication
+    # date -- including it yields wrong years for back-filled records. Mirror ris_emit.crossref_meta,
+    # which deliberately stops at 'issued'. A 'created'-only record now yields year='' (honest unknown).
+    for k in ("published-print", "published-online", "issued"):
         if k in item and item[k].get("date-parts"):
             parts = item[k]["date-parts"]
             if parts and parts[0]:
@@ -222,9 +232,19 @@ def score_match(year_hint, author_hint, ranked_items, raw_items):
         return "NO_RESULT", None, 0, 0
 
     if not ranked_items and raw_items:
+        # T7 (2026-06-25 audit): the only hits are type-DEMOTED records (dataset, peer-review,
+        # component...). raw_items[0] is the highest-scored DEMOTED record. Auto-writing it
+        # (MED_TYPE_MISMATCH is an allowed --min-confidence) risks a wrong-but-well-formed DOI
+        # with no corroboration. Keep the WRITABLE MED_TYPE_MISMATCH label only when the author
+        # OR year agrees; otherwise demote to review-only AMBIG (still carries the DOI for a human).
         meta = extract_metadata(raw_items[0])
         top2 = raw_items[1].get("score", 0) if len(raw_items) > 1 else 0
-        return "MED_TYPE_MISMATCH", meta, meta["score"], top2
+        ah, rh = normalize_for_match(author_hint), normalize_for_match(meta["first_family"])
+        a_match = bool(ah and rh and (ah in rh or rh in ah))
+        y_match = bool(year_hint and meta["year"] and year_hint == meta["year"])
+        if a_match or y_match:
+            return "MED_TYPE_MISMATCH", meta, meta["score"], top2
+        return "AMBIG", meta, meta["score"], top2
 
     top = extract_metadata(ranked_items[0])
     top2 = ranked_items[1].get("score", 0) if len(ranked_items) > 1 else 0
@@ -285,9 +305,18 @@ def score_match(year_hint, author_hint, ranked_items, raw_items):
 
 
 def update_sidecar(sidecar_path, sidecar_dict, match_meta):
-    """Apply CrossRef match metadata to sidecar. Preserves existing fields."""
+    """Apply CrossRef match metadata to sidecar. Preserves existing fields.
+
+    Returns True if the sidecar was written, False if the candidate DOI is not
+    well-formed -- T7 (2026-06-25 audit): a malformed DOI must never be written,
+    the index keys on it. Writes crash-safely via lit_util.atomic_write_json
+    (same ensure_ascii=False, indent=2 as before, but atomic).
+    """
+    doi = (match_meta.get("doi") or "").strip()
+    if not lit_util.is_valid_doi(doi):
+        return False
     sd = sidecar_dict
-    sd["doi"] = match_meta["doi"]
+    sd["doi"] = doi
     if not sd.get("title"):
         sd["title"] = match_meta["title"]
     if not sd.get("year"):
@@ -296,8 +325,8 @@ def update_sidecar(sidecar_path, sidecar_dict, match_meta):
         sd["journal"] = match_meta["journal"]
     if not sd.get("authors") and match_meta["authors"]:
         sd["authors"] = match_meta["authors"]
-    with open(sidecar_path, "w", encoding="utf-8") as fh:
-        json.dump(sd, fh, indent=2, ensure_ascii=False)
+    lit_util.atomic_write_json(sidecar_path, sd)
+    return True
 
 
 def discover_orphans(lib_dir):
@@ -475,10 +504,15 @@ def run_project(name, lib_dir, args):
             and CONFIDENCE_RANK.get(status, 0) >= min_rank
             and CONFIDENCE_RANK[status] >= CONFIDENCE_RANK[args.min_confidence]):
             try:
-                update_sidecar(sidecar_path, sidecar, top_meta)
-                row["applied"] = True
-                applied_rows.append(row)
-                print(f"  [{i}/{len(orphans)}] APPLIED {status:25s} {fn[:60]} -> {top_meta['doi']}")
+                if update_sidecar(sidecar_path, sidecar, top_meta):
+                    row["applied"] = True
+                    applied_rows.append(row)
+                    print(f"  [{i}/{len(orphans)}] APPLIED {status:25s} {fn[:60]} -> {top_meta['doi']}")
+                else:
+                    # T7: candidate DOI not well-formed -> never written (would corrupt the index key)
+                    row["status"] = f"{status}_INVALID_DOI"
+                    print(f"  [{i}/{len(orphans)}] SKIP-INVALID-DOI {fn[:55]} (doi={top_meta['doi']!r})",
+                          file=sys.stderr)
             except OSError as e:
                 row["status"] = f"WRITE_ERROR_{e}"
                 print(f"  [{i}/{len(orphans)}] WRITE-ERR {fn[:60]} ({e})", file=sys.stderr)
@@ -521,6 +555,16 @@ def run_project(name, lib_dir, args):
     if applied_rows: print(f"    Applied:          {applied}")
     if review_rows: print(f"    Review queue:     {review}")
     if skip_rows: print(f"    Skip log:         {skipped}")
+
+    if applied_rows:
+        # T7 (2026-06-25 audit): fills land in the SIDECAR only. index_portfolio reads the
+        # DOI from the .ris, so a 'successful' fill is invisible to the index until the .ris
+        # is regenerated. Surface the exact follow-up loudly (backfill_ris SKIPS existing .ris
+        # without --overwrite, which is the documented footgun).
+        print(f"\n  [!] {len(applied_rows)} DOI(s) written to SIDECARS only -- the index reads"
+              f" the .ris, so these fills are INVISIBLE until you regenerate it:")
+        print(f"        python backfill_ris.py --lib-dir \"{lib_dir}\" --overwrite")
+        print(f"        python index_portfolio.py --project {name}")
 
     return {"name": name, "attempted": len(rows), "high": n_high, "med": n_med,
             "amb": n_amb, "low": n_low, "skip": n_skip, "err": n_err,

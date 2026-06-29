@@ -22,6 +22,9 @@ Usage:
 import sys, io, os, csv, json, argparse
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lit_util  # coerce_int (2026-06-25 audit sibling sweep)
+
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -34,7 +37,7 @@ CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
 
 def resolve_from_config(name: str):
-    """Look up project in projects.json. Returns (base, lib, data_or_None, tier)."""
+    """Look up project in projects.json. Returns (base, lib, data_or_None, tier, ris_threshold)."""
     from ris_emit import load_projects_config
     cfg = load_projects_config(CONFIG_PATH).get("projects", {})
     if name not in cfg:
@@ -47,7 +50,11 @@ def resolve_from_config(name: str):
     lib  = base / p["lib_dir"]
     data = (base / p["data_dir"]) if p.get("data_dir") else None
     tier = p.get("tier", 2)
-    return base, lib, data, tier
+    # T8 (2026-06-25 audit): per-project .ris-coverage floor for Stage 4b. Default 90; a project
+    # with legitimately DOI-less PDFs (e.g. ATHENA_RNAseq's structural artifacts, ~86%) lowers it
+    # in projects.json so a tight floor is kept per project instead of one global worst-case value.
+    ris_threshold = p.get("ris_threshold", 90)
+    return base, lib, data, tier, ris_threshold
 
 
 def main():
@@ -65,12 +72,13 @@ def main():
     args = ap.parse_args()
 
     if args.project:
-        base, lib, data, tier = resolve_from_config(args.project)
+        base, lib, data, tier, ris_threshold = resolve_from_config(args.project)
     else:
         base = Path(args.base_dir or os.getcwd()).resolve()
         lib  = base / args.lib_dir
         data = base / args.data_dir
         tier = args.tier or 1   # legacy default: assume full pipeline
+        ris_threshold = 90      # legacy path has no config; use the default floor
 
     print(f"Project base: {base}")
     print(f"Tier:         {tier}")
@@ -147,7 +155,15 @@ def main():
     ris_stems = {n[:-4] for n in ris_files}
     pdfs_with_ris = pdf_stems_set & ris_stems
     pct = (100*len(pdfs_with_ris)/len(pdfs)) if pdfs else 0
-    check(f"{len(pdfs_with_ris)}/{len(pdfs)} PDFs have .ris ({pct:.0f}%)", True)
+    # T8 (2026-06-25 audit): this was hardcoded check(..., True) -- a no-op that could NEVER
+    # fail, defeating the one guard positioned to catch a backfill/naming regression (Stage 4b is
+    # the only .ris gate on the tier-2 projects, 9 of 10 in the current registry). Make it a real
+    # predicate against a per-project floor (default 90; ATHENA_RNAseq lowers it for its structural
+    # DOI-less artifacts) so a tight floor is kept per project instead of one loose global value.
+    # Empty libs pass.
+    ris_ok = (not pdfs) or (pct >= ris_threshold)
+    check(f"{len(pdfs_with_ris)}/{len(pdfs)} PDFs have .ris ({pct:.0f}%, floor {ris_threshold}%)", ris_ok,
+          "" if ris_ok else f"below {ris_threshold}% -- likely a backfill/naming regression; run backfill_ris")
     orphan_ris = ris_stems - pdf_stems_set
     check("no orphan .ris (no PDF)", not orphan_ris,
           detail="" if not orphan_ris else f"{len(orphan_ris)} orphans")
@@ -162,8 +178,8 @@ def main():
         if table_report.exists():
             with open(table_report, encoding="utf-8") as fh:
                 rows = list(csv.DictReader(fh))
-            n_with_t = sum(1 for r in rows if int(r.get("n_tables", "0") or 0) > 0)
-            n_total_t = sum(int(r.get("n_tables", "0") or 0) for r in rows)
+            n_with_t = sum(1 for r in rows if lit_util.coerce_int(r.get("n_tables")) > 0)
+            n_total_t = sum(lit_util.coerce_int(r.get("n_tables")) for r in rows)
             check(f"  {n_with_t}/{len(rows)} papers with tables, {n_total_t} total",
                   len(rows) > 0)
 

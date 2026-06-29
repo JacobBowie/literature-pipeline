@@ -33,6 +33,8 @@ from xml.etree import ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lit_util  # RC2/RC3/RC4 audit-remediation helpers
+# T5a (2026-06-25 audit): reject known publisher boilerplate in this stage too (OSF/biorxiv mirrors).
+from unpaywall_fetch_v2 import is_known_boilerplate
 # RC2/RC3: reuse the collision-safe dest + DOI<->content helpers (single source of truth).
 from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
                                 doi_from_pdf_bytes, _doi_of_existing)
@@ -301,6 +303,10 @@ def fetch_pdf(url, dest, timeout=30):
         sz = os.path.getsize(dest)
         if sz < 10_000:
             os.remove(dest); return False, f"TOO_SMALL_{sz}B"
+        # T5a (2026-06-25 audit): reject known publisher boilerplate that passes %PDF + size.
+        is_bp, tag = is_known_boilerplate(dest)
+        if is_bp:
+            os.remove(dest); return False, f"BOILERPLATE_{tag or ''}"
         return True, f"OK_{sz}B"
     except Exception as e:
         return False, f"ERR_{str(e)[:80]}"

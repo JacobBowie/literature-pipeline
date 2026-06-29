@@ -140,15 +140,26 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
     # rows that BOTH unpaywall and PMC failed on. Filter to those before calling
     # so we don't waste API calls or risk duplicating already-fetched papers
     # with a preprint version.
+    # T5b (2026-06-25 audit): an already-present paper reports oa_status=SKIP_EXISTS (unpaywall)
+    # or skipped/winning_source=ALREADY_EXISTS (pmc) with downloaded=False. If we only treat
+    # downloaded==true as "got", those fall through to preprint_fetch and a _preprint duplicate
+    # is fetched (the _preprint slug differs, so preprint's own skip-exists guard misses it).
     got_dois = set()
+    def _got(r):
+        d = (r.get("doi") or "").strip().lower()
+        if d: got_dois.add(d)
     if report_unpw.exists():
         with open(report_unpw, encoding="utf-8") as fh:
             for r in csv.DictReader(fh):
-                if r.get("downloaded", "").lower() == "true": got_dois.add(r["doi"].strip().lower())
+                if r.get("downloaded", "").lower() == "true" or r.get("oa_status", "") == "SKIP_EXISTS":
+                    _got(r)
     if report_pmc.exists():
         with open(report_pmc, encoding="utf-8") as fh:
             for r in csv.DictReader(fh):
-                if r.get("downloaded", "").lower() == "true": got_dois.add(r["doi"].strip().lower())
+                if (r.get("downloaded", "").lower() == "true"
+                        or r.get("skipped", "").lower() == "true"
+                        or r.get("winning_source", "") == "ALREADY_EXISTS"):
+                    _got(r)
 
     n_ppr = 0
     with open(norm_csv, encoding="utf-8") as fin:

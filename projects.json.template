@@ -5,6 +5,7 @@
     "lib_dir":  "PDF/sidecar/.ris directory, relative to project root",
     "data_dir": "Tier 1 only: build-artifact directory (discovery/triage/tables/text)",
     "parent":   "Subprojects only: name of containing top-level project",
+    "ris_threshold": "Optional (default 90): pipeline_check Stage 4b min .ris-coverage %% before FAIL; lower it for projects with legitimately DOI-less PDFs",
     "active":   "false to skip in audits without removing from registry"
   },
 

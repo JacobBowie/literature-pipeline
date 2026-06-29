@@ -24,8 +24,11 @@ from jats_to_text import parse_jats
 import ris_emit as _R
 import lit_util  # RC2/RC3/RC4 audit-remediation helpers
 # RC2/RC3: reuse the collision-safe dest + DOI<->content helpers (single source of truth).
+# T5a (2026-06-25 audit): reuse the boilerplate fingerprint so a landing/template PDF from
+# Europe PMC is rejected here too, not only in the Unpaywall stage.
 from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
-                                doi_from_pdf_bytes, _doi_of_existing)
+                                doi_from_pdf_bytes, _doi_of_existing,
+                                is_known_boilerplate)
 
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
@@ -103,6 +106,12 @@ def try_download(url, dest, timeout=30):
             if sz < 10_000:
                 os.remove(dest)
                 return False, "TOO_SMALL", f"{sz}B"
+            # T5a (2026-06-25 audit): a landing/template PDF from Europe PMC can pass the
+            # %PDF + size gate; reject known publisher boilerplate so it never gets a wrong .ris.
+            is_bp, tag = is_known_boilerplate(dest)
+            if is_bp:
+                os.remove(dest)
+                return False, "BOILERPLATE", tag or ""
             return True, "OK", f"{sz}B"
         return False, "HTML", b"".join(chunks)
     except Exception as e:

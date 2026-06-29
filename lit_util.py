@@ -46,6 +46,19 @@ def atomic_write_text(path, text, newline="\n"):
 def atomic_write_json(path, obj, indent=2):
     atomic_write_text(path, json.dumps(obj, ensure_ascii=False, indent=indent))
 
+def coerce_int(v, default=0):
+    """Parse an int from a possibly-messy CSV/JSON cell ('1,234', ' 12 ', 'n/a',
+    None, '2020a', 'in press'). Returns `default` on anything non-numeric.
+
+    Single source of truth for the int()-on-external-numeric bug class
+    (2026-06-25 audit T5d + the sibling sweep that found build_priority's year
+    sort-key crashing on a non-numeric residual-CSV year). Strips commas and
+    catches both ValueError and TypeError so it never raises."""
+    try:
+        return int(float(str(v).replace(",", "").strip() or default))
+    except (ValueError, TypeError):
+        return default
+
 # ---------------------------------------------------------------- RC1: DOI extraction + validity
 # Start anchor for a DOI; the body is captured greedily then trimmed.
 _DOI_START = re.compile(r"10\.\d{4,9}/", re.IGNORECASE)

@@ -429,7 +429,11 @@ def main():
 
     with open(triage_csv, encoding="utf-8") as f:
         triage = list(csv.DictReader(f))
-    triage_top = [r for r in triage if int(r.get("citation_count") or 0) >= args.min_cites][:args.top_n]
+    # T5d (2026-06-25 audit): a non-numeric citation_count cell ('n/a', '1,234') would crash
+    # the whole project's fetch with ValueError. Coerce via the shared lit_util helper (single
+    # source of truth for this bug class, also routed at build_priority_paywall_queue.py).
+    triage_top = [r for r in triage
+                  if lit_util.coerce_int(r.get("citation_count")) >= args.min_cites][:args.top_n]
     print(f"Project: {base}")
     print(f"Triage:  {triage_csv}")
     print(f"Library: {lib_dir}")

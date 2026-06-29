@@ -91,7 +91,14 @@ def read_report_chain(project_root: Path, sweep_date: str):
             for r in csv.DictReader(f):
                 doi = r.get("doi", "").strip()
                 if doi in not_downloaded:
-                    if r.get("downloaded", "").lower() in ("true", "1"):
+                    # 2026-06-25 audit sibling sweep (T5b parallel oracle): an already-present
+                    # paper reports skipped=True / winning_source=ALREADY_EXISTS with
+                    # downloaded=False. Treat it as resolved (the PDF is on disk) so it is NOT
+                    # mis-routed to the manual-pull/ILL queue as closed-access (the exact harm T3
+                    # guards). Mirrors sweep.py got_dois.
+                    if (r.get("downloaded", "").lower() in ("true", "1")
+                            or r.get("skipped", "").lower() in ("true", "1")
+                            or r.get("winning_source", "") == "ALREADY_EXISTS"):
                         not_downloaded.pop(doi)
                     else:
                         not_downloaded[doi]["stage_pmc"] = "no_pmcid" if not r.get("pmcid") else "fail"
@@ -107,7 +114,11 @@ def read_report_chain(project_root: Path, sweep_date: str):
             for r in csv.DictReader(f):
                 doi = r.get("doi", "").strip()
                 if doi in not_downloaded:
-                    if r.get("downloaded", "").lower() in ("true", "1"):
+                    # 2026-06-25 audit sibling sweep: preprint emits status=ALREADY_EXISTS /
+                    # skipped=True for an already-present paper; treat as resolved, not closed-access.
+                    if (r.get("downloaded", "").lower() in ("true", "1")
+                            or r.get("skipped", "").lower() in ("true", "1")
+                            or r.get("status", "") == "ALREADY_EXISTS"):
                         not_downloaded.pop(doi)
                     else:
                         not_downloaded[doi]["stage_preprint"] = "no_match"
