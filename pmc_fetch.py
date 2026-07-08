@@ -36,7 +36,7 @@ try:
 except (AttributeError, OSError):
     pass
 
-EMAIL      = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL      = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 IDCONV     = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 EPMC_PDF   = "https://europepmc.org/articles/{pmcid}?pdf=render"
 EPMC_XML   = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"

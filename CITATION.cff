@@ -5,7 +5,7 @@ type: software
 authors:
   - given-names: Jacob
     family-names: Bowie
-    email: jacob.bowie2@gmail.com
+    email: JacobBowie@users.noreply.github.com
     affiliation: "University of Connecticut"
 repository-code: "https://github.com/JacobBowie/literature-pipeline"
 license: MIT

@@ -343,7 +343,7 @@ def parse_jats(xml_bytes: bytes) -> dict:
 def _smoke_test(pmcid: str, dump: bool) -> int:
     """Fetch a JATS-XML article from Europe PMC and dump the parsed structure."""
     import requests
-    UA = f"litpipe-jats-smoke/1.0 (mailto:{os.environ.get('LITPIPE_EMAIL', 'jacob.bowie2@gmail.com')})"
+    UA = f"litpipe-jats-smoke/1.0 (mailto:{os.environ.get('LITPIPE_EMAIL', 'JacobBowie@users.noreply.github.com')})"
     r = requests.get(f"https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML",
                       headers={"User-Agent": UA}, timeout=30)
     print(f"HTTP {r.status_code} ({len(r.content)} bytes)")

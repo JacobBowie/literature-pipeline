@@ -40,7 +40,7 @@ except (AttributeError, OSError):
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA    = f"GETPAID-fwdcite/1.0 (mailto:{EMAIL})"
 S2    = "https://api.semanticscholar.org/graph/v1"
 

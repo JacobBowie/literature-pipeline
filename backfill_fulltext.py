@@ -40,7 +40,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jats_to_text import parse_jats
 import lit_util
 
-EMAIL    = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL    = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 IDCONV   = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 API_UA   = f"GETPAID-backfill/1.0 (mailto:{EMAIL})"

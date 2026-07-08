@@ -28,7 +28,7 @@ try:
 except (AttributeError, OSError):
     pass
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA    = f"GETPAID-recs/1.0 (mailto:{EMAIL})"
 S2    = "https://api.semanticscholar.org/recommendations/v1"
 S2_GRAPH = "https://api.semanticscholar.org/graph/v1"

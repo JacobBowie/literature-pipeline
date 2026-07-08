@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as R
 import lit_util  # companion_path (dot-safe sidecar naming)
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 DEFAULT_LIB = os.path.expanduser(r"~\Projects\Physiological_Data\docs\literature")
 
 

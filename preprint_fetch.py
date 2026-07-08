@@ -45,7 +45,7 @@ try:
 except (AttributeError, OSError):
     pass
 
-EMAIL  = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL  = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA     = f"GETPAID-preprint-fetch/1.0 (mailto:{EMAIL})"
 BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")

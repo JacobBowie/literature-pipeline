@@ -33,7 +33,7 @@ from jats_to_text import parse_jats
 import lit_util            # RC1/RC4: DOI validity gate + atomic writes
 import ris_emit as _R      # title_similarity for the sidecar title sanity check
 
-EMAIL    = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL    = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA       = f"GETPAID-recheck/1.0 (mailto:{EMAIL})"
 IDCONV   = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"

@@ -37,7 +37,7 @@ except (AttributeError, OSError):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA    = f"GETPAID-fnaudit/1.0 (mailto:{EMAIL})"
 DOI_RE = re.compile(r"\b(10\.\d{4,9}/[^\s\)\]\>\"',]+)", re.IGNORECASE)
 DOI_TRAIL = re.compile(r"[.,;:\)\]\}\>]+$")

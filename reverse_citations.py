@@ -36,7 +36,7 @@ except (AttributeError, OSError):
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 
 # ---------- references-section locator ----------
 

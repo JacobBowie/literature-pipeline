@@ -12,7 +12,7 @@ EndNote ingests RIS natively via "Reference Manager (RIS)" import filter.
 import os, re, sys, time, difflib, unicodedata
 import requests
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA    = f"GETPAID-ris-emit/1.0 (mailto:{EMAIL})"
 
 _email_warned = False

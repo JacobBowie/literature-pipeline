@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as _R
 import lit_util  # RC2/RC3/RC4 audit-remediation helpers (atomic writes, DOI extraction)
 
-EMAIL      = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL      = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UNPAYWALL  = "https://api.unpaywall.org/v2"
 
 # Browser-ish UA for *download* GETs (publishers block "GETPAID-bot")

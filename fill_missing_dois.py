@@ -49,7 +49,7 @@ from ris_emit import load_projects_config
 from audit_filenames import safe_ascii
 import lit_util  # T7 (2026-06-25 audit): is_valid_doi gate + atomic sidecar write
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "jacob.bowie2@gmail.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA = f"GETPAID-doi-fill/1.0 (mailto:{EMAIL})"
 CROSSREF = "https://api.crossref.org/works"
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
