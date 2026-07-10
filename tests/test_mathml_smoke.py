@@ -76,6 +76,7 @@ class TestMathmlSmoke:
             f"no \\alpha-equivalent in output: {latex!r}"
 
 
+@pytest.mark.skipif(not _MATH_AVAILABLE, reason="vendored mathml-to-latex unavailable")
 def test_no_mathml_returns_status():
     """When the input doesn't contain <math>, we get a status, not a crash."""
     elem = ET.fromstring("<inline-formula><p>not math</p></inline-formula>")
@@ -84,6 +85,7 @@ def test_no_mathml_returns_status():
     assert latex == ""
 
 
+@pytest.mark.skipif(not _MATH_AVAILABLE, reason="vendored mathml-to-latex unavailable")
 def test_readme_verify_snippet_works():
     """Lock in the README §Verify-it-yourself snippet — if this breaks, the
     docs are lying."""
