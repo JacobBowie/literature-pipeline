@@ -92,13 +92,18 @@ def try_download(url, dest, timeout=30):
         first = b""
         chunks = []
         total = 0
+        truncated = False
         for c in r.iter_content(chunk_size=8192):
             if not c: continue
             if not first: first = c
             chunks.append(c); total += len(c)
-            if total > 60_000_000: break
+            if total > 60_000_000:
+                truncated = True
+                break
         if not first:
             return False, "EMPTY", ""
+        if truncated:  # over cap: don't write a silently-truncated PDF
+            return False, "TOO_LARGE", f">{total}B"
         if looks_like_pdf(first):
             with open(dest, "wb") as f:
                 for c in chunks: f.write(c)
@@ -159,8 +164,10 @@ def fetch_pmc_pdf(pmcid, dest):
 
     # 2. NCBI: fetch article page, parse citation_pdf_url
     page_url = NCBI_PAGE.format(pmcid=pmcid)
-    ok2, st2, msg2 = try_download(page_url, dest)  # this won't be a PDF; treats as HTML
+    ok2, st2, msg2 = try_download(page_url, dest)  # usually HTML, but may redirect to a real PDF
     attempts.append(("ncbi-page", page_url, st2, msg2 if isinstance(msg2, str) else f"<{len(msg2)}B HTML>"))
+    if ok2:  # NCBI page redirected to an actual PDF, already written to dest
+        return True, attempts
     if st2 == "HTML":
         pdf_url = extract_citation_pdf_url(msg2, page_url)
         if pdf_url:

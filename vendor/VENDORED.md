@@ -10,7 +10,7 @@ project imports from `vendor/` rather than relying on `pip install`.
 - **Version**: 1.0.0
 - **PyPI release**: 2024-11-09
 - **Vendored on**: 2026-04-28
-- **License**: MIT (see GitHub LICENSE; PyPI release omits the License classifier)
+- **License**: MIT — full upstream text vendored alongside this package at `vendor/mathml_to_latex/LICENSE` (PyPI release omits the License classifier)
 - **Why vendored**: single release, solo author, 17 months without commits.
   See `tools/PMC_FETCH_README.md` and project memory for the audit notes.
 

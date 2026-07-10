@@ -26,7 +26,7 @@ except (AttributeError, OSError):
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA    = f"GETPAID-abstract-enrich/1.0 (mailto:{EMAIL})"
-DB_PATH = os.path.expanduser(r"~\Projects\_references\portfolio.duckdb")
+DB_PATH = os.path.expanduser("~/Projects/_references/portfolio.duckdb")
 CROSSREF = "https://api.crossref.org/works/{doi}"
 
 

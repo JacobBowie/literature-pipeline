@@ -32,8 +32,8 @@ except (AttributeError, OSError):
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"
-DB_PATH = Path(os.path.expanduser(r"~\Projects\_references\portfolio.duckdb"))
-PROJECTS_ROOT = Path(os.path.expanduser(r"~\Projects"))
+DB_PATH = Path(os.path.expanduser("~/Projects/_references/portfolio.duckdb"))
+PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 
 
 def main():

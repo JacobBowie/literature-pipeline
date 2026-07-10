@@ -349,6 +349,7 @@ def try_download(url, dest, timeout=30):
         first_chunk = b""
         chunks = []
         total = 0
+        truncated = False
         for chunk in r.iter_content(chunk_size=8192):
             if chunk:
                 if not first_chunk:
@@ -356,9 +357,12 @@ def try_download(url, dest, timeout=30):
                 chunks.append(chunk)
                 total += len(chunk)
                 if total > 50_000_000:  # 50MB cap
+                    truncated = True
                     break
         if not first_chunk:
             return "EMPTY", ""
+        if truncated:  # over cap: don't write a silently-truncated PDF
+            return "TOO_LARGE", f">{total}B"
         if looks_like_pdf(first_chunk):
             with open(dest, "wb") as f:
                 for c in chunks: f.write(c)

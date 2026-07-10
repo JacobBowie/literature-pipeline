@@ -15,7 +15,7 @@ Built for the workflow where the same library is consumed by multiple downstream
 - One-command snowball: forward + reverse + recommendations + abstracts + reindex
 - No paywall bypass, no Sci-Hub, no spoofed institutional IPs. Every request identifies itself by mailto contact per API ToS.
 
-**Forward plan** (embedding-similarity ranking, local RAG, MCP server): [ROADMAP.md](ROADMAP.md). **State as of last touch:** [CURRENT_STATE.md](CURRENT_STATE.md).
+**Forward plan** (embedding-similarity ranking, local RAG, MCP server): [ROADMAP.md](ROADMAP.md).
 
 ## Install
 
@@ -88,7 +88,6 @@ The same project registry feeds every downstream tool (`snowball.py` for citatio
 Projects/_tools/literature_pipeline/
 ├── README.md
 ├── ROADMAP.md                  # forward plan (Stage A → MCP)
-├── CURRENT_STATE.md            # one-paragraph "what's true right now"
 ├── projects.json               # registry: which projects use the pipeline (Tier 1 / Tier 2)
 │
 │   ── FETCH (the puller chain) ──

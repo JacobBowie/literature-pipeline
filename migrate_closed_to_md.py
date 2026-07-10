@@ -24,7 +24,7 @@ import lit_util  # RC4: atomic_write_text for crash-safe .md writes
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"
-PROJECTS_ROOT = Path(os.path.expanduser(r"~\Projects"))
+PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 
 
 def project_dir(project: str, proj_cfg: dict) -> Path:

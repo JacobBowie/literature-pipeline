@@ -291,12 +291,14 @@ def fetch_pdf(url, dest, timeout=30):
         r = requests.get(url, headers={"User-Agent": BROWSER_UA, "Accept":"application/pdf,*/*"},
                           timeout=timeout, stream=True, allow_redirects=True)
         if r.status_code != 200: return False, f"HTTP_{r.status_code}"
-        first=b""; chunks=[]; total=0
+        first=b""; chunks=[]; total=0; truncated=False
         for c in r.iter_content(8192):
             if not c: continue
             if not first: first=c
             chunks.append(c); total+=len(c)
-            if total > 60_000_000: break
+            if total > 60_000_000:
+                truncated=True; break
+        if truncated: return False, "TOO_LARGE"  # over cap: don't write a truncated PDF
         if not is_pdf(first): return False, "NOT_PDF"
         with open(dest, "wb") as f:
             for c in chunks: f.write(c)
