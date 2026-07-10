@@ -42,7 +42,7 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 HERE = Path(__file__).parent
-PROJECTS_ROOT = Path(os.path.expanduser(r"~\Projects"))
+PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH = HERE / "projects.json"
 PY = sys.executable
 

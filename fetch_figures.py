@@ -85,11 +85,15 @@ def download_image(url, dest, timeout=30):
         first = b""
         chunks = []
         total = 0
+        truncated = False
         for c in r.iter_content(8192):
             if not c: continue
             if not first: first = c
             chunks.append(c); total += len(c)
-            if total > 30_000_000: break  # 30MB cap, no figure should be this big
+            if total > 30_000_000:
+                truncated = True; break  # 30MB cap, no figure should be this big
+        if truncated:  # over cap: don't write a truncated image
+            return False, "TOO_LARGE", total
         # Validate magic bytes (JPG/PNG/GIF)
         if not (first[:3] == b"\xff\xd8\xff" or first[:3] == b"\x89PN" or first[:3] == b"GIF"):
             return False, "NOT_IMAGE", total

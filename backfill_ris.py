@@ -37,7 +37,7 @@ import ris_emit as R
 import lit_util  # companion_path (dot-safe sidecar naming)
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
-DEFAULT_LIB = os.path.expanduser(r"~\Projects\Physiological_Data\docs\literature")
+DEFAULT_LIB = os.path.expanduser("~/Projects/Physiological_Data/docs/literature")
 
 
 def doi_from_sidecar(sidecar_path: Path) -> str:
