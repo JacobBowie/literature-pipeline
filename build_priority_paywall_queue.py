@@ -44,6 +44,15 @@ def load_libs():
     lib_dir-bearing project in the registry, so dedup stays in sync as projects
     are added there rather than needing a hand-edit here.
     """
+    if not os.path.exists(CONFIG_PATH):
+        # projects.json is gitignored, so it is absent on a fresh clone / in CI.
+        # No registry means no known libraries: return empty instead of raising
+        # FileNotFoundError at import time (this runs at module load, and
+        # paywall_pull.py does `from build_priority_paywall_queue import LIBS`).
+        # Keeps --help and imports working; a real run is warned loudly here.
+        print(f"[warn] no projects.json at {CONFIG_PATH}; no libraries loaded (dedup disabled).",
+              file=sys.stderr)
+        return {}
     with open(CONFIG_PATH, encoding="utf-8") as f:
         cfg = json.load(f)
     libs = {}
