@@ -18,7 +18,7 @@ Usage:
   python recheck_pmc.py --lib-dir DIR --only-prefix 197  # just 1970s papers
   python recheck_pmc.py --lib-dir DIR --dry-run         # show plan, don't fetch
 """
-import os, sys, io, re, time, argparse, csv
+import os, sys, io, time, argparse, csv
 import requests
 
 try:
@@ -38,10 +38,6 @@ UA       = f"GETPAID-recheck/1.0 (mailto:{EMAIL})"
 IDCONV   = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 
-# DOI regex: 10.XXXX/<anything-not-whitespace-or-trailing-punct>
-DOI_RE = re.compile(r"\b(10\.\d{4,9}/[^\s\)\]\>\"',]+)", re.IGNORECASE)
-DOI_TRAIL_PUNCT = re.compile(r"[.,;:\)\]\}\>]+$")
-
 
 def extract_pdf_head_text(pdf_path, max_chars=5000):
     """Return the first ~max_chars of a PDF's text (for DOI + title checks), or ''."""
@@ -57,19 +53,6 @@ def extract_pdf_head_text(pdf_path, max_chars=5000):
     except (OSError, RuntimeError, ValueError):
         return ""
     return text[:max_chars]
-
-
-def extract_doi_from_pdf(pdf_path, max_chars=5000):
-    """First well-formed DOI in a PDF's first ~max_chars, or ''.
-
-    RC1: routes through lit_util.extract_doi_from_text, which re-joins line-wrapped
-    DOIs and drops the truncation class ('10.1002/cphy') -- the old local regex
-    truncated at the wrap. is_valid_doi() is the explicit well-formedness gate."""
-    text = extract_pdf_head_text(pdf_path, max_chars)
-    if not text:
-        return ""
-    doi = lit_util.extract_doi_from_text(text)
-    return doi if lit_util.is_valid_doi(doi) else ""
 
 
 def doi_to_pmcid_batch(dois, batch_size=100):

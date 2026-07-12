@@ -244,10 +244,6 @@ def write_ris(path: str, ris_text: str, overwrite: bool = True) -> bool:
 
 # ---------- DOI extraction helpers (used by harvest + backfill) ----------
 
-DOI_RE     = re.compile(r"\b(10\.\d{4,9}/[^\s\)\]\>\"',]+)", re.IGNORECASE)
-DOI_TRAIL  = re.compile(r"[.,;:\)\]\}\>]+$")
-
-
 def extract_doi_from_text(text: str) -> str:
     # RC1 (2026-06-05 audit): delegate to lit_util, which re-joins line-wrapped DOIs and
     # rejects the truncation class ('10.1002/cphy', '10.1001/archinte') instead of the old

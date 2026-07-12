@@ -36,8 +36,6 @@ except (AttributeError, OSError):
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
-
 # ---------- references-section locator ----------
 
 REFS_HDR = re.compile(
@@ -55,7 +53,6 @@ AUTHOR_YEAR_HANG = re.compile(
     re.MULTILINE
 )
 YEAR_RE = re.compile(r'\b(19[5-9]\d|20[0-2]\d)\b')
-DOI_RE  = re.compile(r'\b10\.\d{4,9}/[-._;()/:A-Z0-9]+', re.IGNORECASE)
 
 
 def locate_refs(text: str) -> str:
