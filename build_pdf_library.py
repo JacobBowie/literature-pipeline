@@ -12,7 +12,7 @@ Usage:
   python build_pdf_library.py --lib-dir references/literature \\
                               --out-dir data/prior_art
 """
-import os, re, sys, io, csv, argparse
+import os, re, sys, csv, argparse
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")

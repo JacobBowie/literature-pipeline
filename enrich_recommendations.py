@@ -18,7 +18,7 @@ Usage:
   python enrich_recommendations.py --limit 10  # testing
   python enrich_recommendations.py --s2-key XXX  # faster
 """
-import os, sys, io, time, argparse, datetime
+import os, sys, time, argparse, datetime
 import urllib.parse
 import duckdb, requests
 

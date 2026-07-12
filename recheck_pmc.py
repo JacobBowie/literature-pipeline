@@ -18,7 +18,7 @@ Usage:
   python recheck_pmc.py --lib-dir DIR --only-prefix 197  # just 1970s papers
   python recheck_pmc.py --lib-dir DIR --dry-run         # show plan, don't fetch
 """
-import os, sys, io, re, json, time, argparse, csv
+import os, sys, io, re, time, argparse, csv
 import requests
 
 try:

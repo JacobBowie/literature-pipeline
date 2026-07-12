@@ -25,7 +25,7 @@ Usage:
   python audit_filenames.py --lib-dir DIR \
       --queue-history "<proj>/lit_pull_queue.*.processed*.csv,<proj2>/lit_pull_queue.*.processed*.csv"
 """
-import os, sys, io, re, json, csv, time, glob, argparse, unicodedata
+import os, sys, re, json, csv, time, glob, argparse, unicodedata
 import requests
 import fitz
 

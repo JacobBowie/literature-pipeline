@@ -26,7 +26,7 @@ Usage:
   # Limit to first N files for testing
   python harvest_citations.py --limit 5
 """
-import os, sys, io, re, csv, time, argparse, json
+import os, sys, re, csv, time, argparse
 from pathlib import Path
 
 try:

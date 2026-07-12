@@ -25,7 +25,7 @@ Usage:
   python extract_pdf_fulltext.py --lib-dir ... --limit 5            # smoke test
   python extract_pdf_fulltext.py --lib-dir ... --refresh            # re-extract
 """
-import os, sys, io, json, re, argparse, subprocess, shutil
+import os, sys, json, re, argparse, subprocess, shutil
 
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":

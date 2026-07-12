@@ -14,7 +14,7 @@ Usage:
   python enrich_abstracts.py --only-papers          # restrict to PDFs we have, not candidates
   python enrich_abstracts.py --sleep 0.3            # speed knob
 """
-import os, sys, io, re, time, argparse
+import os, sys, re, time, argparse
 import urllib.parse
 import duckdb, requests
 

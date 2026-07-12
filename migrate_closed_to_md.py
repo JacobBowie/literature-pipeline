@@ -17,7 +17,6 @@ import json
 import os
 import re
 import sys
-from datetime import date
 from pathlib import Path
 
 import lit_util  # RC4: atomic_write_text for crash-safe .md writes

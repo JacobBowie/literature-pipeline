@@ -23,7 +23,7 @@ Usage:
   python sweep.py --project Physiological_Data            # one project
   python sweep.py --dry-run                               # show plan without running
 """
-import os, sys, io, csv, argparse, subprocess, datetime
+import sys, csv, argparse, subprocess, datetime
 from pathlib import Path
 
 try:

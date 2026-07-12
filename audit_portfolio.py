@@ -18,7 +18,7 @@ Usage:
   python audit_portfolio.py --project getpaid  # Single project
   python audit_portfolio.py --json out.json    # Machine-readable output
 """
-import os, sys, io, csv, json, argparse, re
+import os, sys, csv, json, argparse, re
 from pathlib import Path
 
 from lit_util import companion_path  # dot-safe sidecar naming

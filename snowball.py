@@ -20,7 +20,7 @@ Usage:
   python snowball.py --project Physiological_Data --until-convergence --max-iter 3
   python snowball.py --all                                # every active project, one iter
 """
-import os, sys, io, csv, json, subprocess, argparse, time, datetime
+import os, sys, csv, subprocess, argparse, datetime
 from pathlib import Path
 
 import duckdb

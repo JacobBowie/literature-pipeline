@@ -25,10 +25,9 @@ Usage:
       --triage data/prior_art/discovered/triage_not_in_library.csv \\
       --lib-dir references/literature
 """
-import os, sys, io, csv, re, time, json, argparse
+import os, sys, io, csv, re, time, argparse
 import requests
 from difflib import SequenceMatcher
-from urllib.parse import urlencode
 from xml.etree import ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

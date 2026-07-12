@@ -17,7 +17,7 @@ Usage:
   python seed_queue_from_top_candidates.py --project Physiological_Data
   python seed_queue_from_top_candidates.py --project getpaid --min-seeds 5 --limit 50
 """
-import argparse, csv, json, os, sys, io
+import argparse, csv, os, sys, io
 from pathlib import Path
 
 import duckdb

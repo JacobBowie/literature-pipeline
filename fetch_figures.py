@@ -30,7 +30,7 @@ Usage:
   python fetch_figures.py --sidecar /path/to/foo.fulltext.json  # one sidecar
   python fetch_figures.py --lib-dir DIR --pmcid PMC4977162  # filter to one paper
 """
-import os, sys, io, json, re, time, argparse
+import os, sys, json, re, time, argparse
 import requests
 
 try:

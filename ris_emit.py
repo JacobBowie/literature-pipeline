@@ -9,7 +9,7 @@ Used by:
 RIS format reference: https://en.wikipedia.org/wiki/RIS_(file_format)
 EndNote ingests RIS natively via "Reference Manager (RIS)" import filter.
 """
-import os, re, sys, time, difflib, unicodedata
+import os, re, sys, difflib, unicodedata
 import requests
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")

@@ -27,7 +27,7 @@ Usage:
 
 The script is read-only with respect to PDFs — it only writes sidecars next to them.
 """
-import os, sys, csv, json, time, argparse, io
+import os, sys, csv, json, time, argparse
 from xml.etree import ElementTree as ET
 import requests
 

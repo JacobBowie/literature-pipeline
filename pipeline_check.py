@@ -19,7 +19,7 @@ Usage:
   # Explicit paths (legacy mode, useful for projects not yet in registry)
   python pipeline_check.py --base-dir /path/to/proj --lib-dir docs/literature
 """
-import sys, io, os, csv, json, argparse
+import sys, os, csv, json, argparse
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

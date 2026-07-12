@@ -15,7 +15,7 @@ Output: PDFs + .fulltext.json into references/literature/
 Usage:
   python tools/pmc_fetch.py [--dry-run] [--only-doi DOI ...] [--no-sidecar]
 """
-import os, sys, io, csv, re, time, json, argparse
+import os, sys, io, csv, re, time, argparse
 import requests
 from urllib.parse import urljoin
 

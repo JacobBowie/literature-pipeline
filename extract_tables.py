@@ -16,7 +16,7 @@ Output:
 Usage:
   python tools/extract_tables.py [--lib-dir DIR] [--limit N]
 """
-import os, sys, io, csv, argparse
+import os, sys, csv, argparse
 try:
     if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")

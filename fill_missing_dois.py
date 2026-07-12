@@ -32,7 +32,6 @@ import os
 import re
 import sys
 import time
-import unicodedata
 from datetime import date
 from pathlib import Path
 

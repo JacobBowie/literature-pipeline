@@ -23,7 +23,7 @@ Usage:
   # Overwrite existing .ris files
   python backfill_ris.py --commit --overwrite
 """
-import os, sys, io, re, json, time, csv, argparse
+import os, sys, json, time, csv, argparse
 from pathlib import Path
 
 try:
