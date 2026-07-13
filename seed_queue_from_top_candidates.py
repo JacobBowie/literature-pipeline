@@ -24,11 +24,7 @@ import duckdb
 
 import lit_util  # RC4: atomic_write_text for crash-safe draft writes
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+lit_util.utf8_stdout()
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"

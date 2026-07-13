@@ -31,14 +31,10 @@ import os, sys, csv, json, time, argparse
 from xml.etree import ElementTree as ET
 import requests
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jats_to_text import parse_jats
-import lit_util
 
 EMAIL    = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 IDCONV   = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"

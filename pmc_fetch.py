@@ -30,11 +30,7 @@ from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
                                 doi_from_pdf_bytes, _doi_of_existing,
                                 is_known_boilerplate)
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+lit_util.utf8_stdout()
 
 EMAIL      = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 IDCONV     = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"

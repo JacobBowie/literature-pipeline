@@ -33,13 +33,7 @@ import lit_util  # RC4: atomic_write_text for crash-safe queue staging
 # doing any work. Setting PYTHONUTF8 in os.environ propagates to the subprocess
 # children (they inherit it at startup); reconfigure fixes this process's own
 # already-open streams.
-os.environ.setdefault("PYTHONUTF8", "1")
-os.environ.setdefault("PYTHONIOENCODING", "utf-8")
-for _stream in (sys.stdout, sys.stderr):
-    try:
-        _stream.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
-        pass
+lit_util.utf8_stdout()
 
 HERE = Path(__file__).parent
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))

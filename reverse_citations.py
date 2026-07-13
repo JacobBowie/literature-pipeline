@@ -27,11 +27,7 @@ from pathlib import Path
 
 import lit_util
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+lit_util.utf8_stdout()
 
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"

@@ -26,15 +26,11 @@ Usage:
 import os, sys, json, time, csv, argparse
 from pathlib import Path
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as R
-import lit_util  # companion_path (dot-safe sidecar naming)
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 DEFAULT_LIB = os.path.expanduser("~/Projects/Physiological_Data/docs/literature")

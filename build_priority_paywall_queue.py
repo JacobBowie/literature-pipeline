@@ -25,10 +25,7 @@ import argparse, glob, csv, os, json, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lit_util  # coerce_int: shared int()-on-messy-CSV-cell guard (2026-06-25 audit sibling sweep)
 
-try:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except Exception:
-    pass
+lit_util.utf8_stdout()
 
 ROOT = os.path.expanduser("~/Projects")
 DB = os.path.join(ROOT, "_references", "portfolio.duckdb")

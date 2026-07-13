@@ -12,8 +12,29 @@ Centralizes the fixes for the cross-cutting failure modes found in the 2026-06-0
 
 Pure stdlib; safe to import from any pipeline script.
 """
-import os, re, json, tempfile
+import os, re, json, sys, tempfile
 from pathlib import Path
+
+# ---------------------------------------------------------------- console I/O hardening
+def utf8_stdout():
+    """Force UTF-8 (errors='replace', line-buffered) on this process's stdout AND
+    stderr, and set PYTHONUTF8/PYTHONIOENCODING so subprocess children inherit it.
+
+    Consolidates 26 drifted copies of the reconfigure idiom (2026-07 Stage 3). The
+    per-site variants variously reconfigured stdout only (leaving stderr to crash a
+    non-ASCII traceback under cp1252), omitted errors='replace' (crash-on-unencodable),
+    or guarded on ``getattr(sys.stdout, "encoding", "").lower()`` which raises on a
+    stream whose ``.encoding`` is None and then silently SKIPPED the reconfigure. Both
+    streams are hardened here; the call is idempotent and import-time-safe even when
+    another module already reconfigured or closed the streams (a closed-stream
+    reconfigure raises ValueError, caught below)."""
+    os.environ.setdefault("PYTHONUTF8", "1")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+        except (AttributeError, ValueError, OSError):
+            pass
 
 # ---------------------------------------------------------------- companion (sidecar) paths
 def companion_path(pdf, ext):

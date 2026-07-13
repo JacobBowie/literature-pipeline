@@ -13,11 +13,8 @@ Usage:
                               --out-dir data/prior_art
 """
 import os, re, sys, csv, argparse
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 if 'TESSDATA_PREFIX' not in os.environ:
     default_tessdata = os.path.expanduser(r'~\AppData\Local\miniconda3\share\tessdata')

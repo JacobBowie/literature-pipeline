@@ -26,11 +26,8 @@ Usage:
 import sys, csv, argparse, subprocess, datetime
 from pathlib import Path
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 HERE = Path(__file__).resolve().parent
 PROJECTS = HERE.parent.parent  # _tools/literature_pipeline/ -> Projects/

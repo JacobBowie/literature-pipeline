@@ -22,11 +22,8 @@ import os, sys, time, argparse, datetime
 import urllib.parse
 import duckdb, requests
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA    = f"GETPAID-recs/1.0 (mailto:{EMAIL})"

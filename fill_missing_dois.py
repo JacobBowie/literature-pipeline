@@ -37,16 +37,12 @@ from pathlib import Path
 
 import requests
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ris_emit import load_projects_config
 from audit_filenames import safe_ascii
-import lit_util  # T7 (2026-06-25 audit): is_valid_doi gate + atomic sidecar write
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA = f"GETPAID-doi-fill/1.0 (mailto:{EMAIL})"

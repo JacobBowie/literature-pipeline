@@ -29,11 +29,8 @@ Usage:
 import os, sys, re, csv, time, argparse
 from pathlib import Path
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 # Local module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

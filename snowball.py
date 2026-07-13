@@ -25,10 +25,8 @@ from pathlib import Path
 
 import duckdb
 
-try:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"

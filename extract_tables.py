@@ -17,11 +17,8 @@ Usage:
   python tools/extract_tables.py [--lib-dir DIR] [--limit N]
 """
 import os, sys, csv, argparse
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 import pdfplumber
 

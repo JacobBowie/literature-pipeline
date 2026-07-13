@@ -33,13 +33,9 @@ Usage:
 import os, sys, json, re, time, argparse
 import requests
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lit_util
+lit_util.utf8_stdout()
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")

@@ -25,11 +25,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lit_util  # coerce_int (2026-06-25 audit sibling sweep)
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+lit_util.utf8_stdout()
 
 
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))

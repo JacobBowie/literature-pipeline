@@ -33,10 +33,8 @@ Institutional access:
 """
 import argparse, csv, glob, json, os, shutil, sys, time, subprocess, webbrowser
 
-try:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except Exception:
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)

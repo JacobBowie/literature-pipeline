@@ -12,16 +12,12 @@ Usage:
 """
 import os, sys, io, time, csv, re, argparse
 import requests
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 
 # Local module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as _R
-import lit_util  # RC2/RC3/RC4 audit-remediation helpers (atomic writes, DOI extraction)
 
 EMAIL      = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UNPAYWALL  = "https://api.unpaywall.org/v2"

@@ -21,16 +21,12 @@ Usage:
 import os, sys, io, time, argparse, csv
 import requests
 
-try:
-    if getattr(sys.stdout, "encoding", "").lower() != "utf-8":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-except (AttributeError, OSError):
-    pass
+import lit_util
+lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import fitz  # pymupdf
 from jats_to_text import parse_jats
-import lit_util            # RC1/RC4: DOI validity gate + atomic writes
 import ris_emit as _R      # title_similarity for the sidecar title sanity check
 
 EMAIL    = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
