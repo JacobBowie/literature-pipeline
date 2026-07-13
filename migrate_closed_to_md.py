@@ -14,7 +14,6 @@ Usage:
 import argparse
 import csv
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -23,22 +22,12 @@ import lit_util  # RC4: atomic_write_text for crash-safe .md writes
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 
 
 def project_dir(project: str, proj_cfg: dict) -> Path:
-    """Resolve the on-disk project directory for a registry key.
-
-    RC11: a subproject (e.g. 'Physiological_Data/Yitts') declares a `parent`;
-    its sweep artifacts + lit_pull_queue.md live under the parent's tree, not at
-    PROJECTS_ROOT/<rawkey>. Mirror audit_portfolio's parent-aware resolution so
-    the path is correct regardless of the '/' embedded in the registry key.
-    """
-    parent = (proj_cfg or {}).get("parent")
-    if parent:
-        tail = project[len(parent):].lstrip("/\\") or Path(project).name
-        return PROJECTS_ROOT / parent / tail
-    return PROJECTS_ROOT / project
+    """On-disk project directory for a registry key (tail-aware for subprojects).
+    Thin wrapper over lit_util.project_root; `proj_cfg` is the single project's dict."""
+    return lit_util.project_root(project, proj_cfg)
 
 
 def latest_sweep_date(project_root: Path) -> str | None:

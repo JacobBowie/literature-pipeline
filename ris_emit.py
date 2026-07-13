@@ -12,32 +12,14 @@ EndNote ingests RIS natively via "Reference Manager (RIS)" import filter.
 import os, re, sys, difflib, unicodedata
 import requests
 
+# Config loader lives in lit_util (stdlib-pure); re-exported here so the many
+# `from ris_emit import load_projects_config` call sites keep working unchanged.
+from lit_util import load_projects_config
+
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA    = f"GETPAID-ris-emit/1.0 (mailto:{EMAIL})"
 
 _email_warned = False
-
-
-def load_projects_config(config_path):
-    """Load projects.json from `config_path`, or exit with a clear error.
-
-    Importable from any pipeline script so the missing-config UX is
-    consistent across tools.
-    """
-    import json
-    from pathlib import Path
-    p = Path(config_path)
-    if not p.exists():
-        tmpl = p.with_name("projects.json.template")
-        print(
-            f"[litpipe] projects.json not found at {p}.\n"
-            f"          Copy the template to start: cp {tmpl.name} {p.name}\n"
-            f"          See the README §Quickstart for the schema.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-    with open(p, encoding="utf-8") as fh:
-        return json.load(fh)
 
 
 def warn_if_default_email():

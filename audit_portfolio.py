@@ -42,17 +42,10 @@ def discover_libs():
     libs = []
     for name, p in cfg.items():
         if not p.get("active", True): continue
-        # Subproject? Use parent as the project root, append lib_dir to that.
-        parent = p.get("parent")
-        if parent:
-            root = PROJECTS_ROOT / parent
-        else:
-            root = PROJECTS_ROOT / name
-        lp = root / p["lib_dir"]
+        _base, lp, dp = lit_util.lib_paths(name, p)
         if not lp.is_dir():
             print(f"[WARN] {name}: lib_dir not found ({lp}); skipping")
             continue
-        dp = (root / p["data_dir"]) if p.get("data_dir") else None
         libs.append((name, lp, p.get("tier", 2), dp))
     return libs
 

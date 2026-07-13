@@ -580,10 +580,7 @@ def load_config():
 
 
 def project_paths(name: str, p: dict):
-    base = PROJECTS_ROOT / (p.get("parent") or name)
-    lib  = base / p["lib_dir"]
-    data = (base / p["data_dir"]) if p.get("data_dir") else None
-    return base, lib, data
+    return lit_util.lib_paths(name, p)
 
 
 def find_forward_csv(lib: Path, data: Path):

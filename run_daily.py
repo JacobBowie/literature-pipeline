@@ -20,7 +20,6 @@ Exit code is 0 if everything ran cleanly, non-zero if any project errored
 """
 import argparse
 import json
-import os
 import subprocess
 import sys
 from datetime import datetime
@@ -36,7 +35,6 @@ import lit_util  # RC4: atomic_write_text for crash-safe queue staging
 lit_util.utf8_stdout()
 
 HERE = Path(__file__).parent
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH = HERE / "projects.json"
 PY = sys.executable
 
@@ -48,20 +46,9 @@ def load_projects():
 
 
 def project_dir(project: str, cfg: dict) -> Path:
-    """Resolve the on-disk project directory for a registry key.
-
-    RC11: subprojects (e.g. 'Physiological_Data/Yitts') declare a `parent` in
-    projects.json; their queue + sweep artifacts live under the parent's tree,
-    not at PROJECTS_ROOT/<rawkey>. Mirror audit_portfolio's resolution: a
-    subproject root is the parent root joined with the subproject's tail
-    segment(s), so the path is correct regardless of the '/' in the key.
-    """
-    p = cfg.get(project, {}) if cfg else {}
-    parent = p.get("parent")
-    if parent:
-        tail = project[len(parent):].lstrip("/\\") or Path(project).name
-        return PROJECTS_ROOT / parent / tail
-    return PROJECTS_ROOT / project
+    """On-disk project directory for a registry key (tail-aware for subprojects).
+    Thin wrapper over lit_util.project_root; `cfg` is the full {key: dict} map."""
+    return lit_util.project_root(project, cfg.get(project, {}) if cfg else {})
 
 
 def queue_data_rows(queue: Path) -> int:

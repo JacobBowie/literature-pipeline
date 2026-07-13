@@ -28,7 +28,6 @@ import lit_util  # coerce_int (2026-06-25 audit sibling sweep)
 lit_util.utf8_stdout()
 
 
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
 
@@ -41,10 +40,7 @@ def resolve_from_config(name: str):
               f"Known: {', '.join(sorted(cfg.keys()))}", file=sys.stderr)
         sys.exit(2)
     p = cfg[name]
-    parent = p.get("parent")
-    base = PROJECTS_ROOT / (parent or name)
-    lib  = base / p["lib_dir"]
-    data = (base / p["data_dir"]) if p.get("data_dir") else None
+    base, lib, data = lit_util.lib_paths(name, p)
     tier = p.get("tier", 2)
     # T8 (2026-06-25 audit): per-project .ris-coverage floor for Stage 4b. Default 90; a project
     # with legitimately DOI-less PDFs (e.g. ATHENA_RNAseq's structural artifacts, ~86%) lowers it

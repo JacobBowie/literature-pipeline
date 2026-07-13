@@ -80,6 +80,68 @@ def coerce_int(v, default=0):
     except (ValueError, TypeError):
         return default
 
+# ---------------------------------------------------------------- project registry + path resolution
+PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
+
+def load_projects_config(config_path, missing_ok=False):
+    """Load and parse projects.json. Canonical loader for the whole pipeline
+    (re-exported from ris_emit for backward-compatible `from ris_emit import ...`).
+
+    On a missing file: if `missing_ok`, return {} (an empty registry — the caller's
+    `.get("projects", {})` then yields no projects, e.g. build_priority's dedup
+    degrading gracefully in CI where projects.json is gitignored). Otherwise print
+    the copy-the-template hint and sys.exit(2) — the entry-point UX the fetch/index
+    scripts rely on."""
+    p = Path(config_path)
+    if not p.exists():
+        if missing_ok:
+            return {}
+        tmpl = p.with_name("projects.json.template")
+        print(
+            f"[litpipe] projects.json not found at {p}.\n"
+            f"          Copy the template to start: cp {tmpl.name} {p.name}\n"
+            f"          See the README §Quickstart for the schema.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    with open(p, encoding="utf-8") as fh:
+        return json.load(fh)
+
+def project_root(key, p):
+    """On-disk working dir of a (possibly nested) registered project — where its
+    lit_pull_queue.csv and sweep artifacts live. TAIL-AWARE (RC11): a subproject
+    key 'A/B' declaring parent 'A' resolves to <PROJECTS_ROOT>/A/B.
+
+    This is the QUEUE / project path. It is deliberately NOT the library dir: the
+    registry's lib_dir for a subproject already carries the tail (e.g. 'Yitts/
+    literature'), so the lib base is the PARENT (see lib_rel/lib_paths). The two
+    conventions reach the same subtree by different routes and must NOT be unified
+    (unifying would double-count the tail). `p` is the single project's registry
+    dict (as returned by cfg[key]); {} is treated as a top-level project."""
+    parent = (p or {}).get("parent")
+    if parent:
+        tail = key[len(parent):].lstrip("/\\") or Path(key).name
+        return PROJECTS_ROOT / parent / tail
+    return PROJECTS_ROOT / key
+
+def lib_rel(key, p):
+    """PROJECTS_ROOT-relative library dir for a registered project, as a STRING:
+    '<parent-or-key>/<lib_dir>'. For a subproject the lib_dir already includes the
+    tail, so the base is the PARENT, not the tail-aware project_root. Returned as a
+    string so os.path.join(ROOT, lib_rel(...)) join semantics are preserved (the
+    build_priority LIBS values). `p` is the per-project registry dict."""
+    return f"{p.get('parent') or key}/{p['lib_dir']}"
+
+def lib_paths(key, p):
+    """(base, lib, data) absolute Paths for a registered project. `base` is the
+    PARENT root (a subproject's lib_dir carries the tail); `data` is None when the
+    project declares no data_dir. Single source for the audit/index/pipeline_check
+    lib resolvers."""
+    base = PROJECTS_ROOT / (p.get("parent") or key)
+    lib = PROJECTS_ROOT / lib_rel(key, p)
+    data = (base / p["data_dir"]) if p.get("data_dir") else None
+    return base, lib, data
+
 # ---------------------------------------------------------------- RC1: DOI extraction + validity
 # Start anchor for a DOI; the body is captured greedily then trimmed.
 _DOI_START = re.compile(r"10\.\d{4,9}/", re.IGNORECASE)
