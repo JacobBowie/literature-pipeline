@@ -249,34 +249,6 @@ KNOWN_BOILERPLATE_TEXT = (
 )
 
 
-# Publisher-host bypass: when Unpaywall has no url_for_pdf, the fetcher used to
-# fall back to following doi.org → publisher landing page. For some publishers
-# (notably LWW/Ovid and JMIR), the publisher serves a permissions / template
-# document instead of the article. Skip the publisher-host fallback for these
-# prefixes when no `url_for_pdf` exists — better to fail clean than ship trash.
-PUBLISHER_HOST_BYPASS_PREFIXES = (
-    "10.1249/",   # LWW (MSSE, ESSR, etc.)
-    "10.1519/",   # LWW (JSCR)
-    "10.2196/",   # JMIR family
-)
-
-
-def should_skip_publisher_host_pdf(doi: str, best_oa_location: dict) -> bool:
-    """Return True when we should NOT attempt the publisher-host PDF fallback.
-
-    Triggered when DOI prefix is in the bypass list AND Unpaywall has no
-    `url_for_pdf` on the best OA location — in that combination, the publisher
-    host has historically served boilerplate/template PDFs that pass our
-    %PDF magic and size checks but are not the article.
-    """
-    if not doi: return False
-    if not any(doi.lower().startswith(p) for p in PUBLISHER_HOST_BYPASS_PREFIXES):
-        return False
-    if not best_oa_location:
-        return True
-    return best_oa_location.get("url_for_pdf") in (None, "", False)
-
-
 def is_known_boilerplate(pdf_path):
     """Return (True, tag) if the downloaded PDF matches a known publisher
     boilerplate fingerprint; (False, None) otherwise.
