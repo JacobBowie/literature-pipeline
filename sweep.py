@@ -31,18 +31,32 @@ lit_util.utf8_stdout()
 
 HERE = Path(__file__).resolve().parent
 PROJECTS = HERE.parent.parent  # _tools/literature_pipeline/ -> Projects/
+CONFIG_PATH = HERE / "projects.json"
 LOOSE_ENDS = PROJECTS / "Git-R-Dun" / "files" / "LOOSE_ENDS.md"
 
 
 def find_queues(only_project=None):
-    """Yield (project_dir, queue_csv_path) for every active queue."""
-    for child in PROJECTS.iterdir():
-        if not child.is_dir(): continue
-        if child.name.startswith("_"): continue  # skip _tools, _portfolio, etc.
-        if only_project and child.name != only_project: continue
-        queue = child / "lit_pull_queue.csv"
+    """Yield (project_key, project_dir, queue_csv_path) for each active registered
+    project that has a staged lit_pull_queue.csv.
+
+    Registry-driven (2026-07-14, A1 fix): resolve each projects.json key via
+    lit_util.project_root (tail-aware), so a subproject key like
+    'Physiological_Data/Yitts' resolves to <Projects>/Physiological_Data/Yitts and
+    ITS queue is found. Replaces the old PROJECTS.iterdir() filesystem walk, which
+    only saw top-level dirs and whose `child.name` compare could never match a slash
+    key -- so a registered subproject's queue was silently never swept (a permanent
+    no-op that the orchestrator read as success). Registration is now the entry
+    point: only active registered projects are swept. An explicit --project that is
+    not in the registry still resolves as a top-level dir (backward compatible).
+    """
+    cfg = lit_util.load_projects_config(CONFIG_PATH).get("projects", {})
+    keys = [only_project] if only_project else [
+        k for k, v in cfg.items() if v.get("active", True)]
+    for key in keys:
+        root = lit_util.project_root(key, cfg.get(key, {}))
+        queue = root / "lit_pull_queue.csv"
         if queue.exists():
-            yield child, queue
+            yield key, root, queue
 
 
 def first_destination(queue_csv):
@@ -249,28 +263,30 @@ def main():
     if not queues:
         scope = args.project or "any project"
         print(f"No lit_pull_queue.csv found in {scope}.")
-        return
+        # A1 defense-in-depth: an explicit --project with no queue is a failure the
+        # orchestrator must NOT read as success (the old silent no-op loop). A bare
+        # sweep with nothing staged is a normal idle run (exit 0).
+        return 1 if args.project else 0
 
     print(f"Found {len(queues)} queue(s):\n")
-    for proj, q in queues:
-        print(f"  {proj.name}/{q.name}")
+    for key, proj, q in queues:
+        print(f"  {key}/{q.name}")
     print()
 
-    for proj, q in queues:
-        print(f"\n=== {proj.name} ===")
+    for key, proj, q in queues:
+        print(f"\n=== {key} ===")
         result = run_pipeline(proj, q, dry_run=args.dry_run)
         if not result:
             continue
         if result.get("dry"):
             continue
-        proj_rel = proj.name
-        dest = first_destination(Path(result["processed"])) or "(unknown)"
-        line = (f"✅ Lit pull done: {proj_rel}/ — {result['downloaded']}/{result['rows']} "
+        line = (f"✅ Lit pull done: {key}/ — {result['downloaded']}/{result['rows']} "
                 f"fetched (Unpaywall {result['unpaywall']}, PMC {result['pmc']}, "
                 f"Preprint {result.get('preprint',0)}). Report: {Path(result['report']).name}")
         append_loose_end(line)
         print(f"\n  LOOSE_ENDS.md updated: {line}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
