@@ -53,8 +53,13 @@ CREATE TABLE IF NOT EXISTS paper_metadata (
   venue            VARCHAR,
   authors          VARCHAR,
   abstract         VARCHAR,    -- enriched by enrich_abstracts.py (CrossRef)
+  abstract_attempted_at TIMESTAMP,  -- last enrich attempt (hit or permanent miss); NULL = never tried
   refreshed_at     TIMESTAMP
 );
+-- Self-healing migration: back-fill abstract_attempted_at on a PRE-EXISTING DB (the
+-- CREATE TABLE IF NOT EXISTS above is a no-op there, so the papers-view GROUP BY below
+-- would otherwise fail to bind on a normal non-rebuild re-index). No-op on a fresh DB.
+ALTER TABLE paper_metadata ADD COLUMN IF NOT EXISTS abstract_attempted_at TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS paper_locations (
   doi              VARCHAR,
@@ -125,7 +130,7 @@ SELECT
 FROM paper_metadata m
 LEFT JOIN paper_locations l ON l.doi = m.doi
 WHERE EXISTS (SELECT 1 FROM paper_locations l2 WHERE l2.doi = m.doi)
-GROUP BY m.doi, m.year, m.lastname, m.title, m.venue, m.authors, m.abstract, m.refreshed_at;
+GROUP BY m.doi, m.year, m.lastname, m.title, m.venue, m.authors, m.abstract, m.abstract_attempted_at, m.refreshed_at;
 
 -- View: top fetch candidates (not yet in any library, ordered by seed-count + impact)
 CREATE OR REPLACE VIEW top_candidates AS

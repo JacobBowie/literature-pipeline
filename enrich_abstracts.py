@@ -51,7 +51,14 @@ def connect_db(db_path, retries=5, delay=3.0):
 
 
 class CrossRefError(Exception):
-    """Network/HTTP failure talking to CrossRef (distinct from a genuine no-abstract result)."""
+    """Network/HTTP failure talking to CrossRef (distinct from a genuine no-abstract result).
+
+    `status` carries the HTTP code (or None for a transport error) so the caller can tell a
+    PERMANENT miss (4xx other than 429 -- e.g. a 404 on an arXiv/DataCite DOI CrossRef never
+    had) from a TRANSIENT outage (429/5xx/network) that should be retried next run."""
+    def __init__(self, msg, status=None):
+        super().__init__(msg)
+        self.status = status
 
 
 def crossref_abstract(doi: str, timeout=15) -> str:
@@ -68,7 +75,7 @@ def crossref_abstract(doi: str, timeout=15) -> str:
     except requests.exceptions.RequestException as e:
         raise CrossRefError(str(e))
     if r.status_code != 200:
-        raise CrossRefError(f"HTTP {r.status_code}")
+        raise CrossRefError(f"HTTP {r.status_code}", status=r.status_code)
     try:
         msg = r.json().get("message", {})
     except ValueError as e:
@@ -94,17 +101,29 @@ def main():
                     help="Seconds between CrossRef calls.")
     ap.add_argument("--only-papers", action="store_true",
                     help="Only enrich DOIs we have PDFs for (skip candidates).")
+    ap.add_argument("--retry-after-days", type=int, default=30,
+                    help="Re-attempt a previously-failed DOI only after N days (0 = always). "
+                         "Stops re-querying the ~47k permanent CrossRef-fails every run.")
     args = ap.parse_args()
 
     con = connect_db(args.db)
+    # Self-healing migration: the attempt-state column may not exist on an older DB.
+    # (A fresh --rebuild creates it from index_portfolio's schema.)
+    con.execute("ALTER TABLE paper_metadata ADD COLUMN IF NOT EXISTS abstract_attempted_at TIMESTAMP")
 
     # Pick DOIs missing abstract
     where_extra = ""
     if args.only_papers:
         where_extra = " AND EXISTS (SELECT 1 FROM paper_locations l WHERE l.doi = m.doi)"
+    # Attempt-state: skip DOIs we already tried recently (permanent CrossRef-fails --
+    # closed publishers, arXiv/DataCite -- otherwise re-queried every run indefinitely).
+    where_attempt = ""
+    if args.retry_after_days > 0:
+        where_attempt = (f" AND (abstract_attempted_at IS NULL "
+                         f"OR abstract_attempted_at < now() - INTERVAL '{int(args.retry_after_days)} days')")
     q = f"""
         SELECT doi FROM paper_metadata m
-        WHERE (abstract IS NULL OR abstract = '') {where_extra}
+        WHERE (abstract IS NULL OR abstract = '') {where_extra} {where_attempt}
         ORDER BY doi
     """
     if args.limit: q += f" LIMIT {int(args.limit)}"
@@ -120,19 +139,30 @@ def main():
         try:
             abs_text = crossref_abstract(doi)
         except CrossRefError as e:
-            # RC6: a network/HTTP failure is NOT a genuine 'no abstract' - tally it
-            # separately so a CrossRef outage doesn't masquerade as missing data.
+            # RC6: a network/HTTP failure is NOT a genuine 'no abstract'. But a PERMANENT
+            # 4xx (e.g. 404 on an arXiv/DataCite DOI CrossRef never had) will never succeed
+            # via CrossRef, so mark it attempted -- otherwise it is re-queried every run. A
+            # transient 429/5xx/network error stays unmarked so the next run retries it.
+            # Only codes that mean "CrossRef has no such work" are permanent. 403 (WAF/CDN
+            # bot-block), 408, 425, 429, and all 5xx/network are transient -> stay unmarked
+            # so the next run retries (a transient 4xx storm must not suppress real papers).
+            permanent = e.status in (400, 404)
+            if permanent:
+                con.execute("UPDATE paper_metadata SET abstract_attempted_at = now() WHERE doi = ?", [doi])
             n_err += 1
-            tag = "ER"
+            tag = "ER!" if permanent else "ER"
             print(f"  [{i:>5}/{len(targets)}] {tag}  {doi}  ({e})", file=sys.stderr)
             time.sleep(args.sleep)
             continue
         if abs_text:
-            con.execute("UPDATE paper_metadata SET abstract = ? WHERE doi = ?",
+            con.execute("UPDATE paper_metadata SET abstract = ?, abstract_attempted_at = now() WHERE doi = ?",
                         [abs_text, doi])
             n_hit += 1
             tag = "OK"
         else:
+            # genuine CrossRef 200 with no abstract (closed publisher): mark attempted so this
+            # permanent-fail is not re-queried until --retry-after-days elapses.
+            con.execute("UPDATE paper_metadata SET abstract_attempted_at = now() WHERE doi = ?", [doi])
             n_miss += 1
             tag = "--"
         if i % 50 == 0 or i <= 10 or i == len(targets):
