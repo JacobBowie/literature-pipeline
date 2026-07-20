@@ -338,6 +338,59 @@ def prune_citations(con, name, kind):
     cur.execute("DELETE FROM cites WHERE source_project=? AND source_pipeline=?", [name, kind])
 
 
+def _write_citation_rows(con, cand_rows, meta_rows, cite_rows):
+    """Shared candidate/metadata/cite writer for ingest_forward + ingest_reverse (c11).
+
+    prune_citations() has ALREADY removed this project's rows for this source_type/pipeline
+    immediately before this call, so:
+      - candidates: NO per-key DELETE. The candidates PK includes source_type, so the prune
+        cleared every row this batch could collide with -- the old per-key executemany DELETE
+        was a strict no-op (~44s/40k on a --rebuild, measured).
+      - cites: ON CONFLICT, because the cites PK EXCLUDES source_pipeline -- the same
+        (citing,cited,project) edge discovered by BOTH the forward and reverse pass must update
+        the pipeline tag rather than collide (the guard the old per-key cites DELETE provided;
+        last-writer-wins, matching the old DELETE-then-INSERT).
+      - paper_metadata: insert only genuinely-new DOIs; never overwrite a richer .ris-sourced
+        row (the abstract invariant -- test_duckdb_upsert).
+    Writes through `con` (not a child cursor) so a future per-project transaction can enroll them."""
+    if cand_rows:
+        seen = set(); dedup = []
+        for r in cand_rows:
+            k = (r[0], r[1], r[2], r[3])
+            if k not in seen: seen.add(k); dedup.append(r)
+        con.executemany("""
+            INSERT INTO candidates (doi, source_type, source_seed_doi, source_project,
+                                    citing_cited_by, refreshed_at)
+            VALUES (?,?,?,?,?,?)
+        """, dedup)
+    if meta_rows:
+        # metadata for any candidate DOI not already present; do NOT overwrite existing rows
+        # (those carry richer .ris data -- the abstract invariant).
+        seen = set(); dedup = []
+        for r in meta_rows:
+            if r[0] not in seen: seen.add(r[0]); dedup.append(r)
+        existing = {row[0] for row in con.execute(
+            f"SELECT doi FROM paper_metadata WHERE doi IN ({','.join('?'*len(dedup))})",
+            [r[0] for r in dedup]).fetchall()}
+        new_meta = [r for r in dedup if r[0] not in existing]
+        if new_meta:
+            con.executemany("""
+                INSERT INTO paper_metadata (doi, year, lastname, title, venue, authors, refreshed_at)
+                VALUES (?,?,?,?,?,?,?)
+            """, new_meta)
+    if cite_rows:
+        seen = set(); dedup = []
+        for r in cite_rows:
+            k = (r[0], r[1], r[3])
+            if k not in seen: seen.add(k); dedup.append(r)
+        con.executemany("""
+            INSERT INTO cites (citing_doi, cited_doi, source_pipeline, source_project)
+            VALUES (?,?,?,?)
+            ON CONFLICT (citing_doi, cited_doi, source_project)
+            DO UPDATE SET source_pipeline = excluded.source_pipeline
+        """, dedup)
+
+
 def gc_orphan_metadata(con):
     """T2: delete paper_metadata rows referenced by NOTHING (no location/candidate/cite/
     recommendation) and return the count reclaimed. Conservative -- a row pinned by even a
@@ -362,7 +415,6 @@ def ingest_forward(con, name: str, csv_path: Path, lib: Path):
       - cites edge: citing → seed (the candidate cites our seed)
     """
     if not csv_path.exists(): return 0
-    cur = con.cursor()
     now = datetime.datetime.now().isoformat(timespec="seconds")
     cand_rows = []; meta_rows = []; cite_rows = []
     n_rejected = 0  # RC1-gate: malformed / truncated DOIs already sitting in the CSV
@@ -398,49 +450,8 @@ def ingest_forward(con, name: str, csv_path: Path, lib: Path):
     # top_candidates. (main() also prunes when the CSV is ABSENT -> deleted-CSV case.)
     prune_citations(con, name, "forward")
 
-    if cand_rows:
-        seen = set(); dedup = []
-        for r in cand_rows:
-            k = (r[0], r[1], r[2], r[3])
-            if k not in seen: seen.add(k); dedup.append(r)
-        cand_rows = dedup
-        keys = [(r[0], r[1], r[2], r[3]) for r in cand_rows]
-        cur.executemany(
-            "DELETE FROM candidates WHERE doi=? AND source_type=? AND source_seed_doi=? AND source_project=?",
-            keys)
-        cur.executemany("""
-            INSERT INTO candidates (doi, source_type, source_seed_doi, source_project,
-                                    citing_cited_by, refreshed_at)
-            VALUES (?,?,?,?,?,?)
-        """, cand_rows)
-    if meta_rows:
-        # Insert metadata for any candidate DOI not already in paper_metadata.
-        # Don't overwrite existing rows (those have richer data from .ris).
-        seen = set(); dedup = []
-        for r in meta_rows:
-            if r[0] not in seen: seen.add(r[0]); dedup.append(r)
-        existing = {row[0] for row in cur.execute(
-            f"SELECT doi FROM paper_metadata WHERE doi IN ({','.join('?'*len(dedup))})",
-            [r[0] for r in dedup]).fetchall()}
-        new_meta = [r for r in dedup if r[0] not in existing]
-        if new_meta:
-            cur.executemany("""
-                INSERT INTO paper_metadata (doi, year, lastname, title, venue, authors, refreshed_at)
-                VALUES (?,?,?,?,?,?,?)
-            """, new_meta)
-    if cite_rows:
-        seen = set(); dedup = []
-        for r in cite_rows:
-            k = (r[0], r[1], r[3])
-            if k not in seen: seen.add(k); dedup.append(r)
-        cite_rows = dedup
-        keys = [(r[0], r[1], r[3]) for r in cite_rows]
-        cur.executemany(
-            "DELETE FROM cites WHERE citing_doi=? AND cited_doi=? AND source_project=?", keys)
-        cur.executemany("""
-            INSERT INTO cites (citing_doi, cited_doi, source_pipeline, source_project)
-            VALUES (?,?,?,?)
-        """, cite_rows)
+    # c11/E1: shared writer -- no redundant per-key DELETEs (prune ran); cites via ON CONFLICT.
+    _write_citation_rows(con, cand_rows, meta_rows, cite_rows)
     if n_rejected:
         print(f"  [RC1-gate] forward: dropped {n_rejected} row(s) with malformed/truncated DOI")
     return len(cand_rows)
@@ -453,7 +464,6 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
       - legacy getpaid: data/prior_art/references/parsed_references.csv (same columns)
     """
     if not csv_path.exists(): return 0
-    cur = con.cursor()
     now = datetime.datetime.now().isoformat(timespec="seconds")
     cand_rows = []; cite_rows = []
     seed_doi_cache = {}  # filename -> doi (read .ris next to seed)
@@ -510,47 +520,8 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
     # ingest_forward). A shrunk/deleted reverse CSV must not leave orphan candidate/cite rows.
     prune_citations(con, name, "reverse")
 
-    if cand_rows:
-        seen = set(); dedup = []
-        for r in cand_rows:
-            k = (r[0], r[1], r[2], r[3])
-            if k not in seen: seen.add(k); dedup.append(r)
-        cand_rows = dedup
-        keys = [(r[0], r[1], r[2], r[3]) for r in cand_rows]
-        cur.executemany(
-            "DELETE FROM candidates WHERE doi=? AND source_type=? AND source_seed_doi=? AND source_project=?",
-            keys)
-        cur.executemany("""
-            INSERT INTO candidates (doi, source_type, source_seed_doi, source_project,
-                                    citing_cited_by, refreshed_at)
-            VALUES (?,?,?,?,?,?)
-        """, cand_rows)
-    if meta_rows:
-        seen = set(); dedup = []
-        for r in meta_rows:
-            if r[0] not in seen: seen.add(r[0]); dedup.append(r)
-        existing = {row[0] for row in cur.execute(
-            f"SELECT doi FROM paper_metadata WHERE doi IN ({','.join('?'*len(dedup))})",
-            [r[0] for r in dedup]).fetchall()}
-        new_meta = [r for r in dedup if r[0] not in existing]
-        if new_meta:
-            cur.executemany("""
-                INSERT INTO paper_metadata (doi, year, lastname, title, venue, authors, refreshed_at)
-                VALUES (?,?,?,?,?,?,?)
-            """, new_meta)
-    if cite_rows:
-        seen = set(); dedup = []
-        for r in cite_rows:
-            k = (r[0], r[1], r[3])
-            if k not in seen: seen.add(k); dedup.append(r)
-        cite_rows = dedup
-        keys = [(r[0], r[1], r[3]) for r in cite_rows]
-        cur.executemany(
-            "DELETE FROM cites WHERE citing_doi=? AND cited_doi=? AND source_project=?", keys)
-        cur.executemany("""
-            INSERT INTO cites (citing_doi, cited_doi, source_pipeline, source_project)
-            VALUES (?,?,?,?)
-        """, cite_rows)
+    # c11/E1: shared writer (see ingest_forward) -- prune ran, so no redundant per-key DELETEs.
+    _write_citation_rows(con, cand_rows, meta_rows, cite_rows)
     if n_rejected:
         print(f"  [RC1-gate] reverse: dropped {n_rejected} row(s) with malformed/truncated DOI")
     return len(cand_rows)
