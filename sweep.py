@@ -83,7 +83,7 @@ def normalize_queue_for_pipeline(queue_csv, out_csv):
             w.writerow(r)
 
 
-def run_pipeline(project_dir, queue_csv, dry_run=False):
+def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None):
     """Run unpaywall_v2 → pmc_fetch against this queue. Returns dict of results."""
     dest_rel = first_destination(queue_csv)
     if not dest_rel:
@@ -97,7 +97,9 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
         print(f"  ERR destination escapes project root: {dest_rel!r} in {queue_csv}", file=sys.stderr)
         return None
     lib_dir.mkdir(parents=True, exist_ok=True)
-    today = datetime.date.today().isoformat()
+    # D4b: honor an explicit run date (run_daily passes its start date) so this run's report
+    # artifacts and migrate's --date stay in lockstep even if the sweep crosses midnight.
+    today = run_date or datetime.date.today().isoformat()
     norm_csv = queue_csv.with_name(f"lit_pull_queue.{today}.normalized.csv")
     report_unpw = queue_csv.with_name(f"lit_pull_queue.{today}.unpaywall.csv")
     report_pmc  = queue_csv.with_name(f"lit_pull_queue.{today}.pmc.csv")
@@ -114,6 +116,9 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
         return {"dry": True, "rows": n_rows, "destination": str(lib_dir)}
 
     py = sys.executable
+    stages_ok = True   # D1: flips False on a non-fatal stage failure (PMC/preprint) so the
+                       # queue is NOT renamed to .processed -- which would hide it from
+                       # find_queues and defeat the auto re-sweep the WARNs advise.
 
     # Stage 1: Unpaywall
     cmd1 = [py, str(HERE / "unpaywall_fetch_v2.py"),
@@ -146,6 +151,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
               f"report={'present' if report_pmc.exists() else 'MISSING'}); residuals may be "
               f"mis-routed to ILL -- re-sweep before treating them as closed-access."
               + (f"\n{r2.stderr[-400:]}" if r2.stderr else ""))
+        stages_ok = False   # D1: PMC incomplete -> keep the queue for a re-sweep
 
     # Stage 3: preprint_fetch (arXiv/bioRxiv/OSF/Europe PMC preprints) for any
     # rows that BOTH unpaywall and PMC failed on. Filter to those before calling
@@ -191,6 +197,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
             print(f"  [WARN] preprint stage did NOT complete (exit {r3.returncode}, "
                   f"report={'present' if report_ppr.exists() else 'MISSING'})."
                   + (f"\n{r3.stderr[-400:]}" if r3.stderr else ""))
+            stages_ok = False   # D1: preprint incomplete -> keep the queue for a re-sweep
         if report_ppr.exists():
             with open(report_ppr, encoding="utf-8") as fh:
                 n_ppr = sum(1 for r in csv.DictReader(fh)
@@ -227,6 +234,18 @@ def run_pipeline(project_dir, queue_csv, dry_run=False):
     if r4.returncode != 0:
         print(f"  WARN pdf-extract stage failed (continuing):\n{r4.stderr[-500:]}")
 
+    # D1: only mark the queue processed if the fetch stages (PMC + preprint) completed. A
+    # non-fatal PMC/preprint failure leaves stages_ok False; renaming to .processed removes
+    # the queue from find_queues (which matches only 'lit_pull_queue.csv') and defeats the
+    # auto re-sweep. Stage-4 PDF-extract failure does NOT block -- it is indexing-only, runs
+    # over the whole lib_dir, and is independently idempotent (re-runnable next sweep).
+    if not stages_ok:
+        print(f"  [WARN] fetch stage(s) incomplete; LEAVING {queue_csv.name} in place for the "
+              f"next sweep to retry (NOT renamed to .processed).")
+        return {"rows": n_rows, "downloaded": n_total,
+                "unpaywall": n_unpw, "pmc": n_pmc, "preprint": n_ppr,
+                "report": str(summary_csv), "processed": None, "partial": True}
+
     # Mark queue as processed. A same-day re-sweep would collide on this name
     # (FileExistsError on Windows os.rename), so disambiguate with a numeric suffix.
     processed = queue_csv.with_name(f"lit_pull_queue.{today}.processed.csv")
@@ -254,6 +273,9 @@ def main():
     ap.add_argument("--project", help="Process only this project (default: all)")
     ap.add_argument("--dry-run", action="store_true",
                     help="Show the queues that would be processed without fetching anything.")
+    ap.add_argument("--date", default=None,
+                    help="YYYY-MM-DD to date this run's report artifacts (default: today). "
+                         "run_daily passes its run date so sweep + migrate stay in lockstep.")
     args = ap.parse_args()
 
     from ris_emit import warn_if_default_email
@@ -275,10 +297,19 @@ def main():
 
     for key, proj, q in queues:
         print(f"\n=== {key} ===")
-        result = run_pipeline(proj, q, dry_run=args.dry_run)
+        result = run_pipeline(proj, q, dry_run=args.dry_run, run_date=args.date)
         if not result:
             continue
         if result.get("dry"):
+            continue
+        if result.get("partial"):
+            # D1: fetch stage(s) failed; queue left in place for the next sweep. Do NOT write a
+            # '✅ done' line -- flag it partial so the re-sweep isn't read as already-closed.
+            partial = (f"⏸️ Lit pull PARTIAL: {key}/ — fetch stage incomplete, "
+                       f"{key}/lit_pull_queue.csv left for re-sweep. "
+                       f"Report: {Path(result['report']).name}")
+            append_loose_end(partial)
+            print(f"\n  LOOSE_ENDS.md updated: {partial}")
             continue
         line = (f"✅ Lit pull done: {key}/ — {result['downloaded']}/{result['rows']} "
                 f"fetched (Unpaywall {result['unpaywall']}, PMC {result['pmc']}, "

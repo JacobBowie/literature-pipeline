@@ -172,6 +172,7 @@ def is_suspicious_doi(doi):
     return not any(c.isdigit() for c in suffix) and "." not in suffix
 
 _BODYCHAR_RE = re.compile(_DOI_BODYCHAR)
+_SUSPICIOUS_DROPPED = set()  # F2: valid-but-suspicious DOIs already reported dropped (dedupe stderr)
 
 def extract_doi_from_text(text, max_chars=None):
     """Extract the first well-formed, non-suspicious DOI from text, re-joining line-wrapped DOIs.
@@ -183,7 +184,7 @@ def extract_doi_from_text(text, max_chars=None):
     which avoids over-joining a DOI that legitimately ends at end-of-line followed by prose.
     Returns '' if no non-suspicious DOI is found (the is_suspicious_doi gate drops truncations)."""
     if not text: return ""
-    if max_chars: text = text[:max_chars]
+    if max_chars is not None: text = text[:max_chars]
     n = len(text)
     for m in _DOI_START.finditer(text):
         i = m.end(); body = []
@@ -200,7 +201,16 @@ def extract_doi_from_text(text, max_chars=None):
             else:
                 break
         cand = normalize_doi(m.group(0) + "".join(body))
-        if is_valid_doi(cand) and not is_suspicious_doi(cand):
+        if is_valid_doi(cand):
+            if is_suspicious_doi(cand):
+                # F2: a valid-but-suspicious DOI (no digit AND no dot in the suffix) is
+                # dropped as a likely line-wrap truncation. Surface each unique drop once so
+                # a rare legit single-token DOI (e.g. 10.1093/nar) is not lost silently.
+                if cand not in _SUSPICIOUS_DROPPED:
+                    _SUSPICIOUS_DROPPED.add(cand)
+                    print(f"[litpipe] dropped valid-but-suspicious DOI {cand!r} "
+                          f"(suffix has no digit and no dot)", file=sys.stderr)
+                continue
             return cand
     return ""
 
@@ -208,6 +218,14 @@ def extract_doi_from_text(text, max_chars=None):
 _ENRICHED_FIELDS = ("doi", "title", "subtitle", "year", "journal", "authors",
                     "pmid", "pmcid", "abstract", "figures", "metadata_source",
                     "metadata_correction_note")
+
+def _is_empty(x):
+    """True for a genuinely-absent value (None / '' / [] / {}), but NOT numeric 0 or False.
+
+    F1: the old merge_sidecar guard treated a real 0/0.0/False in `new` as empty and let the
+    old value clobber it. One predicate applied to BOTH sides keeps 0 a real value -- load
+    bearing once merge_sidecar is extended to preserve n_formulas (D2), where 0 is legitimate."""
+    return x is None or x in ("", [], {})
 
 def merge_sidecar(old, new):
     """Return `new` augmented so it never DROPS a populated enriched field present in `old`.
@@ -219,8 +237,6 @@ def merge_sidecar(old, new):
     out = dict(new)
     for k in _ENRICHED_FIELDS:
         ov = old.get(k)
-        nv = out.get(k)
-        empty_new = nv in (None, "", [], {}, 0)
-        if ov not in (None, "", [], {}) and empty_new:
+        if not _is_empty(ov) and _is_empty(out.get(k)):
             out[k] = ov
     return out

@@ -183,8 +183,6 @@ def main():
         return 0
 
     md_path = project_root / "lit_pull_queue.md"
-    block = render_md_block(args.project, sweep_date, rows)
-
     existing = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
 
     # Content-aware dedup (replaces the old date-header skip). Drop residual rows
@@ -207,6 +205,10 @@ def main():
             "NOT consumed by `sweep.py`. Track ILLIAD requests here.\n"
         )
 
+    # A5: render the block AFTER the DOI dedup above (rows is now the filtered list), so the
+    # written block matches the deduped rows and the printed count. Rendering before the dedup
+    # re-appended already-present DOIs on a partial-overlap re-sweep.
+    block = render_md_block(args.project, sweep_date, rows)
     # RC4: rewrite the whole file atomically (header + prior content + new block)
     lit_util.atomic_write_text(str(md_path), existing + block)
 

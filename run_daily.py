@@ -22,6 +22,7 @@ import argparse
 import json
 import subprocess
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -88,7 +89,7 @@ def run(label: str, cmd: list, capture: bool = False):
     return result
 
 
-def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool):
+def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, run_date: str):
     print(f"\n=== {project} ===")
     proj_root = project_dir(project, cfg)   # RC11: parent-aware resolution
     status = project_status(proj_root)
@@ -106,9 +107,15 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool):
     try:
         if status == "READY":
             if with_snowball:
-                run("snowball (forward + reverse + recommendations)",
+                # Decouple enrichment from the per-project walk: enrich_recommendations and
+                # enrich_abstracts are BOTH portfolio-wide (ignore --project), so running them
+                # inside every project's snowball re-pays a full portfolio pass per project.
+                # Skip them here; run each ONCE after all projects (see main()). Snowball keeps
+                # forward+reverse discovery + the cheap per-project index refresh.
+                run("snowball (forward + reverse walk)",
                     [PY, str(HERE / "snowball.py"), "--project", project,
-                     "--until-convergence", "--max-iter", "2"])
+                     "--until-convergence", "--max-iter", "2",
+                     "--skip-recs", "--skip-abstracts"])
 
             seed = run("seed_queue_from_top_candidates",
                        [PY, str(HERE / "seed_queue_from_top_candidates.py"),
@@ -134,8 +141,15 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool):
             # 1-row / comment-only human queue could slip past and get clobbered
             # by the auto-staged draft. Back it up before staging.
             queue = proj_root / "lit_pull_queue.csv"
-            if queue.exists() and queue_data_rows(queue) >= 1:
+            # A4: back up ANY non-empty queue before staging over it. The old guard keyed on
+            # queue_data_rows() >= 1, which EXCLUDES '#' comment lines -- so a comment-only
+            # human queue (0 data rows but real annotations) slipped past and was clobbered
+            # with no backup. Byte-based guard + timestamped name (a re-fire can't overwrite
+            # a prior good .bak).
+            if queue.exists() and queue.stat().st_size > 0:
                 backup = proj_root / "lit_pull_queue.bak.csv"
+                if backup.exists():   # keep the prior good backup; timestamp only on collision
+                    backup = proj_root / f"lit_pull_queue.bak.{datetime.now():%Y%m%d_%H%M%S}.csv"
                 queue.replace(backup)
                 print(f"  [!!] existing queue backed up to {backup.name} "
                       f"before auto-staging draft")
@@ -148,9 +162,13 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool):
             draft.unlink()
             print(f"  staged {data_rows} DOIs to lit_pull_queue.csv")
 
-        run("sweep", [PY, str(HERE / "sweep.py"), "--project", project])
+        run("sweep", [PY, str(HERE / "sweep.py"), "--project", project,
+                      "--date", run_date])   # D4b: same run_date used for migrate below, so
+                                              # sweep's report artifacts and migrate agree
         run("migrate_closed_to_md",
-            [PY, str(HERE / "migrate_closed_to_md.py"), "--project", project])
+            [PY, str(HERE / "migrate_closed_to_md.py"), "--project", project,
+             "--date", run_date])   # D4b: pin migrate to the run's date so a no-report
+                                     # day can't fall back to a stale prior-day report
         return True
     except StepError as e:
         # RC6: subprocess failure aborts THIS project (counted as a failure so
@@ -158,7 +176,11 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool):
         print(f"  [ABORT] {e}")
         return False
     except Exception as e:
+        # B4: log the traceback so an unexpected coding bug is distinguishable from an
+        # ordinary StepError fetch failure in the unattended daily log. (KeyboardInterrupt/
+        # SystemExit are BaseException and still propagate -- do NOT narrow this except.)
         print(f"  [FATAL] {e}")
+        print(traceback.format_exc())
         return False
 
 
@@ -186,12 +208,25 @@ def main():
     else:
         targets = projects
 
+    run_date = f"{started:%Y-%m-%d}"
     ok, fail = [], []
     for proj in targets:
-        if pipeline_one(proj, projects, args.with_snowball, args.dry_run):
+        if pipeline_one(proj, projects, args.with_snowball, args.dry_run, run_date):
             ok.append(proj)
         else:
             fail.append(proj)
+
+    # Snowball decoupling (2026-07-20): enrich_recommendations + enrich_abstracts are
+    # portfolio-wide and were re-run inside every project's snowball. Run each exactly ONCE
+    # here, after all projects, on a --with-snowball run. (enrich_abstracts is still a full
+    # portfolio pass until the attempt-state column lands -- Batch 2 -- but now once, not Nx.)
+    if args.with_snowball and not args.dry_run:
+        for tool in ("enrich_recommendations.py", "enrich_abstracts.py"):
+            try:
+                run(f"{tool} (portfolio-wide, once)", [PY, str(HERE / tool)])
+            except StepError as e:
+                print(f"  [ABORT] {e}")
+                fail.append(tool)
 
     elapsed = (datetime.now() - started).total_seconds() / 60
     print(f"\n# Done — {len(ok)} ok, {len(fail)} failed, {elapsed:.1f} min")

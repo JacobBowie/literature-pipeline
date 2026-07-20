@@ -186,6 +186,12 @@ def _ris_pages(page: str):
     return page.strip(), ""
 
 
+def _ris_val(s) -> str:
+    """Collapse internal whitespace/newlines to single spaces (F6: a raw newline in a
+    free-text RIS field produces an orphaned continuation line with no `TAG  - ` prefix,
+    which lenient importers mis-fold into the previous value or drop)."""
+    return re.sub(r"\s+", " ", str(s)).strip()
+
 def build_ris(meta: dict) -> str:
     """Build a single-record RIS string from a flattened meta dict."""
     if not meta: return ""
@@ -193,12 +199,12 @@ def build_ris(meta: dict) -> str:
     sp, ep = _ris_pages(meta.get("page", ""))
     lines = [f"TY  - {ty}"]
     for a in meta.get("authors", []):
-        fam = (a.get("family") or "").strip()
-        giv = (a.get("given") or "").strip()
+        fam = _ris_val(a.get("family") or "")
+        giv = _ris_val(a.get("given") or "")
         if fam:
             lines.append(f"AU  - {fam}, {giv}" if giv else f"AU  - {fam}")
-    if meta.get("title"):     lines.append(f"TI  - {meta['title']}")
-    if meta.get("container"): lines.append(f"JO  - {meta['container']}")
+    if meta.get("title"):     lines.append(f"TI  - {_ris_val(meta['title'])}")
+    if meta.get("container"): lines.append(f"JO  - {_ris_val(meta['container'])}")
     if meta.get("year"):      lines.append(f"PY  - {meta['year']}")
     if meta.get("date"):      lines.append(f"DA  - {meta['date']}")
     if meta.get("volume"):    lines.append(f"VL  - {meta['volume']}")
@@ -208,7 +214,7 @@ def build_ris(meta: dict) -> str:
     if meta.get("doi"):       lines.append(f"DO  - {meta['doi']}")
     if meta.get("issn"):      lines.append(f"SN  - {meta['issn']}")
     if meta.get("url"):       lines.append(f"UR  - {meta['url']}")
-    if meta.get("abstract"):  lines.append(f"AB  - {meta['abstract']}")
+    if meta.get("abstract"):  lines.append(f"AB  - {_ris_val(meta['abstract'])}")
     lines.append("ER  - ")
     return "\n".join(lines) + "\n"
 
