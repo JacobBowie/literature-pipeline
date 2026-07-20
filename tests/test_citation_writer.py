@@ -49,3 +49,23 @@ def test_metadata_never_overwrites_existing(tmp_path):
         "SELECT title, abstract FROM paper_metadata WHERE doi='10.a/x'").fetchone()
     assert title == "Rich RIS title" and abstract == "ENRICHED"   # abstract invariant preserved
     con.close()
+
+
+def test_C2_ingest_writes_enrolled_in_transaction(tmp_path):
+    """C2: ingest_forward + prune_citations write through `con`, so a con-level ROLLBACK
+    undoes them. If they used a child cursor (the footgun), the rollback would NOT undo --
+    this test would then see the rows survive."""
+    con = _db(tmp_path)
+    lib = tmp_path / "lib"; lib.mkdir()
+    fwd = lib / "_forward.csv"
+    fwd.write_text(
+        "seed_doi,citing_doi,citing_year,citing_title,citing_venue,citing_authors,citing_cited_by\n"
+        "10.1234/seed.1,10.5678/cand.2,2024,Cand,Venue,Auth,5\n", encoding="utf-8")
+    con.execute("BEGIN TRANSACTION")
+    ip.ingest_forward(con, "P", fwd, lib)
+    assert con.execute("SELECT count(*) FROM candidates").fetchone()[0] == 1   # written inside txn
+    assert con.execute("SELECT count(*) FROM cites").fetchone()[0] == 1
+    con.execute("ROLLBACK")
+    assert con.execute("SELECT count(*) FROM candidates").fetchone()[0] == 0   # enrolled -> undone
+    assert con.execute("SELECT count(*) FROM cites").fetchone()[0] == 0
+    con.close()

@@ -225,7 +225,8 @@ def sidecar_info(path: Path):
 
 def ingest_papers(con, name: str, lib: Path):
     """Walk a library; insert metadata rows (paper_metadata) + location rows (paper_locations)."""
-    cur = con.cursor()
+    cur = con   # C2: write through the connection so the caller's per-project BEGIN enrolls these
+                # (a BEGIN on con does NOT enroll a child cursor's writes -- verified on 1.5.3).
     now = datetime.datetime.now().isoformat(timespec="seconds")
     pdf_count = no_doi_count = 0
     meta_rows = []; loc_rows = []; rows_no_doi = []
@@ -339,7 +340,7 @@ def prune_citations(con, name, kind):
     Called from ingest_forward/ingest_reverse AND from main() when the CSV is ABSENT, so a
     DELETED citation CSV (not just a shrunk one) cannot leave orphan candidate/cite rows that
     inflate top_candidates."""
-    cur = con.cursor()
+    cur = con   # C2: write through the connection so the caller's per-project transaction enrolls these
     cur.execute("DELETE FROM candidates WHERE source_project=? AND source_type=?", [name, kind])
     cur.execute("DELETE FROM cites WHERE source_project=? AND source_pipeline=?", [name, kind])
 
@@ -645,22 +646,33 @@ def main():
                 print(f"[skip] {name}: lib not found ({lib})")
                 continue
             print(f"=== {name} ===")
-            n_pdf, n_no = ingest_papers(con, name, lib)
-            print(f"  papers: {n_pdf} ingested, {n_no} no-DOI")
-            if args.no_citations: continue
-            fwd = find_forward_csv(lib, data)
-            if fwd:
-                n = ingest_forward(con, name, fwd, lib)
-                print(f"  forward citations from {fwd.name}: {n} candidates")
-            else:
-                prune_citations(con, name, "forward")   # T2: deleted CSV -> drop orphan rows
-            rev = find_reverse_csv(lib, data)
-            if rev:
-                n = ingest_reverse(con, name, rev, lib)
-                print(f"  reverse citations from {rev.name}: {n} candidates")
-            else:
-                prune_citations(con, name, "reverse")   # T2: deleted CSV -> drop orphan rows
-            if not (fwd or rev): print(f"  (no citation CSVs found)")
+            # C2: one transaction per project on `con` -- the SAME handle every ingest fn writes
+            # through. A crash mid-project (e.g. the recurring GoogleDriveFS lock surfacing on an
+            # INSERT) rolls that project back cleanly instead of committing a DELETE without its
+            # INSERT; already-finished projects stay durable. Inner fns must NOT open their own
+            # transaction (a nested BEGIN raises).
+            con.execute("BEGIN TRANSACTION")
+            try:
+                n_pdf, n_no = ingest_papers(con, name, lib)
+                print(f"  papers: {n_pdf} ingested, {n_no} no-DOI")
+                if not args.no_citations:
+                    fwd = find_forward_csv(lib, data)
+                    if fwd:
+                        n = ingest_forward(con, name, fwd, lib)
+                        print(f"  forward citations from {fwd.name}: {n} candidates")
+                    else:
+                        prune_citations(con, name, "forward")   # T2: deleted CSV -> drop orphan rows
+                    rev = find_reverse_csv(lib, data)
+                    if rev:
+                        n = ingest_reverse(con, name, rev, lib)
+                        print(f"  reverse citations from {rev.name}: {n} candidates")
+                    else:
+                        prune_citations(con, name, "reverse")   # T2: deleted CSV -> drop orphan rows
+                    if not (fwd or rev): print(f"  (no citation CSVs found)")
+                con.execute("COMMIT")
+            except Exception:
+                con.execute("ROLLBACK")
+                raise
 
         if args.gc:
             print(f"\n  [--gc] reclaimed {gc_orphan_metadata(con)} orphan paper_metadata rows")

@@ -156,33 +156,44 @@ def main():
             ))
         print(f"  [{i:>3}/{len(seeds)}] {seed_doi[:50]:<50}  {len(recs):>3} recs")
 
-    # Insert recommendations (delete-then-insert by seed)
-    cur = con.cursor()
-    if new_rec_rows:
-        seeds_done = list({r[0] for r in new_rec_rows})
-        cur.executemany("DELETE FROM recommendations WHERE seed_doi = ?",
-                        [(d,) for d in seeds_done])
-        cur.executemany("""
-            INSERT INTO recommendations (seed_doi, recommended_doi, rank, refreshed_at)
-            VALUES (?,?,?,?)
-            ON CONFLICT (seed_doi, recommended_doi) DO UPDATE SET
-              rank = excluded.rank, refreshed_at = excluded.refreshed_at
-        """, new_rec_rows)
-
-    # Add metadata for new DOIs (don't overwrite richer existing rows)
-    if new_meta_rows:
-        seen = set(); dedup = []
-        for r in new_meta_rows:
-            if r[0] not in seen: seen.add(r[0]); dedup.append(r)
-        existing = {row[0] for row in cur.execute(
-            f"SELECT doi FROM paper_metadata WHERE doi IN ({','.join('?'*len(dedup))})",
-            [r[0] for r in dedup]).fetchall()}
-        new_only = [r for r in dedup if r[0] not in existing]
-        if new_only:
+    # C3: wrap the recommendations DELETE-then-INSERT (+ new metadata) in ONE transaction on the
+    # connection -- write through `con`, not a child cursor, so the BEGIN enrolls the writes (the
+    # same footgun as C2). A crash between the DELETE and the INSERT otherwise loses that seed's recs.
+    cur = con
+    con.execute("BEGIN TRANSACTION")
+    try:
+        if new_rec_rows:
+            seeds_done = list({r[0] for r in new_rec_rows})
+            cur.executemany("DELETE FROM recommendations WHERE seed_doi = ?",
+                            [(d,) for d in seeds_done])
             cur.executemany("""
-                INSERT INTO paper_metadata (doi, year, lastname, title, venue, authors, refreshed_at)
-                VALUES (?,?,?,?,?,?,?)
-            """, new_only)
+                INSERT INTO recommendations (seed_doi, recommended_doi, rank, refreshed_at)
+                VALUES (?,?,?,?)
+                ON CONFLICT (seed_doi, recommended_doi) DO UPDATE SET
+                  rank = excluded.rank, refreshed_at = excluded.refreshed_at
+            """, new_rec_rows)
+
+        # Add metadata for new DOIs (don't overwrite richer existing rows). ON CONFLICT DO NOTHING
+        # is belt-and-suspenders: the SELECT-then-filter already prevents the PK violation, but the
+        # clause makes a concurrent-writer race harmless for free.
+        if new_meta_rows:
+            seen = set(); dedup = []
+            for r in new_meta_rows:
+                if r[0] not in seen: seen.add(r[0]); dedup.append(r)
+            existing = {row[0] for row in cur.execute(
+                f"SELECT doi FROM paper_metadata WHERE doi IN ({','.join('?'*len(dedup))})",
+                [r[0] for r in dedup]).fetchall()}
+            new_only = [r for r in dedup if r[0] not in existing]
+            if new_only:
+                cur.executemany("""
+                    INSERT INTO paper_metadata (doi, year, lastname, title, venue, authors, refreshed_at)
+                    VALUES (?,?,?,?,?,?,?)
+                    ON CONFLICT (doi) DO NOTHING
+                """, new_only)
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
 
     n_recs   = con.execute("SELECT COUNT(*) FROM recommendations").fetchone()[0]
     n_unique = con.execute("SELECT COUNT(DISTINCT recommended_doi) FROM recommendations").fetchone()[0]
