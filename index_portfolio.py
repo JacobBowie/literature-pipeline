@@ -260,12 +260,18 @@ def ingest_papers(con, name: str, lib: Path):
         # the index refresh to wipe abstracts that are already there).
         # Pattern: DELETE only the columns we're refreshing, preserve abstract.
         dois = [r[0] for r in dedup_meta]
-        cur.executemany(
-            "UPDATE paper_metadata SET year=?, lastname=?, title=?, venue=?, authors=?, refreshed_at=? WHERE doi=?",
-            [(r[1], r[2], r[3], r[4], r[5], r[6], r[0]) for r in dedup_meta])
-        # Insert any that didn't exist
+        # E1: SELECT existing FIRST, then UPDATE only rows that exist. The old code ran the
+        # UPDATE over EVERY dedup_meta row including brand-new DOIs, each a no-op point-lookup
+        # against the ART index (~88k wasted on a --rebuild). Final state is identical.
         existing = {row[0] for row in cur.execute(
             f"SELECT doi FROM paper_metadata WHERE doi IN ({','.join('?'*len(dois))})", dois).fetchall()}
+        upd = [(r[1], r[2], r[3], r[4], r[5], r[6], r[0]) for r in dedup_meta if r[0] in existing]
+        if upd:
+            # abstract is intentionally NOT in the SET list (enriched separately by
+            # enrich_abstracts; the abstract invariant -- test_duckdb_upsert).
+            cur.executemany(
+                "UPDATE paper_metadata SET year=?, lastname=?, title=?, venue=?, authors=?, refreshed_at=? WHERE doi=?",
+                upd)
         new_meta = [r for r in dedup_meta if r[0] not in existing]
         if new_meta:
             cur.executemany("""
