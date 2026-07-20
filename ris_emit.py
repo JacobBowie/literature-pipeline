@@ -171,6 +171,132 @@ def crossref_meta(msg: dict) -> dict:
     }
 
 
+# ---------- DataCite resolver (2026-07-20) ----------
+# arXiv (10.48550/*), Zenodo (10.5281/*), figshare, Dryad, OSF, ChemRxiv ... are
+# registered with DataCite, NOT CrossRef, so crossref_by_doi 404s and no .ris is
+# written -> the paper is invisible to index_portfolio. This pair mirrors the
+# CrossRef pair above and returns the SAME flattened dict shape build_ris consumes;
+# resolve_meta keeps CrossRef first and falls back to DataCite on a miss.
+# Full finding: notes/2026-07-20_datacite_ris_gap.md (validated 20/20 live, FRED prototype).
+DATACITE_WORK = "https://api.datacite.org/dois/{doi}"
+
+# Common DataCite registrants (fast-path hint; resolve_meta falls back on ANY CrossRef
+# miss, so this list need not be exhaustive).
+_DATACITE_PREFIXES = (
+    "10.48550",  # arXiv
+    "10.5281",   # Zenodo
+    "10.6084",   # figshare
+    "10.5061",   # Dryad
+    "10.17605",  # OSF
+    "10.26434",  # ChemRxiv
+    "10.15468",  # GBIF
+)
+
+# DataCite resourceTypeGeneral -> CrossRef-style `type` key that _RIS_TYPE maps.
+_DC_TYPE = {
+    "Preprint": "posted-content", "Text": "journal-article",
+    "JournalArticle": "journal-article", "ConferencePaper": "proceedings-article",
+    "Dataset": "dataset", "Software": "posted-content", "Book": "book",
+    "BookChapter": "book-chapter", "Report": "report", "Dissertation": "thesis",
+}
+
+
+def is_datacite_doi(doi: str) -> bool:
+    d = (doi or "").strip().lower()
+    return any(d.startswith(p) for p in _DATACITE_PREFIXES)
+
+
+def datacite_by_doi(doi: str, timeout=20):
+    """GET the DataCite record. Returns the `attributes` dict, or None."""
+    if not doi:
+        return None
+    try:
+        r = requests.get(DATACITE_WORK.format(doi=doi.strip()),
+                         headers={"User-Agent": UA, "Accept": "application/vnd.api+json"},
+                         timeout=timeout)
+        if r.status_code != 200:
+            return None
+        return (r.json().get("data") or {}).get("attributes")
+    except Exception:
+        return None
+
+
+def _dc_date(dates) -> str:
+    """Pick a usable date -> 'YYYY/MM/DD' | 'YYYY/MM' | 'YYYY' | ''."""
+    by_type = {}
+    for d in dates or []:
+        by_type.setdefault(d.get("dateType"), d.get("date") or "")
+    for t in ("Issued", "Available", "Submitted", "Created", "Updated"):
+        v = by_type.get(t) or ""
+        for pat in (r"(\d{4})-(\d{2})-(\d{2})", r"(\d{4})-(\d{2})", r"(\d{4})"):
+            m = re.match(pat, v)
+            if m:
+                return "/".join(m.groups())
+    return ""
+
+
+def _dc_authors(creators):
+    """DataCite creators -> [{'family','given'}] in build_ris shape."""
+    out = []
+    for c in creators or []:
+        fam = (c.get("familyName") or "").strip()
+        giv = (c.get("givenName") or "").strip()
+        if not fam:
+            nm = (c.get("name") or "").strip()
+            if not nm:
+                continue
+            if "," in nm:              # "Family, Given"
+                fam, giv = [p.strip() for p in nm.split(",", 1)]
+            else:                      # organizational or mononym
+                fam = nm
+        out.append({"family": fam, "given": giv})
+    return out
+
+
+def datacite_meta(attrs: dict) -> dict:
+    """Flatten DataCite attributes into the same dict shape as crossref_meta."""
+    if not attrs:
+        return {}
+    titles = attrs.get("titles") or []
+    title = re.sub(r"\s+", " ", (titles[0].get("title") or "")).strip() if titles else ""
+    authors = _dc_authors(attrs.get("creators"))
+    abstract = ""
+    for d in attrs.get("descriptions") or []:
+        if (d.get("descriptionType") or "").lower() == "abstract":
+            abstract = re.sub(r"<[^>]+>", "", d.get("description") or "").strip()
+            break
+    year = str(attrs.get("publicationYear") or "").strip()
+    container = (attrs.get("container") or {}).get("title") or attrs.get("publisher") or ""
+    rtg = (attrs.get("types") or {}).get("resourceTypeGeneral") or ""
+    doi = (attrs.get("doi") or "").lower()
+    return {
+        "doi": doi, "title": title, "year": year,
+        "date": _dc_date(attrs.get("dates")),
+        "lastname": authors[0]["family"] if authors else "",
+        "authors": authors, "container": container,
+        "volume": "", "issue": "", "page": "", "issn": "",
+        "abstract": abstract,
+        "url": f"https://doi.org/{doi}" if doi else (attrs.get("url") or ""),
+        "type": _DC_TYPE.get(rtg, "posted-content"),
+    }
+
+
+def resolve_meta(doi: str):
+    """CrossRef first (unchanged pipeline behavior), DataCite fallback on miss.
+    Returns (meta_dict, source) where source is 'crossref' | 'datacite' | 'none'."""
+    msg = crossref_by_doi(doi)
+    if msg:
+        m = crossref_meta(msg)
+        if m.get("title"):
+            return m, "crossref"
+    attrs = datacite_by_doi(doi)
+    if attrs:
+        m = datacite_meta(attrs)
+        if m.get("title"):
+            return m, "datacite"
+    return {}, "none"
+
+
 _RIS_TYPE = {
     "journal-article": "JOUR", "proceedings-article": "CPAPER", "book": "BOOK",
     "book-chapter": "CHAP", "report": "RPRT", "posted-content": "UNPD",
@@ -248,7 +374,7 @@ def emit_ris_for_pdf(doi: str, pdf_path: str, overwrite: bool = False) -> tuple:
       'OK'             - wrote a new RIS
       'EXISTS_SKIP'    - file already existed and overwrite=False
       'NO_DOI'         - empty doi argument
-      'CROSSREF_FAIL'  - CrossRef lookup returned nothing
+      'RESOLVE_FAIL'   - neither CrossRef nor DataCite returned usable metadata
     """
     if not doi:
         return ("NO_DOI", "")
@@ -256,12 +382,11 @@ def emit_ris_for_pdf(doi: str, pdf_path: str, overwrite: bool = False) -> tuple:
     ris_path = stem + ".ris"
     if os.path.exists(ris_path) and not overwrite:
         return ("EXISTS_SKIP", ris_path)
-    msg = crossref_by_doi(doi)
-    if not msg:
-        return ("CROSSREF_FAIL", "")
-    meta = crossref_meta(msg)
+    meta, _src = resolve_meta(doi)   # CrossRef first, DataCite fallback (arXiv/Zenodo/OSF/...)
+    if not meta:
+        return ("RESOLVE_FAIL", "")
     text = build_ris(meta)
     if not text:
-        return ("CROSSREF_FAIL", "")
+        return ("RESOLVE_FAIL", "")
     write_ris(ris_path, text, overwrite=True)
     return ("OK", ris_path)

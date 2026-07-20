@@ -124,15 +124,14 @@ def main():
             print(f"  [{i:3d}/{len(pdfs)}] {pdf.name[:60]:<60} → NO_DOI")
             continue
 
-        msg = R.crossref_by_doi(doi)
+        meta, _src = R.resolve_meta(doi)   # CrossRef first, DataCite fallback (arXiv/Zenodo/OSF)
         time.sleep(args.sleep)
-        if not msg:
+        if not meta:
             stats["crossref_fail"] += 1
-            rows.append({"pdf": pdf.name, "doi": doi, "status": "CROSSREF_FAIL", "out": ""})
-            print(f"  [{i:3d}/{len(pdfs)}] {pdf.name[:60]:<60} → CROSSREF_FAIL ({doi})")
+            rows.append({"pdf": pdf.name, "doi": doi, "status": "RESOLVE_FAIL", "out": ""})
+            print(f"  [{i:3d}/{len(pdfs)}] {pdf.name[:60]:<60} → RESOLVE_FAIL ({doi})")
             continue
 
-        meta = R.crossref_meta(msg)
         ris_text = R.build_ris(meta)
 
         if args.commit:
