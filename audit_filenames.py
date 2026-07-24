@@ -25,11 +25,12 @@ Usage:
   python audit_filenames.py --lib-dir DIR \
       --queue-history "<proj>/lit_pull_queue.*.processed*.csv,<proj2>/lit_pull_queue.*.processed*.csv"
 """
-import os, sys, re, json, csv, time, glob, argparse, unicodedata
+import os, sys, re, json, csv, time, glob, argparse
 import requests
 import fitz
 
 import lit_util
+from lit_util import safe_ascii  # re-export: fill_missing_dois does `from audit_filenames import safe_ascii`
 lit_util.utf8_stdout()
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -49,24 +50,6 @@ def slug(text, n=6):
     text = re.sub(r"[^A-Za-z0-9\s\-]", " ", text)
     words = [w for w in text.split() if w.lower() not in SLUG_SKIP][:n]
     return "".join(re.sub(r"[^A-Za-z0-9\-]", "", w).capitalize() for w in words) or "Untitled"
-
-
-_NON_DECOMPOSABLE = str.maketrans({
-    "ø":"o","Ø":"O","æ":"ae","Æ":"Ae","ß":"ss","þ":"th","Þ":"Th",
-    "ł":"l","Ł":"L","đ":"d","Đ":"D","œ":"oe","Œ":"Oe",
-    "ı":"i","İ":"I",
-})
-
-
-def safe_ascii(s):
-    """Normalize Unicode → portable ASCII. Handles non-decomposable specials
-    (ø→o, æ→ae, ß→ss, ł→l) before NFKD strips combining marks.
-    Lüthi→Luthi, Périard→Periard, Mølmen→Molmen, Müller-García→Muller-Garcia."""
-    if not s: return ""
-    s = s.translate(_NON_DECOMPOSABLE)
-    nfkd = unicodedata.normalize("NFKD", s)
-    no_combining = "".join(c for c in nfkd if not unicodedata.combining(c))
-    return no_combining.encode("ascii", "ignore").decode("ascii")
 
 
 def extract_doi_from_pdf(pdf_path, max_chars=5000):

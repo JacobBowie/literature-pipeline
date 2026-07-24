@@ -12,7 +12,7 @@ Centralizes the fixes for the cross-cutting failure modes found in the 2026-06-0
 
 Pure stdlib; safe to import from any pipeline script.
 """
-import os, re, json, sys, tempfile
+import os, re, json, sys, tempfile, unicodedata
 from pathlib import Path
 
 # ---------------------------------------------------------------- console I/O hardening
@@ -79,6 +79,35 @@ def coerce_int(v, default=0):
         return int(float(str(v).replace(",", "").strip() or default))
     except (ValueError, TypeError):
         return default
+
+# ---------------------------------------------------------------- filename ASCII normalization
+# Non-decomposable specials that NFKD leaves intact (they carry no combining mark to strip),
+# so they must be transliterated explicitly BEFORE the NFKD pass. Single source of truth for the
+# byte-identical copies that lived in ris_emit + audit_filenames (2026-07 Stage 3 c14). Both
+# re-export `safe_ascii` (from lit_util import safe_ascii) so their `from <mod> import safe_ascii`
+# callers keep working unchanged.
+_NON_DECOMPOSABLE = str.maketrans({
+    # Nordic / Germanic
+    "ø":"o","Ø":"O","æ":"ae","Æ":"Ae","ß":"ss","þ":"th","Þ":"Th",
+    # Slavic / Polish / Croatian / Vietnamese
+    "ł":"l","Ł":"L","đ":"d","Đ":"D",
+    # French ligature
+    "œ":"oe","Œ":"Oe",
+    # Turkish dotted/dotless I (and stray look-alikes in author names)
+    "ı":"i","İ":"I",
+})
+
+
+def safe_ascii(s):
+    """Normalize Unicode → portable ASCII for filenames.
+    First handles non-decomposable special chars (ø→o, æ→ae, ß→ss, ł→l...),
+    then NFKD-normalizes accents and strips combining marks
+    (Lüthi→Luthi, Périard→Periard, Mølmen→Molmen, Müller-García→Muller-Garcia)."""
+    if not s: return ""
+    s = s.translate(_NON_DECOMPOSABLE)
+    nfkd = unicodedata.normalize("NFKD", s)
+    no_combining = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return no_combining.encode("ascii", "ignore").decode("ascii")
 
 # ---------------------------------------------------------------- project registry + path resolution
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))

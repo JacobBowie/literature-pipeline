@@ -9,13 +9,14 @@ Used by:
 RIS format reference: https://en.wikipedia.org/wiki/RIS_(file_format)
 EndNote ingests RIS natively via "Reference Manager (RIS)" import filter.
 """
-import os, re, sys, difflib, unicodedata
+import os, re, sys, difflib
 import requests
 import lit_net  # B1: shared GET with 429/5xx retry
 
-# Config loader lives in lit_util (stdlib-pure); re-exported here so the many
-# `from ris_emit import load_projects_config` call sites keep working unchanged.
-from lit_util import load_projects_config
+# Config loader + safe_ascii live in lit_util (stdlib-pure); re-exported here so the many
+# `from ris_emit import load_projects_config` / `from ris_emit import safe_ascii` call sites
+# (audit_portfolio, preprint_fetch, unpaywall_fetch_v2, test_filenames) keep working unchanged.
+from lit_util import load_projects_config, safe_ascii
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA    = f"GETPAID-ris-emit/1.0 (mailto:{EMAIL})"
@@ -46,30 +47,6 @@ CROSSREF_SEARCH = "https://api.crossref.org/works"
 
 SLUG_SKIP = {"a","an","the","of","in","on","and","to","for","at","from","with","by","as",
              "or","is","are","be","been","this","that","these","those"}
-
-
-_NON_DECOMPOSABLE = str.maketrans({
-    # Nordic / Germanic
-    "ø":"o","Ø":"O","æ":"ae","Æ":"Ae","ß":"ss","þ":"th","Þ":"Th",
-    # Slavic / Polish / Croatian / Vietnamese
-    "ł":"l","Ł":"L","đ":"d","Đ":"D",
-    # French ligature
-    "œ":"oe","Œ":"Oe",
-    # Cyrillic-style or other oddities sometimes seen in author names
-    "ı":"i","İ":"I",
-})
-
-
-def safe_ascii(s: str) -> str:
-    """Normalize Unicode → portable ASCII for filenames.
-    First handles non-decomposable special chars (ø→o, æ→ae, ß→ss, ł→l...),
-    then NFKD-normalizes accents (Lüthi→Luthi, Périard→Periard, Mølmen→Molmen).
-    """
-    if not s: return ""
-    s = s.translate(_NON_DECOMPOSABLE)
-    nfkd = unicodedata.normalize("NFKD", s)
-    no_combining = "".join(c for c in nfkd if not unicodedata.combining(c))
-    return no_combining.encode("ascii", "ignore").decode("ascii")
 
 
 def slug(text: str, n: int = 6) -> str:
