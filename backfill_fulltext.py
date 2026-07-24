@@ -32,35 +32,14 @@ from xml.etree import ElementTree as ET
 import requests
 
 import lit_util
+import lit_net  # B1/c8: shared GET retry + doi_to_pmcid_batch
 lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jats_to_text import parse_jats
 
 EMAIL    = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
-IDCONV   = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 API_UA   = f"GETPAID-backfill/1.0 (mailto:{EMAIL})"
-
-
-def doi_to_pmcid_batch(dois, batch_size=100):
-    out = {}
-    for i in range(0, len(dois), batch_size):
-        chunk = dois[i:i+batch_size]
-        params = {"tool":"GETPAID","email":EMAIL,"ids":",".join(chunk),
-                  "idtype":"doi","format":"json"}
-        try:
-            r = requests.get(IDCONV, params=params, headers={"User-Agent":API_UA}, timeout=30)
-            data = r.json()
-        except (requests.RequestException, ValueError) as e:
-            print(f"  [idconv batch {i}] error: {e}")
-            continue
-        for rec in data.get("records", []):
-            doi = (rec.get("doi") or rec.get("requested-id") or "").lower()
-            pmcid = rec.get("pmcid")
-            if doi and pmcid:
-                out[doi] = pmcid
-        time.sleep(0.4)
-    return out
 
 
 def fetch_sidecar(pmcid, sidecar_path):
@@ -179,7 +158,8 @@ def main():
 
     # Batch DOI -> PMCID
     print(f"\nLooking up {len(set(needs_doi_lookup))} unique DOIs in PMC...")
-    doi2pmcid = doi_to_pmcid_batch(sorted(set(needs_doi_lookup))) if needs_doi_lookup else {}
+    doi2pmcid = (lit_net.doi_to_pmcid_batch(sorted(set(needs_doi_lookup)), ua=API_UA, email=EMAIL)
+                 if needs_doi_lookup else {})
     # also fold in fallback by_doi
     for d, pmc in fb["by_doi"].items():
         doi2pmcid.setdefault(d, pmc)

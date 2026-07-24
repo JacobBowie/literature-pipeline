@@ -14,10 +14,13 @@ Scope note: B4a routes the metadata GETs through here (Unpaywall lookup, CrossRe
 arXiv/EPMC/OSF search, CrossRef abstract). The streaming PDF/image downloads move to a stream
 helper in c7, and the NCBI id-converter batch in c8.
 """
+import sys
 import time
 from collections import namedtuple
 
 import requests
+
+import lit_util  # is_valid_doi gate for doi_to_pmcid_batch (lit_util is stdlib-pure -> no import cycle)
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 DEFAULT_RETRIES = 3
@@ -112,3 +115,56 @@ def stream_download(url, *, max_bytes, timeout=30, chunk_size=8192, headers=None
     except requests.exceptions.RequestException as e:
         return StreamResult(r.status_code, first, b"".join(chunks), total, truncated, str(e))
     return StreamResult(r.status_code, first, b"".join(chunks), total, truncated, "")
+
+
+IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
+
+
+def doi_to_pmcid_batch(dois, *, ua, email, tool="GETPAID", batch_size=100):
+    """Map DOIs -> PMCIDs via the NCBI ID converter (idconv). Returns {doi_lower: pmcid} (c8).
+
+    Consolidates 3 byte-identical copies (pmc_fetch / backfill_fulltext / recheck_pmc). B2 hardening
+    over those copies:
+      - malformed DOIs are dropped up front (lit_util.is_valid_doi, which rejects the unicode-dash
+        typography artifacts idconv 400s on) so they never poison a chunk;
+      - the GET goes through get() -> bounded 429/5xx retry;
+      - a chunk that still returns HTTP 400 (idconv 400s the WHOLE batch for a single bad id and
+        returns records=[], which the old code silently reclassified as no-PMCID for up to batch_size
+        valid papers) is retried one DOI at a time, so at most the one offending id is dropped;
+      - only records with BOTH a doi and a pmcid are recorded -- guards the empty-key bug where
+        recheck_pmc wrote out[''] for a record whose doi/requested-id was blank.
+    """
+    out = {}
+    valid = [d for d in dois if lit_util.is_valid_doi(d)]
+    for i in range(0, len(valid), batch_size):
+        chunk = valid[i:i + batch_size]
+        params = {"tool": tool, "email": email, "ids": ",".join(chunk),
+                  "idtype": "doi", "format": "json"}
+        try:
+            r = get(IDCONV, headers={"User-Agent": ua}, params=params, timeout=30)
+        except requests.exceptions.RequestException as e:
+            print(f"  [idconv batch {i}] error: {e}", file=sys.stderr)
+            continue
+        if r.status_code == 400 and len(chunk) > 1:
+            # B2 poisoned-chunk recovery: one malformed id 400s the whole batch. Isolate it so the
+            # rest still resolve, instead of losing up to batch_size valid papers to "no-PMCID".
+            for one in chunk:
+                out.update(doi_to_pmcid_batch([one], ua=ua, email=email, tool=tool, batch_size=1))
+            continue
+        if r.status_code != 200:
+            print(f"  [idconv batch {i}] HTTP {r.status_code}; chunk skipped", file=sys.stderr)
+            time.sleep(0.4)
+            continue
+        try:
+            data = r.json()
+        except ValueError as e:
+            print(f"  [idconv batch {i}] non-JSON body (HTTP {r.status_code}): {e}", file=sys.stderr)
+            time.sleep(0.4)
+            continue
+        for rec in data.get("records", []):
+            doi = (rec.get("doi") or rec.get("requested-id") or "").lower()
+            pmcid = rec.get("pmcid")
+            if doi and pmcid:
+                out[doi] = pmcid
+        time.sleep(0.4)  # be nice to NCBI
+    return out

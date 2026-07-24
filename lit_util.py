@@ -148,6 +148,13 @@ _DOI_START = re.compile(r"10\.\d{4,9}/", re.IGNORECASE)
 _DOI_BODYCHAR = r"[A-Za-z0-9._;:()/\-]"
 _DOI_TRAIL = re.compile(r"[.,;:)\]}>]+$")
 _DOI_FULL = re.compile(r"^10\.\d{4,9}/\S+$", re.IGNORECASE)
+# B2: unicode dashes/minus (U+2010..U+2015, U+2212) are PDF-extraction typography artifacts that
+# never appear in a registered DOI but that NCBI idconv 400s on -- reject them at the validity gate
+# (_DOI_FULL's \S+ otherwise admits them). NOT angle brackets: legit SICI-format DOIs (old Wiley /
+# Blackwell, ~1996-2005) carry literal '<'/'>' in the suffix, so rejecting those here would silently
+# drop real papers from the citation graph + index. idconv 400s on any odd DOI are handled instead
+# by doi_to_pmcid_batch's one-at-a-time fallback, not this global gate.
+_DOI_BAD_CHARS = re.compile(r"[‐-―−]")
 
 def normalize_doi(doi):
     if not doi: return ""
@@ -158,8 +165,14 @@ def normalize_doi(doi):
     return _DOI_TRAIL.sub("", d).rstrip(".")
 
 def is_valid_doi(doi):
-    """Well-formedness only: matches 10.<reg>/<suffix> with a non-empty suffix."""
-    return bool(doi) and bool(_DOI_FULL.match(doi.strip()))
+    """Well-formedness: matches 10.<reg>/<suffix> with a non-empty suffix, and rejects unicode-dash
+    typography artifacts (U+2010..U+2015, U+2212) that only appear from PDF-extraction mangling,
+    never in a registered DOI (B2). Angle brackets are deliberately NOT rejected -- legit SICI-format
+    DOIs contain literal '<'/'>'."""
+    if not doi:
+        return False
+    d = doi.strip()
+    return not _DOI_BAD_CHARS.search(d) and bool(_DOI_FULL.match(d))
 
 def is_suspicious_doi(doi):
     """Flag DOIs that look like line-wrap TRUNCATIONS (the RC1 '10.1002/cphy' class).

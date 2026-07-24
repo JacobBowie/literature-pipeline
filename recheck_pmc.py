@@ -22,6 +22,7 @@ import os, sys, io, time, argparse, csv
 import requests
 
 import lit_util
+import lit_net  # B1/c8: shared GET retry + doi_to_pmcid_batch
 lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -31,7 +32,6 @@ import ris_emit as _R      # title_similarity for the sidecar title sanity check
 
 EMAIL    = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
 UA       = f"GETPAID-recheck/1.0 (mailto:{EMAIL})"
-IDCONV   = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 
 
@@ -49,26 +49,6 @@ def extract_pdf_head_text(pdf_path, max_chars=5000):
     except (OSError, RuntimeError, ValueError):
         return ""
     return text[:max_chars]
-
-
-def doi_to_pmcid_batch(dois, batch_size=100):
-    """Map list of DOIs to PMCIDs. Returns dict doi -> pmcid."""
-    out = {}
-    for i in range(0, len(dois), batch_size):
-        chunk = dois[i:i+batch_size]
-        try:
-            r = requests.get(IDCONV,
-                              params={"tool":"GETPAID","email":EMAIL,
-                                      "ids":",".join(chunk),"idtype":"doi","format":"json"},
-                              headers={"User-Agent":UA}, timeout=30)
-            for rec in r.json().get("records", []):
-                doi = (rec.get("doi") or rec.get("requested-id") or "").lower()
-                if rec.get("pmcid"):
-                    out[doi] = rec["pmcid"]
-        except (requests.RequestException, ValueError) as e:
-            print(f"  idconv error: {e}", file=sys.stderr)
-        time.sleep(0.4)
-    return out
 
 
 def fetch_jats_sidecar(pmcid, sidecar_path, doi="", pdf_head_text="", title_sim_min=0.55):
@@ -143,7 +123,7 @@ def main():
         return
 
     print(f"Batch-looking up {len(set(fn_to_doi.values()))} unique DOIs...")
-    doi2pmc = doi_to_pmcid_batch(list(set(fn_to_doi.values())))
+    doi2pmc = lit_net.doi_to_pmcid_batch(list(set(fn_to_doi.values())), ua=UA, email=EMAIL)
     print(f"  {len(doi2pmc)}/{len(set(fn_to_doi.values()))} have PMCIDs\n")
 
     if not doi2pmc:

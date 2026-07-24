@@ -34,7 +34,6 @@ from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
 lit_util.utf8_stdout()
 
 EMAIL      = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
-IDCONV     = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 EPMC_PDF   = "https://europepmc.org/articles/{pmcid}?pdf=render"
 EPMC_XML   = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 NCBI_PAGE  = "https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/"
@@ -51,28 +50,6 @@ DEFAULT_REPORT_OUT = "data/prior_art/discovered/pmc_fetch_report.csv"
 def safe_filename(name: str) -> str:
     # Strip non-ASCII (matches v2 naming convention which is ASCII-only).
     return name.encode("ascii", "ignore").decode("ascii")
-
-
-def doi_to_pmcid_batch(dois, batch_size=100):
-    """Map list of DOIs to PMCIDs using NCBI ID converter. Returns dict doi -> pmcid (lowercased doi keys)."""
-    out = {}
-    for i in range(0, len(dois), batch_size):
-        chunk = dois[i:i+batch_size]
-        params = {"tool": "GETPAID", "email": EMAIL, "ids": ",".join(chunk),
-                  "idtype": "doi", "format": "json"}
-        try:
-            r = requests.get(IDCONV, params=params, headers={"User-Agent": API_UA}, timeout=30)
-            data = r.json()
-        except Exception as e:
-            print(f"  [idconv batch {i}] error: {e}")
-            continue
-        for rec in data.get("records", []):
-            doi = (rec.get("doi") or rec.get("requested-id") or "").lower()
-            pmcid = rec.get("pmcid")
-            if doi and pmcid:
-                out[doi] = pmcid
-        time.sleep(0.4)  # be nice to NCBI
-    return out
 
 
 def looks_like_pdf(b: bytes) -> bool:
@@ -207,7 +184,7 @@ def main():
     print(f"Project: {base}")
     print(f"Library: {lib_dir}")
     print(f"Looking up {len(dois)} DOIs in PMC...")
-    doi2pmcid = doi_to_pmcid_batch(dois)
+    doi2pmcid = lit_net.doi_to_pmcid_batch(dois, ua=API_UA, email=EMAIL)
     print(f"  {len(doi2pmcid)}/{len(dois)} have PMCIDs ({100*len(doi2pmcid)/max(1,len(dois)):.0f}%)\n")
 
     os.makedirs(lib_dir, exist_ok=True)
