@@ -32,7 +32,7 @@ lit_util.utf8_stdout()
 HERE = Path(__file__).resolve().parent
 PROJECTS = HERE.parent.parent  # _tools/literature_pipeline/ -> Projects/
 CONFIG_PATH = HERE / "projects.json"
-LOOSE_ENDS = PROJECTS / "Git-R-Dun" / "files" / "LOOSE_ENDS.md"
+LOOSE_ENDS = PROJECTS / "Operations-Manager" / "files" / "LOOSE_ENDS.md"
 
 
 def find_queues(only_project=None):

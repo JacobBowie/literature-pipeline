@@ -217,7 +217,7 @@ This determines whether Stage B is "weekend project" (with GPU) or "occasional-u
 
 ---
 
-## Skills mapping (target roles from `Git-R-Dun/files/skill_gap_crossref.md`)
+## Skills mapping (target roles from `Operations-Manager/files/skill_gap_crossref.md`)
 
 | Stage | Skill | Roles unlocked |
 |---|---|---|
