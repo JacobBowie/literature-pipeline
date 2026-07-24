@@ -28,6 +28,7 @@ import os, sys, csv, re, json, argparse, datetime, time
 from pathlib import Path
 
 import duckdb
+import pandas as pd  # E1: register()+INSERT..SELECT bulk path (see _bulk_insert)
 
 import lit_util  # RC1 DOI validity gate, RC4 atomic writes (shared, pre-tested)
 
@@ -223,6 +224,41 @@ def sidecar_info(path: Path):
         return (1, 0)
 
 
+def _bulk_insert(con, table, columns, rows, *, int_cols=(), on_conflict=""):
+    """E1: fast columnar bulk INSERT via a registered pandas DataFrame (register + INSERT..SELECT).
+
+    ~250x faster than per-row `executemany` on the ART-indexed tables here -- DuckDB's insert cost
+    scales with TABLE size, not row count, so per-row PK maintenance dominates at real scale (see
+    the duckdb skill's bulk_insert.md; staging-temp SQL was only ~4x, so the pandas path is load-
+    bearing). Rows must already be Python-deduped on the conflict target -- ON CONFLICT does NOT
+    dedupe rows within a single statement.
+
+    - columns: target column names, in each tuple's field order.
+    - int_cols: columns coerced to pandas nullable Int64 so a None (e.g. a missing `year`) is
+      written as SQL NULL deterministically. A mixed None/int column otherwise infers float64
+      (NaN); DuckDB 1.5.5 happens to cast that NaN to NULL, but the explicit Int64 keeps the
+      None-handling correct and version-independent rather than relying on that leniency.
+    - on_conflict: optional trailing "ON CONFLICT (...) DO ..." clause.
+
+    DuckDB implicitly casts the SELECTed columns to the target types (VARCHAR->TIMESTAMP,
+    Int64->INTEGER) -- verified against this schema -- so no per-column CAST is needed.
+    """
+    if not rows:
+        return
+    df = pd.DataFrame(rows, columns=list(columns))
+    for c in int_cols:
+        df[c] = df[c].astype("Int64")
+    con.register("_bulk_df", df)
+    try:
+        collist = ", ".join(columns)
+        con.execute(f"INSERT INTO {table} ({collist}) SELECT {collist} FROM _bulk_df {on_conflict}")
+    finally:
+        try:
+            con.unregister("_bulk_df")
+        except Exception:
+            pass
+
+
 def ingest_papers(con, name: str, lib: Path):
     """Walk a library; insert metadata rows (paper_metadata) + location rows (paper_locations)."""
     cur = con   # C2: write through the connection so the caller's per-project BEGIN enrolls these
@@ -274,11 +310,10 @@ def ingest_papers(con, name: str, lib: Path):
                 "UPDATE paper_metadata SET year=?, lastname=?, title=?, venue=?, authors=?, refreshed_at=? WHERE doi=?",
                 upd)
         new_meta = [r for r in dedup_meta if r[0] not in existing]
-        if new_meta:
-            cur.executemany("""
-                INSERT INTO paper_metadata (doi, year, lastname, title, venue, authors, refreshed_at)
-                VALUES (?,?,?,?,?,?,?)
-            """, new_meta)
+        # E1: bulk-insert new rows (abstract omitted -> defaults NULL; enriched out-of-band).
+        _bulk_insert(cur, "paper_metadata",
+                     ["doi", "year", "lastname", "title", "venue", "authors", "refreshed_at"],
+                     new_meta, int_cols=["year"])
 
     # paper_locations: dedupe by (doi, project), and ALSO drop any prior row
     # for this project whose pdf_filename is no longer on disk (so quarantined
@@ -300,13 +335,17 @@ def ingest_papers(con, name: str, lib: Path):
         for r in loc_rows:
             k = (r[0], r[1])
             if k not in seen: seen.add(k); dedup_loc.append(r)
-        keys = [(r[0], r[1]) for r in dedup_loc]
-        cur.executemany("DELETE FROM paper_locations WHERE doi=? AND project=?", keys)
-        cur.executemany("""
-            INSERT INTO paper_locations
-            (doi, project, lib_path, pdf_filename, has_pdf, has_sidecar, has_ris, sidecar_text_len, refreshed_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
-        """, dedup_loc)
+        # E1: fold the per-key DELETE into an ON CONFLICT upsert (PK = doi, project); the
+        # scope-wide prune above already dropped rows for PDFs no longer on disk.
+        _bulk_insert(cur, "paper_locations",
+                     ["doi", "project", "lib_path", "pdf_filename", "has_pdf", "has_sidecar",
+                      "has_ris", "sidecar_text_len", "refreshed_at"],
+                     dedup_loc,
+                     on_conflict=("ON CONFLICT (doi, project) DO UPDATE SET "
+                                  "lib_path=excluded.lib_path, pdf_filename=excluded.pdf_filename, "
+                                  "has_pdf=excluded.has_pdf, has_sidecar=excluded.has_sidecar, "
+                                  "has_ris=excluded.has_ris, sidecar_text_len=excluded.sidecar_text_len, "
+                                  "refreshed_at=excluded.refreshed_at"))
 
     # T2 (2026-06-25): prune papers_no_doi project-wide, mirroring the paper_locations prune
     # above. A PDF that GAINS a DOI / is renamed / is deleted must lose its stale no-DOI row
@@ -321,12 +360,17 @@ def ingest_papers(con, name: str, lib: Path):
         cur.execute("DELETE FROM papers_no_doi WHERE project = ?", [name])
 
     if rows_no_doi:
-        keys = [(r[0], r[1]) for r in rows_no_doi]
-        cur.executemany("DELETE FROM papers_no_doi WHERE pdf_filename=? AND project=?", keys)
-        cur.executemany("""
-            INSERT INTO papers_no_doi (pdf_filename, project, lib_path, reason)
-            VALUES (?,?,?,?)
-        """, rows_no_doi)
+        # E1: dedupe on the PK (pdf_filename, project), then upsert via ON CONFLICT, folding the
+        # per-key DELETE. The scope-wide prune above already cleared removed/renamed PDFs.
+        seen = set(); dedup_nodoi = []
+        for r in rows_no_doi:
+            k = (r[0], r[1])
+            if k not in seen: seen.add(k); dedup_nodoi.append(r)
+        _bulk_insert(cur, "papers_no_doi",
+                     ["pdf_filename", "project", "lib_path", "reason"],
+                     dedup_nodoi,
+                     on_conflict=("ON CONFLICT (pdf_filename, project) DO UPDATE SET "
+                                  "lib_path=excluded.lib_path, reason=excluded.reason"))
     return pdf_count, no_doi_count
 
 
@@ -365,11 +409,12 @@ def _write_citation_rows(con, cand_rows, meta_rows, cite_rows):
         for r in cand_rows:
             k = (r[0], r[1], r[2], r[3])
             if k not in seen: seen.add(k); dedup.append(r)
-        con.executemany("""
-            INSERT INTO candidates (doi, source_type, source_seed_doi, source_project,
-                                    citing_cited_by, refreshed_at)
-            VALUES (?,?,?,?,?,?)
-        """, dedup)
+        # E1: bulk insert. prune_citations already cleared this (project, source_type) slice, so
+        # no per-key DELETE / ON CONFLICT needed (the candidates PK includes source_type).
+        _bulk_insert(con, "candidates",
+                     ["doi", "source_type", "source_seed_doi", "source_project",
+                      "citing_cited_by", "refreshed_at"],
+                     dedup, int_cols=["citing_cited_by"])
     if meta_rows:
         # metadata for any candidate DOI not already present; do NOT overwrite existing rows
         # (those carry richer .ris data -- the abstract invariant).
@@ -380,22 +425,22 @@ def _write_citation_rows(con, cand_rows, meta_rows, cite_rows):
             f"SELECT doi FROM paper_metadata WHERE doi IN ({','.join('?'*len(dedup))})",
             [r[0] for r in dedup]).fetchall()}
         new_meta = [r for r in dedup if r[0] not in existing]
-        if new_meta:
-            con.executemany("""
-                INSERT INTO paper_metadata (doi, year, lastname, title, venue, authors, refreshed_at)
-                VALUES (?,?,?,?,?,?,?)
-            """, new_meta)
+        # E1: bulk-insert genuinely-new candidate DOIs (abstract omitted -> NULL; invariant).
+        _bulk_insert(con, "paper_metadata",
+                     ["doi", "year", "lastname", "title", "venue", "authors", "refreshed_at"],
+                     new_meta, int_cols=["year"])
     if cite_rows:
         seen = set(); dedup = []
         for r in cite_rows:
             k = (r[0], r[1], r[3])
             if k not in seen: seen.add(k); dedup.append(r)
-        con.executemany("""
-            INSERT INTO cites (citing_doi, cited_doi, source_pipeline, source_project)
-            VALUES (?,?,?,?)
-            ON CONFLICT (citing_doi, cited_doi, source_project)
-            DO UPDATE SET source_pipeline = excluded.source_pipeline
-        """, dedup)
+        # E1: bulk insert; cites PK excludes source_pipeline, so the same (citing,cited,project)
+        # edge found by BOTH passes updates the tag rather than colliding (see docstring).
+        _bulk_insert(con, "cites",
+                     ["citing_doi", "cited_doi", "source_pipeline", "source_project"],
+                     dedup,
+                     on_conflict=("ON CONFLICT (citing_doi, cited_doi, source_project) "
+                                  "DO UPDATE SET source_pipeline = excluded.source_pipeline"))
 
 
 def gc_orphan_metadata(con):

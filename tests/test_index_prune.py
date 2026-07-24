@@ -133,3 +133,20 @@ def test_parse_ris_continuation_and_ur_fallback(tmp_path):
     r.write_text("TY  - JOUR\nTI  - Single Line Title\nDO  - 10.9999/canon1\nER  - \n", encoding="utf-8")
     mr = I.parse_ris(r)
     assert mr["title"] == "Single Line Title" and mr["doi"] == "10.9999/canon1"
+
+
+def test_forward_bulk_insert_many_rows(tmp_path):
+    """E1: the register+INSERT..SELECT path ingests a multi-row forward CSV correctly --
+    candidates, cites, and new paper_metadata rows all land at N well beyond the 2-row fixtures."""
+    lib = tmp_path / "lib"; lib.mkdir()
+    csv = lib / "_forward_citations.csv"
+    hdr = "seed_doi,citing_doi,citing_year,citing_title,citing_venue,citing_authors,citing_cited_by\n"
+    body = "".join(
+        f"10.1000/seed1,10.2000/cand{i},20{10 + i % 80:02d},T{i},V,A,{i}\n" for i in range(50))
+    csv.write_text(hdr + body, encoding="utf-8")
+    con = _con(tmp_path)
+    n = I.ingest_forward(con, "T", csv, lib)
+    assert n == 50
+    assert con.execute("SELECT COUNT(*) FROM candidates WHERE source_project='T'").fetchone()[0] == 50
+    assert con.execute("SELECT COUNT(*) FROM cites WHERE source_project='T'").fetchone()[0] == 50
+    assert con.execute("SELECT COUNT(*) FROM paper_metadata").fetchone()[0] == 50

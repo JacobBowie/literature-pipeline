@@ -8,6 +8,7 @@ dependencies = [
     "duckdb>=0.10,<2",   # 1.x stable; we don't yet use 2.x APIs
     "pymupdf>=1.24,<2",  # imported as `fitz`
     "pdfplumber>=0.11,<1",
+    "pandas>=2.2,<3",
 ]
 
 [dependency-groups]

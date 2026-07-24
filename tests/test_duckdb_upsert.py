@@ -69,3 +69,26 @@ def test_new_doi_indexed_with_null_abstract(tmp_path):
     assert row[0] == doi
     assert row[1] == "Brand new paper"
     assert row[2] is None, "new row should have NULL abstract until enrichment"
+
+
+def test_ingest_papers_mixed_year_via_register(tmp_path):
+    """E1 register path: a MIXED batch (one paper with a year, one without) ingests both,
+    with the no-year paper landing as SQL NULL.
+
+    A mixed None/int `year` column infers pandas float64 (2020.0, NaN) -- the real bulk shape,
+    unlike a single-None row which would infer `object`. _bulk_insert coerces int_cols to nullable
+    Int64 so the None is written as SQL NULL deterministically. (DuckDB 1.5.5 also happens to cast
+    a float64 NaN -> INTEGER as NULL, so on the pinned version this asserts correct behavior over
+    the real float64 path rather than guarding against a cast that currently raises.)
+    """
+    lib = tmp_path / "lib"; lib.mkdir()
+    (lib / "withyear.pdf").write_bytes(b"%PDF-1.4 x")
+    (lib / "withyear.ris").write_text(
+        "TY  - JOUR\nDO  - 10.1234/has.year\nTI  - Has Year\nPY  - 2020\nER  - \n", encoding="utf-8")
+    (lib / "noyear.pdf").write_bytes(b"%PDF-1.4 y")
+    (lib / "noyear.ris").write_text(
+        "TY  - JOUR\nDO  - 10.1234/no.year\nTI  - No Year\nER  - \n", encoding="utf-8")
+    con = _con(tmp_path)
+    I.ingest_papers(con, "T", lib)
+    rows = dict(con.execute("SELECT doi, year FROM paper_metadata ORDER BY doi").fetchall())
+    assert rows == {"10.1234/has.year": 2020, "10.1234/no.year": None}
