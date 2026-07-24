@@ -11,8 +11,7 @@ Usage:
   python tools/unpaywall_fetch_v2.py [--top-n 100] [--dry-run]
 """
 import os, sys, io, time, csv, re, argparse
-import requests
-import lit_net  # B1: shared GET with 429/5xx retry
+import lit_net  # B1/c7: shared GET retry + stream_download (replaced direct requests use)
 import lit_util
 lit_util.utf8_stdout()
 
@@ -311,30 +310,20 @@ def extract_pdf_links_from_html(html_bytes, base_url):
 def try_download(url, dest, timeout=30):
     """Returns (status, msg). status in {OK, HTML, HTTP_xxx, ERROR, TOO_SMALL}."""
     try:
-        r = requests.get(url, headers={"User-Agent": BROWSER_UA, "Accept": "application/pdf,*/*"},
-                          timeout=timeout, stream=True, allow_redirects=True)
-        if r.status_code != 200:
-            return f"HTTP_{r.status_code}", ""
-        first_chunk = b""
-        chunks = []
-        total = 0
-        truncated = False
-        for chunk in r.iter_content(chunk_size=8192):
-            if chunk:
-                if not first_chunk:
-                    first_chunk = chunk
-                chunks.append(chunk)
-                total += len(chunk)
-                if total > 50_000_000:  # 50MB cap
-                    truncated = True
-                    break
-        if not first_chunk:
+        res = lit_net.stream_download(
+            url, max_bytes=lit_net.MAX_PDF_BYTES, timeout=timeout,
+            headers={"User-Agent": BROWSER_UA, "Accept": "application/pdf,*/*"})
+        if res.error:
+            return "ERROR", res.error
+        if res.status_code != 200:
+            return f"HTTP_{res.status_code}", ""
+        if not res.first_chunk:
             return "EMPTY", ""
-        if truncated:  # over cap: don't write a silently-truncated PDF
-            return "TOO_LARGE", f">{total}B"
-        if looks_like_pdf(first_chunk):
+        if res.truncated:  # over cap: don't write a silently-truncated PDF
+            return "TOO_LARGE", f">{res.total}B"
+        if looks_like_pdf(res.first_chunk):
             with open(dest, "wb") as f:
-                for c in chunks: f.write(c)
+                f.write(res.content)
             size = os.path.getsize(dest)
             if size < 10_000:
                 os.remove(dest)
@@ -345,7 +334,7 @@ def try_download(url, dest, timeout=30):
                 return "BOILERPLATE", f"{tag}:{size}B"
             return "OK", f"{size}"
         # HTML fallback
-        return "HTML", b"".join(chunks)
+        return "HTML", res.content
     except Exception as e:
         return "ERROR", str(e)
 

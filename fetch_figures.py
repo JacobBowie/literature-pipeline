@@ -34,6 +34,7 @@ import os, sys, json, re, time, argparse
 import requests
 
 import lit_util
+import lit_net  # B1/c7: shared GET retry + stream_download core
 lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -51,8 +52,8 @@ CDN_IMG_RE = re.compile(
 def fetch_pmc_html(pmcid, timeout=20):
     """Return rendered HTML for a PMC article, or None on rate-limit/error."""
     try:
-        r = requests.get(NCBI_ARTICLE.format(pmcid=pmcid),
-                          headers={"User-Agent": UA}, timeout=timeout)
+        r = lit_net.get(NCBI_ARTICLE.format(pmcid=pmcid),
+                        headers={"User-Agent": UA}, timeout=timeout)
         if r.status_code != 200: return None
         # Heuristic: real article pages are >50KB; the anti-bot interstitial is ~20KB
         if len(r.content) < 30_000:
@@ -72,30 +73,27 @@ def parse_cdn_image_urls(html):
     return out
 
 
+MAX_IMAGE_BYTES = 30_000_000  # 30MB cap, no figure should be this big
+
+
 def download_image(url, dest, timeout=30):
     """Stream-download an image. Returns (ok, status, size_bytes)."""
     try:
-        r = requests.get(url, headers={"User-Agent": UA}, timeout=timeout, stream=True)
-        if r.status_code != 200:
-            return False, f"HTTP_{r.status_code}", 0
-        first = b""
-        chunks = []
-        total = 0
-        truncated = False
-        for c in r.iter_content(8192):
-            if not c: continue
-            if not first: first = c
-            chunks.append(c); total += len(c)
-            if total > 30_000_000:
-                truncated = True; break  # 30MB cap, no figure should be this big
-        if truncated:  # over cap: don't write a truncated image
-            return False, "TOO_LARGE", total
+        res = lit_net.stream_download(url, max_bytes=MAX_IMAGE_BYTES, timeout=timeout,
+                                      headers={"User-Agent": UA})
+        if res.error:
+            return False, f"ERR_{res.error[:60]}", 0
+        if res.status_code != 200:
+            return False, f"HTTP_{res.status_code}", 0
+        if res.truncated:  # over cap: don't write a truncated image
+            return False, "TOO_LARGE", res.total
         # Validate magic bytes (JPG/PNG/GIF)
+        first = res.first_chunk
         if not (first[:3] == b"\xff\xd8\xff" or first[:3] == b"\x89PN" or first[:3] == b"GIF"):
-            return False, "NOT_IMAGE", total
+            return False, "NOT_IMAGE", res.total
         with open(dest, "wb") as f:
-            for c in chunks: f.write(c)
-        return True, "OK", total
+            f.write(res.content)
+        return True, "OK", res.total
     except (requests.RequestException, OSError) as e:
         return False, f"ERR_{str(e)[:60]}", 0
 

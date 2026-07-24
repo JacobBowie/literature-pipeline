@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jats_to_text import parse_jats
 import ris_emit as _R
 import lit_util  # RC2/RC3/RC4 audit-remediation helpers
+import lit_net  # B1/c7: shared GET retry + stream_download core
 # RC2/RC3: reuse the collision-safe dest + DOI<->content helpers (single source of truth).
 # T5a (2026-06-25 audit): reuse the boilerplate fingerprint so a landing/template PDF from
 # Europe PMC is rejected here too, not only in the Unpaywall stage.
@@ -81,28 +82,20 @@ def looks_like_pdf(b: bytes) -> bool:
 def try_download(url, dest, timeout=30):
     """Stream-download. Returns (ok, status_label, msg)."""
     try:
-        r = requests.get(url, headers={"User-Agent": BROWSER_UA, "Accept": "application/pdf,*/*"},
-                          timeout=timeout, stream=True, allow_redirects=True)
-        if r.status_code != 200:
-            return False, f"HTTP_{r.status_code}", ""
-        first = b""
-        chunks = []
-        total = 0
-        truncated = False
-        for c in r.iter_content(chunk_size=8192):
-            if not c: continue
-            if not first: first = c
-            chunks.append(c); total += len(c)
-            if total > 60_000_000:
-                truncated = True
-                break
-        if not first:
+        res = lit_net.stream_download(
+            url, max_bytes=lit_net.MAX_PDF_BYTES, timeout=timeout,
+            headers={"User-Agent": BROWSER_UA, "Accept": "application/pdf,*/*"})
+        if res.error:
+            return False, "ERROR", res.error[:120]
+        if res.status_code != 200:
+            return False, f"HTTP_{res.status_code}", ""
+        if not res.first_chunk:
             return False, "EMPTY", ""
-        if truncated:  # over cap: don't write a silently-truncated PDF
-            return False, "TOO_LARGE", f">{total}B"
-        if looks_like_pdf(first):
+        if res.truncated:  # over cap: don't write a silently-truncated PDF
+            return False, "TOO_LARGE", f">{res.total}B"
+        if looks_like_pdf(res.first_chunk):
             with open(dest, "wb") as f:
-                for c in chunks: f.write(c)
+                f.write(res.content)
             sz = os.path.getsize(dest)
             if sz < 10_000:
                 os.remove(dest)
@@ -114,7 +107,7 @@ def try_download(url, dest, timeout=30):
                 os.remove(dest)
                 return False, "BOILERPLATE", tag or ""
             return True, "OK", f"{sz}B"
-        return False, "HTML", b"".join(chunks)
+        return False, "HTML", res.content
     except Exception as e:
         return False, "ERROR", str(e)[:120]
 
