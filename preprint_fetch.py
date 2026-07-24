@@ -36,7 +36,7 @@ import lit_util  # RC2/RC3/RC4 audit-remediation helpers
 from unpaywall_fetch_v2 import is_known_boilerplate
 # RC2/RC3: reuse the collision-safe dest + DOI<->content helpers (single source of truth).
 from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
-                                doi_from_pdf_bytes, _doi_of_existing)
+                                doi_from_pdf_bytes, _doi_of_existing, quarantine_mismatch)
 
 lit_util.utf8_stdout()
 
@@ -404,28 +404,33 @@ def main():
             rec["preprint_filename"] = fn
 
         ok, st = fetch_pdf(match["pdf_url"], dest)
-        rec["downloaded"] = ok; rec["status"] = st
+        rec["status"] = st
         if ok:
-            n_dl += 1
-            written_this_run.add(dest)
-            existing.add(fn)
-            print(f"  [{i:>3}/{len(rows)}] DL   {match['source']:<14} sim={match['sim']:.2f} -> {fn[:55]}")
-            # RC3: a preprint legitimately carries a DIFFERENT DOI from the published
-            # (queue) paper, so a queue-DOI disagreement alone is NOT a wrong-paper signal.
-            # Only flag when the PDF's DOI matches NEITHER the queue DOI NOR the matched
-            # preprint's own DOI -- i.e. the bytes are some third, unrelated paper.
+            # RC3/F5: a preprint legitimately carries a DIFFERENT DOI from the published (queue)
+            # paper, so a queue-DOI disagreement alone is NOT a wrong-paper signal. Only flag when
+            # the PDF's DOI matches NEITHER the queue DOI NOR the matched preprint's own DOI -- some
+            # third, unrelated paper -- and then quarantine it instead of counting it a download.
             found_pdf_doi = doi_from_pdf_bytes(dest)
             mismatch = bool(found_pdf_doi) and pdf_doi_disagrees(dest, doi) and (
                 (not preprint_doi) or found_pdf_doi != lit_util.normalize_doi(preprint_doi))
             if mismatch:
                 n_mismatch += 1
+                rec["downloaded"] = False
                 rec["status"] = f"DOI_MISMATCH:pdf_doi={found_pdf_doi}"
-                print(f"        DOI_MISMATCH: pdf DOI {found_pdf_doi} != queue/preprint DOI; skipping .ris")
-            elif not args.no_write_ris and doi:
-                ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
-                print(f"        ris: {ris_status}")
+                quarantine_mismatch(dest, args.lib_dir)
+                print(f"  [{i:>3}/{len(rows)}] DOI_MISMATCH {match['source']:<14} pdf DOI {found_pdf_doi}; quarantined")
+            else:
+                n_dl += 1
+                rec["downloaded"] = True
+                written_this_run.add(dest)
+                existing.add(fn)
+                print(f"  [{i:>3}/{len(rows)}] DL   {match['source']:<14} sim={match['sim']:.2f} -> {fn[:55]}")
+                if not args.no_write_ris and doi:
+                    ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
+                    print(f"        ris: {ris_status}")
         else:
             n_fail += 1
+            rec["downloaded"] = False
             print(f"  [{i:>3}/{len(rows)}] FAIL {match['source']:<14} sim={match['sim']:.2f} ({st})")
         report.append(rec)
         time.sleep(0.6)

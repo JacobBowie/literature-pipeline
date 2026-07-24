@@ -29,7 +29,7 @@ import lit_net  # B1/c7: shared GET retry + stream_download core
 # Europe PMC is rejected here too, not only in the Unpaywall stage.
 from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
                                 doi_from_pdf_bytes, _doi_of_existing,
-                                is_known_boilerplate)
+                                is_known_boilerplate, quarantine_mismatch)
 
 lit_util.utf8_stdout()
 
@@ -244,23 +244,28 @@ def main():
         rec["attempts"] = " | ".join(f"{src}/{st}" for src,_,st,_ in attempts)
         doi_mismatch = False
         if ok:
-            n_dl += 1
-            rec["downloaded"] = True
-            written_this_run.add(dest)
-            existing.add(fn)
-            winning = next((a for a in attempts if a[2] == "OK"), None)
-            if winning: rec["winning_source"] = winning[0]
-            print(f"  DL   {pmcid:<12} -> {fn[:60]} ({rec['winning_source']})")
-            # RC3: verify the fetched bytes match the queue DOI before writing a
-            # confidently-wrong .ris/sidecar.
+            # RC3/F5: verify the fetched bytes match the queue DOI BEFORE counting the download.
+            # A wrong-DOI PDF is quarantined (not left in the canonical slot + counted DOWNLOADED)
+            # and its sidecar is skipped (the PMCID provenance for this file is suspect).
             if pdf_doi_disagrees(dest, doi):
+                pdf_doi = doi_from_pdf_bytes(dest)   # capture BEFORE the quarantine move
                 doi_mismatch = True
                 n_mismatch += 1
-                rec["error"] = f"DOI_MISMATCH:pdf_doi={doi_from_pdf_bytes(dest)}"
-                print(f"       DOI_MISMATCH: pdf DOI != queue DOI ({doi}); skipping .ris/sidecar")
-            elif not args.no_write_ris:
-                ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
-                print(f"       ris: {ris_status}")
+                rec["downloaded"] = False
+                rec["error"] = f"DOI_MISMATCH:pdf_doi={pdf_doi}"
+                quarantine_mismatch(dest, lib_dir)
+                print(f"  DL   {pmcid:<12} -> DOI_MISMATCH (pdf DOI != {doi}); quarantined")
+            else:
+                n_dl += 1
+                rec["downloaded"] = True
+                written_this_run.add(dest)
+                existing.add(fn)
+                winning = next((a for a in attempts if a[2] == "OK"), None)
+                if winning: rec["winning_source"] = winning[0]
+                print(f"  DL   {pmcid:<12} -> {fn[:60]} ({rec['winning_source']})")
+                if not args.no_write_ris:
+                    ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
+                    print(f"       ris: {ris_status}")
         else:
             n_fail += 1
             rec["error"] = attempts[-1][2] if attempts else "no candidates"

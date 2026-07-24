@@ -174,6 +174,28 @@ def pdf_doi_disagrees(pdf_path, queue_doi):
         return False
     return found != lit_util.normalize_doi(queue_doi)
 
+
+def quarantine_mismatch(dest, lib_dir):
+    """F5: a confirmed wrong-DOI PDF must not stay in the canonical filename slot -- a later run
+    would read its own wrong DOI and disambiguate the correct paper to a hashed name. Move it to
+    <lib>/_mismatch/ for inspection; preserve, do NOT hard-delete. A numeric suffix disambiguates a
+    same-named prior quarantine so no wrong-paper copy is clobbered. Returns True if moved."""
+    try:
+        mismatch_dir = os.path.join(lib_dir, "_mismatch")
+        os.makedirs(mismatch_dir, exist_ok=True)
+        base = os.path.basename(dest)
+        target = os.path.join(mismatch_dir, base)
+        if os.path.exists(target):
+            stem, ext = os.path.splitext(base)
+            n = 1
+            while os.path.exists(os.path.join(mismatch_dir, f"{stem}_{n}{ext}")):
+                n += 1
+            target = os.path.join(mismatch_dir, f"{stem}_{n}{ext}")
+        os.replace(dest, target)
+        return True
+    except OSError:
+        return False
+
 # ---------- Unpaywall query ----------
 
 def unpaywall_lookup(doi, timeout=15):
@@ -480,23 +502,29 @@ def main():
         ok, attempts = download_with_fallback(cands, dest)
         out["attempts"] = " | ".join(f"{h}/{v}/{s}" for h,v,_,s,_ in attempts)
         if ok:
-            n_dl += 1
-            out["downloaded"] = True
-            written_this_run.add(dest)
-            existing.add(fn)
-            winning = next((a for a in attempts if a[3] == "OK"), None)
-            if winning:
-                out["winning_host"] = winning[0]; out["winning_url"] = winning[2]
-            print(f"  [{i:>3}] {fn[:65]:<65} DL ({out['winning_host']}, {len(attempts)} tries)")
-            # RC3: verify the fetched bytes match the queue DOI before writing a
-            # confidently-wrong .ris. If the PDF's own DOI disagrees, flag + skip the .ris.
+            # RC3/F5: verify the fetched bytes match the queue DOI BEFORE counting this a download.
+            # If the PDF's own DOI disagrees, the canonical slot holds the WRONG paper -- quarantine
+            # it and do NOT count it as DOWNLOADED (else the wrong file squats the slot + inflates the
+            # count + a later run reads its own wrong DOI).
             if pdf_doi_disagrees(dest, doi):
+                pdf_doi = doi_from_pdf_bytes(dest)   # capture BEFORE the quarantine move
                 n_mismatch += 1
-                out["error"] = f"DOI_MISMATCH:pdf_doi={doi_from_pdf_bytes(dest)}"
-                print(f"        DOI_MISMATCH: pdf DOI != queue DOI ({doi}); skipping .ris")
-            elif not args.no_write_ris:
-                ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
-                print(f"        ris: {ris_status}")
+                out["downloaded"] = False
+                out["error"] = f"DOI_MISMATCH:pdf_doi={pdf_doi}"
+                quarantine_mismatch(dest, lib_dir)
+                print(f"  [{i:>3}] {fn[:65]:<65} DOI_MISMATCH (pdf DOI != {doi}); quarantined")
+            else:
+                n_dl += 1
+                out["downloaded"] = True
+                written_this_run.add(dest)
+                existing.add(fn)
+                winning = next((a for a in attempts if a[3] == "OK"), None)
+                if winning:
+                    out["winning_host"] = winning[0]; out["winning_url"] = winning[2]
+                print(f"  [{i:>3}] {fn[:65]:<65} DL ({out['winning_host']}, {len(attempts)} tries)")
+                if not args.no_write_ris:
+                    ris_status, _ = _R.emit_ris_for_pdf(doi, dest)
+                    print(f"        ris: {ris_status}")
         else:
             n_fail += 1
             out["error"] = attempts[-1][3] if attempts else "no candidates"
