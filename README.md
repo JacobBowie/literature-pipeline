@@ -19,9 +19,13 @@ Built for the workflow where the same library is consumed by multiple downstream
 
 ## Install
 
+Dependencies are managed with [uv](https://docs.astral.sh/uv/). From the repo root:
+
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
+
+This creates a project-local `.venv/` from `uv.lock`. Prefix the commands below with `uv run` (e.g. `uv run python sweep.py --help`), or activate the venv once per shell (`source .venv/bin/activate`, or `.venv\Scripts\activate` on Windows).
 
 Runtime deps: `requests`, `duckdb`, `pymupdf` (imported as `fitz`), `pdfplumber`. The `vendor/mathml_to_latex/` package is bundled, not installed.
 
@@ -54,7 +58,7 @@ Two minutes from clone to your first PDF.
 ```bash
 git clone https://github.com/JacobBowie/literature-pipeline.git
 cd literature-pipeline
-pip install -r requirements.txt
+uv sync
 export LITPIPE_EMAIL="you@example.org"
 
 # 1. Set up the project registry from the template
@@ -71,10 +75,10 @@ doi,title,authors,year,destination,notes
 EOF
 
 # 3. Dry-run first — confirms the queue is found and the destination is sane
-python /path/to/literature-pipeline/sweep.py --project my_review --dry-run
+uv run --project /path/to/literature-pipeline python /path/to/literature-pipeline/sweep.py --project my_review --dry-run
 
 # 4. Pull the PDF
-python /path/to/literature-pipeline/sweep.py --project my_review
+uv run --project /path/to/literature-pipeline python /path/to/literature-pipeline/sweep.py --project my_review
 # → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.pdf
 # → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.fulltext.json
 # → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.ris

@@ -1,0 +1,21 @@
+[project]
+name = "literature-pipeline"
+version = "0.1.1"
+description = "Portfolio literature discovery + citation-graph pipeline (fetch -> index -> snowball)."
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31,<3",
+    "duckdb>=0.10,<2",   # 1.x stable; we don't yet use 2.x APIs
+    "pymupdf>=1.24,<2",  # imported as `fitz`
+    "pdfplumber>=0.11,<1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.uv]
+# Flat script layout, consumed by shelling out to absolute paths -- not a pip-installable
+# package. uv manages the dependency env only; it does not build/install this project.
+package = false
