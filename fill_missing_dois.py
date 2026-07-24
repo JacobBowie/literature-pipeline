@@ -44,7 +44,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ris_emit import load_projects_config
 from audit_filenames import safe_ascii
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA = f"GETPAID-doi-fill/1.0 (mailto:{EMAIL})"
 CROSSREF = "https://api.crossref.org/works"
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))

@@ -30,7 +30,7 @@ import fitz  # pymupdf
 from jats_to_text import parse_jats
 import ris_emit as _R      # title_similarity for the sidecar title sanity check
 
-EMAIL    = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL    = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA       = f"GETPAID-recheck/1.0 (mailto:{EMAIL})"
 EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 

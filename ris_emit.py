@@ -16,9 +16,9 @@ import lit_net  # B1: shared GET with 429/5xx retry
 # Config loader + safe_ascii live in lit_util (stdlib-pure); re-exported here so the many
 # `from ris_emit import load_projects_config` / `from ris_emit import safe_ascii` call sites
 # (audit_portfolio, preprint_fetch, unpaywall_fetch_v2, test_filenames) keep working unchanged.
-from lit_util import load_projects_config, safe_ascii
+from lit_util import load_projects_config, safe_ascii, DEFAULT_EMAIL
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", DEFAULT_EMAIL)
 UA    = f"GETPAID-ris-emit/1.0 (mailto:{EMAIL})"
 
 _email_warned = False

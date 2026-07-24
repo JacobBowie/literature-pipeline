@@ -25,7 +25,7 @@ import duckdb, requests
 import lit_util
 lit_util.utf8_stdout()
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA    = f"GETPAID-recs/1.0 (mailto:{EMAIL})"
 S2    = "https://api.semanticscholar.org/recommendations/v1"
 DB_PATH = os.path.expanduser("~/Projects/_references/portfolio.duckdb")

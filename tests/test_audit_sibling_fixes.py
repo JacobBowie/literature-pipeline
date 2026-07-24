@@ -12,6 +12,7 @@ real instances of the same bug-classes that the first pass missed. These lock th
 """
 import csv
 import importlib
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -133,3 +134,53 @@ def test_pipeline_check_stage4b_passes_empty_lib(tmp_path):
          "--base-dir", str(tmp_path), "--lib-dir", "lib", "--tier", "2"],
         capture_output=True, text=True)
     assert "below" not in proc.stdout  # Stage 4b did not fire a coverage failure
+
+
+# ---------- c12: DEFAULT_EMAIL single-source + atomic_write_csv (Stage 3 DRY) ----------
+
+# Every fetcher module that binds a module-level EMAIL fallback; jats_to_text is excluded
+# (its mailto is inline in _smoke_test, not a module constant).
+_EMAIL_MODULES = [
+    "audit_filenames", "backfill_fulltext", "backfill_ris", "enrich_abstracts",
+    "enrich_recommendations", "fill_missing_dois", "forward_citations",
+    "harvest_citations", "pmc_fetch", "preprint_fetch", "recheck_pmc",
+    "unpaywall_fetch_v2", "ris_emit",
+]
+
+
+@pytest.mark.parametrize("modname", _EMAIL_MODULES)
+def test_email_is_single_sourced(modname):
+    """Each fetcher's EMAIL is the env override or lit_util.DEFAULT_EMAIL -- never a
+    divergent literal. The env-unset fallback routes through the one constant."""
+    m = importlib.import_module(modname)
+    assert m.EMAIL == os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
+
+
+def test_default_email_literal_appears_only_in_lit_util():
+    """The fallback mailto string is hardcoded in exactly ONE place. Any other top-level
+    .py re-introducing the literal regresses the c12 sibling sweep (14 sites -> 1)."""
+    literal = lit_util.DEFAULT_EMAIL
+    offenders = [py.name for py in REPO.glob("*.py")
+                 if f'"{literal}"' in py.read_text(encoding="utf-8")
+                 or f"'{literal}'" in py.read_text(encoding="utf-8")]
+    assert offenders == ["lit_util.py"], f"email literal hardcoded outside lit_util: {offenders}"
+
+
+def test_atomic_write_csv_lf_and_roundtrip(tmp_path):
+    """LF-only line endings (not the csv \\r\\n default), and a clean DictReader roundtrip
+    including a field that needs quoting."""
+    p = tmp_path / "r.csv"
+    rows = [{"a": "1", "b": "x"}, {"a": "2", "b": "y,z"}]  # embedded comma -> quoted
+    lit_util.atomic_write_csv(str(p), rows, fieldnames=["a", "b"])
+    raw = p.read_bytes()
+    assert b"\r\n" not in raw and raw.endswith(b"\n")
+    assert list(csv.DictReader(p.open(newline=""))) == rows
+    assert not list(tmp_path.glob("*.tmp"))  # tmp cleaned up
+
+
+def test_atomic_write_csv_replaces_not_appends(tmp_path):
+    """A second write fully replaces the first via os.replace -- never appends/interleaves."""
+    p = tmp_path / "r.csv"
+    lit_util.atomic_write_csv(str(p), [{"a": "1"}], fieldnames=["a"])
+    lit_util.atomic_write_csv(str(p), [{"a": "2"}], fieldnames=["a"])
+    assert p.read_text(encoding="utf-8") == "a\n2\n"

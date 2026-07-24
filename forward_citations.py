@@ -36,7 +36,7 @@ lit_util.utf8_stdout()
 PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA    = f"GETPAID-fwdcite/1.0 (mailto:{EMAIL})"
 S2    = "https://api.semanticscholar.org/graph/v1"
 

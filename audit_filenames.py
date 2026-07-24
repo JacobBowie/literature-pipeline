@@ -35,7 +35,7 @@ lit_util.utf8_stdout()
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA    = f"GETPAID-fnaudit/1.0 (mailto:{EMAIL})"
 DOI_RE = re.compile(r"\b(10\.\d{4,9}/[^\s\)\]\>\"',]+)", re.IGNORECASE)
 DOI_TRAIL = re.compile(r"[.,;:\)\]\}\>]+$")

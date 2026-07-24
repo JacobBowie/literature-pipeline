@@ -19,7 +19,7 @@ lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as _R
 
-EMAIL      = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL      = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UNPAYWALL  = "https://api.unpaywall.org/v2"
 
 # Browser-ish UA for *download* GETs (publishers block "GETPAID-bot")

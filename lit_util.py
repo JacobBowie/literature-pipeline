@@ -12,8 +12,16 @@ Centralizes the fixes for the cross-cutting failure modes found in the 2026-06-0
 
 Pure stdlib; safe to import from any pipeline script.
 """
-import os, re, json, sys, tempfile, unicodedata
+import os, re, json, sys, tempfile, unicodedata, csv
 from pathlib import Path
+
+# ---------------------------------------------------------------- shared config
+# Fallback contact mailto when LITPIPE_EMAIL is unset. Per Unpaywall/CrossRef/NCBI/
+# Europe PMC/Semantic Scholar ToS every API UA must carry a mailto; absent an override
+# the pipeline identifies as the maintainer (ris_emit.warn_if_default_email nags once).
+# Single source of truth for the string that was hardcoded across ~14 fetcher modules
+# (2026-07 Stage 3 c12); each still resolves it via os.environ.get("LITPIPE_EMAIL", DEFAULT_EMAIL).
+DEFAULT_EMAIL = "JacobBowie@users.noreply.github.com"
 
 # ---------------------------------------------------------------- console I/O hardening
 def utf8_stdout():
@@ -66,6 +74,26 @@ def atomic_write_text(path, text, newline="\n"):
 
 def atomic_write_json(path, obj, indent=2):
     atomic_write_text(path, json.dumps(obj, ensure_ascii=False, indent=indent))
+
+def atomic_write_csv(path, rows, fieldnames, newline="\n"):
+    """Write a list-of-dicts to CSV crash-safely (tmp + os.replace) with LF row
+    endings. `rows` is an iterable of dicts; `fieldnames` sets the header + column
+    order. Mirrors atomic_write_text: an interrupt never leaves a truncated report,
+    and the LF lineterminator keeps the report from picking up CRLF on Windows
+    (the csv default). Consolidates the two backfill report writers (c12)."""
+    d = os.path.dirname(path) or "."
+    fd, tmp = tempfile.mkstemp(dir=d, suffix=".tmp")
+    try:
+        # newline="" so csv controls line endings; lineterminator=newline forces LF.
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames, lineterminator=newline)
+            w.writeheader()
+            w.writerows(rows)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try: os.remove(tmp)
+            except OSError: pass
 
 def coerce_int(v, default=0):
     """Parse an int from a possibly-messy CSV/JSON cell ('1,234', ' 12 ', 'n/a',

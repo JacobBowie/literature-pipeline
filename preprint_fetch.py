@@ -40,7 +40,7 @@ from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
 
 lit_util.utf8_stdout()
 
-EMAIL  = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL  = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA     = f"GETPAID-preprint-fetch/1.0 (mailto:{EMAIL})"
 BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")

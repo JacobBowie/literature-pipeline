@@ -37,7 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as R
 import requests
 
-EMAIL  = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL  = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA     = f"GETPAID-harvest/1.0 (mailto:{EMAIL})"
 IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 

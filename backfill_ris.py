@@ -23,7 +23,7 @@ Usage:
   # Overwrite existing .ris files
   python backfill_ris.py --commit --overwrite
 """
-import os, sys, json, time, csv, argparse
+import os, sys, json, time, argparse
 from pathlib import Path
 
 import lit_util
@@ -32,7 +32,7 @@ lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as R
 
-EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 DEFAULT_LIB = os.path.expanduser("~/Projects/Physiological_Data/docs/literature")
 
 
@@ -147,9 +147,7 @@ def main():
     # Report CSV
     if args.commit:
         rep = lib / "_ris_backfill_report.csv"
-        with open(rep, "w", encoding="utf-8", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=["pdf","doi","status","out"])
-            w.writeheader(); w.writerows(rows)
+        lit_util.atomic_write_csv(str(rep), rows, fieldnames=["pdf","doi","status","out"])
         print(f"\n  report: {rep}")
 
     print("\n== summary ==")

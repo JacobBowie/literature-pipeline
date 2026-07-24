@@ -37,7 +37,7 @@ lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from jats_to_text import parse_jats
 
-EMAIL    = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL    = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 API_UA   = f"GETPAID-backfill/1.0 (mailto:{EMAIL})"
 
@@ -202,9 +202,8 @@ def main():
         time.sleep(0.4)
 
     report = args.report or os.path.join(lib, "_fulltext_backfill_report.csv")
-    with open(report, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["filename","doi","pmcid","sidecar","status","source"])
-        w.writeheader(); w.writerows(rows)
+    lit_util.atomic_write_csv(report, rows,
+        fieldnames=["filename","doi","pmcid","sidecar","status","source"])
 
     total = len(pdfs)
     print(f"\n=== Summary ===")

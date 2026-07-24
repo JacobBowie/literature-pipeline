@@ -33,7 +33,7 @@ from unpaywall_fetch_v2 import (resolve_dest, pdf_doi_disagrees,
 
 lit_util.utf8_stdout()
 
-EMAIL      = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
+EMAIL      = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 EPMC_PDF   = "https://europepmc.org/articles/{pmcid}?pdf=render"
 EPMC_XML   = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 NCBI_PAGE  = "https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/"
