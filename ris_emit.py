@@ -11,6 +11,7 @@ EndNote ingests RIS natively via "Reference Manager (RIS)" import filter.
 """
 import os, re, sys, difflib, unicodedata
 import requests
+import lit_net  # B1: shared GET with 429/5xx retry
 
 # Config loader lives in lit_util (stdlib-pure); re-exported here so the many
 # `from ris_emit import load_projects_config` call sites keep working unchanged.
@@ -99,7 +100,7 @@ def title_similarity(a: str, b: str) -> float:
 def crossref_by_doi(doi: str, timeout=15):
     if not doi: return None
     try:
-        r = requests.get(CROSSREF_WORK.format(doi=doi),
+        r = lit_net.get(CROSSREF_WORK.format(doi=doi),
                          headers={"User-Agent": UA}, timeout=timeout)
         if r.status_code != 200: return None
         return r.json().get("message")
@@ -114,7 +115,7 @@ def crossref_by_title(title: str, author_lastname: str = "", year: str = "",
     params = {"query.title": title, "rows": 5}
     if author_lastname: params["query.author"] = author_lastname
     try:
-        r = requests.get(CROSSREF_SEARCH, params=params,
+        r = lit_net.get(CROSSREF_SEARCH, params=params,
                          headers={"User-Agent": UA}, timeout=timeout)
         if r.status_code != 200: return None
         items = r.json().get("message", {}).get("items", []) or []
@@ -211,7 +212,7 @@ def datacite_by_doi(doi: str, timeout=20):
     if not doi:
         return None
     try:
-        r = requests.get(DATACITE_WORK.format(doi=doi.strip()),
+        r = lit_net.get(DATACITE_WORK.format(doi=doi.strip()),
                          headers={"User-Agent": UA, "Accept": "application/vnd.api+json"},
                          timeout=timeout)
         if r.status_code != 200:

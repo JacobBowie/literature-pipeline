@@ -27,6 +27,7 @@ Usage:
 """
 import os, sys, io, csv, re, time, argparse
 import requests
+import lit_net  # B1: shared GET with 429/5xx retry
 from difflib import SequenceMatcher
 from xml.etree import ElementTree as ET
 
@@ -88,7 +89,7 @@ def slug_filename(year, author, title):
 def search_arxiv(title, n=3):
     """Return list of {id, title, year, pdf_url, authors}."""
     try:
-        r = requests.get(ARXIV_API,
+        r = lit_net.get(ARXIV_API,
                           params={"search_query": f'ti:"{title[:200]}"', "max_results": n},
                           headers={"User-Agent": UA}, timeout=20)
         if r.status_code != 200: return []
@@ -151,7 +152,7 @@ def search_epmc_preprints(title, n=5):
     try:
         kws = _keywordize(title, n=10)
         q = f'({kws}) AND SRC:PPR'
-        r = requests.get(EPMC_SEARCH,
+        r = lit_net.get(EPMC_SEARCH,
                           params={"query": q, "format": "json", "pageSize": n,
                                   "resultType": "core"},
                           headers={"User-Agent": UA}, timeout=20)
@@ -200,7 +201,7 @@ def search_epmc_preprints(title, n=5):
 def search_osf_preprints(title, n=3):
     try:
         params = {"filter[title]": title[:200], "page[size]": n}
-        r = requests.get(OSF_API, params=params, headers={"User-Agent": UA}, timeout=20)
+        r = lit_net.get(OSF_API, params=params, headers={"User-Agent": UA}, timeout=20)
         if r.status_code != 200: return []
         data = r.json()
         out = []

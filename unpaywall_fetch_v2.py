@@ -12,6 +12,7 @@ Usage:
 """
 import os, sys, io, time, csv, re, argparse
 import requests
+import lit_net  # B1: shared GET with 429/5xx retry
 import lit_util
 lit_util.utf8_stdout()
 
@@ -178,7 +179,7 @@ def pdf_doi_disagrees(pdf_path, queue_doi):
 
 def unpaywall_lookup(doi, timeout=15):
     try:
-        r = requests.get(f"{UNPAYWALL}/{doi}",
+        r = lit_net.get(f"{UNPAYWALL}/{doi}",
                          params={"email": EMAIL},
                          headers={"User-Agent": API_UA},
                          timeout=timeout)

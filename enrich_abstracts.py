@@ -19,6 +19,7 @@ import urllib.parse
 import duckdb, requests
 
 import lit_util
+import lit_net  # B1: shared GET with 429/5xx retry
 lit_util.utf8_stdout()
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", "JacobBowie@users.noreply.github.com")
@@ -71,7 +72,7 @@ def crossref_abstract(doi: str, timeout=15) -> str:
     # silently miss (raw interpolation would corrupt the URL).
     url = CROSSREF.format(doi=urllib.parse.quote(doi, safe=""))
     try:
-        r = requests.get(url, headers={"User-Agent": UA}, timeout=timeout)
+        r = lit_net.get(url, headers={"User-Agent": UA}, timeout=timeout)
     except requests.exceptions.RequestException as e:
         raise CrossRefError(str(e))
     if r.status_code != 200:
