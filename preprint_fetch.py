@@ -112,6 +112,27 @@ def search_arxiv(title, n=3):
         print(f"    arxiv error: {e}"); return []
 
 
+ARXIV_DOI_RE = re.compile(r"10\.48550/arxiv\.(.+)$", re.IGNORECASE)
+
+
+def arxiv_id(doi):
+    """The arXiv ID embedded in a 10.48550/arXiv.<id> DOI (lowercased), or '' if not an arXiv DOI."""
+    m = ARXIV_DOI_RE.search((doi or "").strip().lower())
+    return m.group(1) if m else ""
+
+
+def arxiv_match_by_doi(doi, title):
+    """Gap3 (2026-07-20 DataCite-gap note): when the queue DOI is itself an arXiv DOI, fetch by the
+    embedded ID directly and SKIP the fuzzy title search -- which NO_MATCHed ~1-in-5 arXiv seeds even
+    though the ID is right there in the DOI. Returns a match dict (exact ID, sim=1.0) or None; the
+    .ris is emitted downstream by emit_ris_for_pdf's DataCite fallback (Gap1)."""
+    aid = arxiv_id(doi)
+    if not aid:
+        return None
+    return {"source": "arxiv-id", "id": aid, "sim": 1.0, "title": title,
+            "doi": doi.strip().lower(), "pdf_url": f"https://arxiv.org/pdf/{aid}.pdf"}
+
+
 # ---------- Europe PMC preprints ----------
 
 def _keywordize(title, n=8):
@@ -366,7 +387,8 @@ def main():
             print(f"  [{i:>3}/{len(rows)}] SKIP {fn[:75]}")
             continue
 
-        match = find_preprint(title, year, min_similarity=args.min_similarity)
+        # Gap3: an arXiv-DOI seed fetches by its embedded ID (exact) and bypasses the fuzzy search.
+        match = arxiv_match_by_doi(doi, title) or find_preprint(title, year, min_similarity=args.min_similarity)
         if not match:
             n_no_match += 1
             rec["status"] = "NO_MATCH"
@@ -410,7 +432,10 @@ def main():
             # paper, so a queue-DOI disagreement alone is NOT a wrong-paper signal. Only flag when
             # the PDF's DOI matches NEITHER the queue DOI NOR the matched preprint's own DOI -- some
             # third, unrelated paper -- and then quarantine it instead of counting it a download.
-            found_pdf_doi = doi_from_pdf_bytes(dest)
+            # Gap3: an arXiv-by-ID fetch is by the EXACT arXiv ID, so its bytes are authoritative and
+            # an embedded published (journal) DOI on the title page is EXPECTED, never a mismatch --
+            # skip the check (else a correctly-fetched arXiv preprint gets wrongly quarantined).
+            found_pdf_doi = "" if match["source"] == "arxiv-id" else doi_from_pdf_bytes(dest)
             mismatch = bool(found_pdf_doi) and pdf_doi_disagrees(dest, doi) and (
                 (not preprint_doi) or found_pdf_doi != lit_util.normalize_doi(preprint_doi))
             if mismatch:
