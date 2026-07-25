@@ -23,8 +23,6 @@ Usage:
 import os, sys, csv, subprocess, argparse, datetime
 from pathlib import Path
 
-import duckdb
-
 import lit_util
 lit_util.utf8_stdout()
 
@@ -61,7 +59,7 @@ def candidate_count(project: str) -> int:
     we now mirror top_candidates' ownership filter AND union the recommendations
     table (attributed to the project via its seed paper's library location)."""
     if not DB_PATH.exists(): return 0
-    con = duckdb.connect(str(DB_PATH), read_only=True)
+    con = lit_util.connect_db(str(DB_PATH), read_only=True)  # c9: shared RC10 open (adds Drive-lock retry)
     try:
         n = con.execute(
             """

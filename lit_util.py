@@ -12,7 +12,7 @@ Centralizes the fixes for the cross-cutting failure modes found in the 2026-06-0
 
 Pure stdlib; safe to import from any pipeline script.
 """
-import os, re, json, sys, tempfile, unicodedata, csv
+import os, re, json, sys, tempfile, unicodedata, csv, time
 from pathlib import Path
 
 # ---------------------------------------------------------------- shared config
@@ -310,3 +310,44 @@ def merge_sidecar(old, new):
         if not _is_empty(ov) and _is_empty(out.get(k)):
             out[k] = ov
     return out
+
+# ---------------------------------------------------------------- RC10: Drive-lock-tolerant DB open
+def connect_db(db_path, on_fail="raise", tries=3, delays=(2, 4), read_only=False):
+    """Open a DuckDB file, retrying the transient lock/IO errors GoogleDriveFS raises
+    when it holds portfolio.duckdb open mid-sync (RC10).
+
+    Single source of truth for the retry-open that index_portfolio.connect_with_retry and
+    the two enrich_* connect_db copies each carried (2026-07 Stage 3 c9); also serves the
+    snowball / seed_queue read-only candidate reads (read_only=True).
+
+    on_fail chooses the exhaustion behavior:
+      - "raise" (default): re-raise the last error after `tries` attempts -- the
+        index_portfolio rebuild wants the traceback.
+      - "exit": raise SystemExit with a paste-ready message -- the enrich_* CLI
+        entry-points want a clean abort, not a traceback.
+
+    `tries`/`delays` set the retry envelope; the inter-attempt sleep is
+    delays[min(attempt-1, len(delays)-1)] (so delays=(3,) is a constant 3s). A broad
+    `except Exception` is deliberate: duckdb's lock/IO error type is not a stable public
+    class. duckdb is imported lazily so lit_util stays stdlib-pure for its many importers."""
+    import duckdb
+    if tries < 1:  # a shared public helper now: fail fast on a computed tries=0 rather than `raise None`
+        raise ValueError(f"connect_db: tries must be >= 1, got {tries!r}")
+    last = None
+    for attempt in range(1, tries + 1):
+        try:
+            return duckdb.connect(db_path, read_only=read_only)
+        except Exception as e:
+            last = e
+            if attempt < tries:
+                wait = delays[min(attempt - 1, len(delays) - 1)]
+                print(f"  [RC10] DB open failed (attempt {attempt}/{tries}): {e}\n"
+                      f"        suspect Google Drive holding {db_path} open; retrying in {wait}s ...",
+                      file=sys.stderr)
+                time.sleep(wait)
+    msg = (f"could not open {db_path} after {tries} attempts -- DB locked (suspect Google "
+           f"Drive sync holding it open; pause Drive and retry). Last error: {last}")
+    if on_fail == "exit":
+        raise SystemExit(f"ERROR: {msg}")
+    print(f"  [RC10] {msg}", file=sys.stderr)
+    raise last

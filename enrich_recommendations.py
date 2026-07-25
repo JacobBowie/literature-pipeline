@@ -20,7 +20,7 @@ Usage:
 """
 import os, sys, time, argparse, datetime
 import urllib.parse
-import duckdb, requests
+import requests
 
 import lit_util
 lit_util.utf8_stdout()
@@ -33,29 +33,6 @@ DB_PATH = os.path.expanduser("~/Projects/_references/portfolio.duckdb")
 
 class S2Error(Exception):
     """Network/HTTP failure talking to Semantic Scholar (distinct from a genuine no-result)."""
-
-
-def connect_db(db_path, retries=5, delay=3.0):
-    """RC10: open the (Drive-synced) DuckDB with a short retry on lock errors.
-
-    portfolio.duckdb often lives under Google Drive, which holds the file open
-    and surfaces as a DuckDB lock/IO error. Retry briefly with a clear message
-    instead of crashing on a transient sync hold.
-    """
-    last = None
-    for attempt in range(1, retries + 1):
-        try:
-            return duckdb.connect(db_path)
-        except (duckdb.IOException, duckdb.Error) as e:
-            last = e
-            print(f"  DB locked (attempt {attempt}/{retries}) - suspect Google Drive "
-                  f"holding {db_path} open; retrying in {delay:.0f}s...", file=sys.stderr)
-            if attempt < retries:
-                time.sleep(delay)
-    raise SystemExit(
-        f"ERROR: could not open {db_path} after {retries} attempts - DB locked "
-        f"(suspect Google Drive sync holding it open; pause Drive and retry). Last error: {last}"
-    )
 
 
 def s2_get(url, headers=None, timeout=15, retries=3):
@@ -104,7 +81,7 @@ def main():
     s2_key = args.s2_key or os.environ.get("S2_API_KEY", "")
     headers = {"x-api-key": s2_key} if s2_key else {}
 
-    con = connect_db(args.db)
+    con = lit_util.connect_db(args.db, on_fail="exit", tries=5, delays=(3,))  # c9: shared RC10 open
 
     # Seeds = papers we have anywhere in the portfolio
     seeds = [r[0] for r in con.execute(

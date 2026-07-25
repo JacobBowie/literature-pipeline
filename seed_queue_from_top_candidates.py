@@ -20,8 +20,6 @@ Usage:
 import argparse, csv, os, sys, io
 from pathlib import Path
 
-import duckdb
-
 import lit_util  # RC4: atomic_write_text for crash-safe draft writes
 
 lit_util.utf8_stdout()
@@ -75,7 +73,7 @@ def main():
     """
     filter_params = [project_needle, args.year_min, args.min_seeds, args.min_cites]
 
-    con = duckdb.connect(str(DB_PATH), read_only=True)
+    con = lit_util.connect_db(str(DB_PATH), read_only=True)  # c9: shared RC10 open (adds Drive-lock retry)
     try:
         # Count the full filtered set first so we can warn on silent truncation.
         total_matching = con.execute(

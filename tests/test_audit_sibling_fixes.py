@@ -17,6 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import duckdb
 import pytest
 
 import lit_util
@@ -184,3 +185,89 @@ def test_atomic_write_csv_replaces_not_appends(tmp_path):
     lit_util.atomic_write_csv(str(p), [{"a": "1"}], fieldnames=["a"])
     lit_util.atomic_write_csv(str(p), [{"a": "2"}], fieldnames=["a"])
     assert p.read_text(encoding="utf-8") == "a\n2\n"
+
+
+# ---------- c9: lit_util.connect_db (shared RC10 Drive-lock-tolerant open) ----------
+
+def test_connect_db_opens_and_queries(tmp_path):
+    con = lit_util.connect_db(str(tmp_path / "t.duckdb"))
+    con.execute("CREATE TABLE t (x INTEGER)")
+    con.execute("INSERT INTO t VALUES (1)")
+    assert con.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 1
+    con.close()
+
+
+def test_connect_db_read_only_rejects_writes(tmp_path):
+    db = str(tmp_path / "t.duckdb")
+    con = lit_util.connect_db(db)
+    con.execute("CREATE TABLE t (x INTEGER)"); con.execute("INSERT INTO t VALUES (7)")
+    con.close()
+    ro = lit_util.connect_db(db, read_only=True)
+    assert ro.execute("SELECT x FROM t").fetchone()[0] == 7   # reads work
+    with pytest.raises(duckdb.Error):
+        ro.execute("INSERT INTO t VALUES (8)")                # writes rejected
+    ro.close()
+
+
+def test_connect_db_retries_then_succeeds(tmp_path, monkeypatch):
+    """A transient failure is retried; a subsequent success returns the connection."""
+    real = duckdb.connect
+    calls = {"n": 0}
+    def flaky(path, **kw):
+        calls["n"] += 1
+        if calls["n"] < 2:
+            raise RuntimeError("locked (transient)")
+        return real(path, **kw)
+    monkeypatch.setattr(duckdb, "connect", flaky)
+    con = lit_util.connect_db(str(tmp_path / "t.duckdb"), tries=3, delays=(0,))
+    assert calls["n"] == 2                                     # failed once, then succeeded
+    con.close()
+
+
+def test_connect_db_on_fail_exit_raises_systemexit(tmp_path, monkeypatch):
+    """on_fail='exit' aborts with SystemExit after exhausting `tries` (enrich_* CLI behavior)."""
+    calls = {"n": 0}
+    def always_fail(path, **kw):
+        calls["n"] += 1; raise RuntimeError("locked")
+    monkeypatch.setattr(duckdb, "connect", always_fail)
+    with pytest.raises(SystemExit):
+        lit_util.connect_db(str(tmp_path / "t.duckdb"), on_fail="exit", tries=2, delays=(0,))
+    assert calls["n"] == 2                                     # both attempts made
+
+
+def test_connect_db_on_fail_raise_reraises_last(tmp_path, monkeypatch):
+    """on_fail='raise' (default) re-raises the LAST underlying error (not the first), NOT
+    SystemExit (the index rebuild wants the real traceback). Distinct error per attempt so
+    the test actually distinguishes last-vs-first."""
+    errs = [RuntimeError("attempt-1"), RuntimeError("attempt-2")]
+    seq = iter(errs)
+    monkeypatch.setattr(duckdb, "connect", lambda path, **kw: (_ for _ in ()).throw(next(seq)))
+    with pytest.raises(RuntimeError) as ei:
+        lit_util.connect_db(str(tmp_path / "t.duckdb"), on_fail="raise", tries=2, delays=(0,))
+    assert ei.value is errs[-1]                               # the LAST error, not the first
+
+
+def test_connect_db_delay_envelope_and_clamp(tmp_path, monkeypatch):
+    """Lock the load-bearing delays clamp AND both production retry envelopes (the c9
+    behavior-preservation claim): enrich (tries=5, delays=(3,)) -> [3,3,3,3]=12s via the
+    delays[min(attempt-1, len-1)] clamp; index (tries=3, delays=(2,4)) -> [2,4]=6s. A
+    regression to delays[attempt-1] would IndexError enrich on attempt 2 -- this catches it."""
+    waits = []
+    monkeypatch.setattr(lit_util.time, "sleep", lambda s: waits.append(s))
+    monkeypatch.setattr(duckdb, "connect",
+                        lambda path, **kw: (_ for _ in ()).throw(RuntimeError("locked")))
+    # enrich production config: a 1-element delays tuple must clamp to a constant 3s for all 4 sleeps
+    with pytest.raises(SystemExit):
+        lit_util.connect_db(str(tmp_path / "t.duckdb"), on_fail="exit", tries=5, delays=(3,))
+    assert waits == [3, 3, 3, 3]                              # 4 inter-attempt sleeps, all clamped
+    # index production config: 2s then 4s
+    waits.clear()
+    with pytest.raises(RuntimeError):
+        lit_util.connect_db(str(tmp_path / "t.duckdb"), tries=3, delays=(2, 4))
+    assert waits == [2, 4]
+
+
+def test_connect_db_rejects_tries_below_one(tmp_path):
+    """The shared helper fails fast on a computed tries<1 rather than `raise None` -> TypeError."""
+    with pytest.raises(ValueError):
+        lit_util.connect_db(str(tmp_path / "t.duckdb"), tries=0)

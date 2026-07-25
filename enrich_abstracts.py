@@ -16,7 +16,7 @@ Usage:
 """
 import os, sys, re, time, argparse
 import urllib.parse
-import duckdb, requests
+import requests
 
 import lit_util
 import lit_net  # B1: shared GET with 429/5xx retry
@@ -26,29 +26,6 @@ EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA    = f"GETPAID-abstract-enrich/1.0 (mailto:{EMAIL})"
 DB_PATH = os.path.expanduser("~/Projects/_references/portfolio.duckdb")
 CROSSREF = "https://api.crossref.org/works/{doi}"
-
-
-def connect_db(db_path, retries=5, delay=3.0):
-    """RC10: open the (Drive-synced) DuckDB with a short retry on lock errors.
-
-    portfolio.duckdb often lives under Google Drive, which holds the file open
-    and surfaces as a DuckDB lock/IO error. Retry briefly with a clear message
-    instead of crashing on a transient sync hold.
-    """
-    last = None
-    for attempt in range(1, retries + 1):
-        try:
-            return duckdb.connect(db_path)
-        except (duckdb.IOException, duckdb.Error) as e:
-            last = e
-            print(f"  DB locked (attempt {attempt}/{retries}) - suspect Google Drive "
-                  f"holding {db_path} open; retrying in {delay:.0f}s...", file=sys.stderr)
-            if attempt < retries:
-                time.sleep(delay)
-    raise SystemExit(
-        f"ERROR: could not open {db_path} after {retries} attempts - DB locked "
-        f"(suspect Google Drive sync holding it open; pause Drive and retry). Last error: {last}"
-    )
 
 
 class CrossRefError(Exception):
@@ -107,7 +84,7 @@ def main():
                          "Stops re-querying the ~47k permanent CrossRef-fails every run.")
     args = ap.parse_args()
 
-    con = connect_db(args.db)
+    con = lit_util.connect_db(args.db, on_fail="exit", tries=5, delays=(3,))  # c9: shared RC10 open
     # Self-healing migration: the attempt-state column may not exist on an older DB.
     # (A fresh --rebuild creates it from index_portfolio's schema.)
     con.execute("ALTER TABLE paper_metadata ADD COLUMN IF NOT EXISTS abstract_attempted_at TIMESTAMP")

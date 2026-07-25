@@ -24,7 +24,7 @@ Usage:
   python index_portfolio.py --no-citations     # papers table only (faster)
   python index_portfolio.py --rebuild          # drop+recreate all tables first
 """
-import os, sys, csv, re, json, argparse, datetime, time
+import os, sys, csv, re, json, argparse, datetime
 from pathlib import Path
 
 import duckdb
@@ -581,25 +581,8 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
 
 # ---------- main ----------
 
-def connect_with_retry(db_path_str, tries=3, delays=(2, 4)):
-    """RC10: open the DuckDB file with a small retry. The DB lives on Google-Drive-synced
-    storage, and GoogleDriveFS sometimes holds portfolio.duckdb open mid-sync → a transient
-    IO/lock error. Retry a couple of times, then surface a clear Drive-suspect message before
-    re-raising (don't re-diagnose as a code bug; suspect Drive first)."""
-    last_err = None
-    for attempt in range(1, tries + 1):
-        try:
-            return duckdb.connect(db_path_str)
-        except Exception as e:  # duckdb.IOException / lock errors are not a stable public type
-            last_err = e
-            if attempt < tries:
-                wait = delays[min(attempt - 1, len(delays) - 1)]
-                print(f"  [RC10] DB open failed (attempt {attempt}/{tries}): {e}\n"
-                      f"        retrying in {wait}s ...")
-                time.sleep(wait)
-    print("  [RC10] DB locked - suspect Google Drive holding portfolio.duckdb open "
-          "(pause Drive sync or move the DB off Drive-synced storage, then retry).")
-    raise last_err
+# RC10 connect-with-retry was promoted to lit_util.connect_db(on_fail="raise") in Stage 3 (c9);
+# the rebuild path below calls it directly. (enrich_*/snowball/seed_queue share the same helper.)
 
 
 def load_config():
@@ -676,7 +659,7 @@ def main():
         # Also clear the WAL if present
         wal = db_path.with_suffix(db_path.suffix + ".wal")
         if wal.exists(): wal.unlink()
-    con = connect_with_retry(str(db_path))
+    con = lit_util.connect_db(str(db_path))  # RC10 retry-open (on_fail="raise" default)
     try:
         con.execute(SCHEMA)
 
