@@ -16,11 +16,10 @@ Usage:
   python tools/pmc_fetch.py [--dry-run] [--only-doi DOI ...] [--no-sidecar]
 """
 import os, sys, io, csv, re, time, argparse
-import requests
 from urllib.parse import urljoin
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from jats_to_text import parse_jats
+from jats_to_text import parse_jats, fetch_jats_xml  # c13: shared JATS GET
 import ris_emit as _R
 import lit_util  # RC2/RC3/RC4 audit-remediation helpers
 import lit_net  # B1/c7: shared GET retry + stream_download core
@@ -35,7 +34,6 @@ lit_util.utf8_stdout()
 
 EMAIL      = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 EPMC_PDF   = "https://europepmc.org/articles/{pmcid}?pdf=render"
-EPMC_XML   = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 NCBI_PAGE  = "https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/"
 
 BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -103,15 +101,10 @@ def fetch_fulltext_sidecar(pmcid, sidecar_path):
     """Fetch JATS XML from Europe PMC, parse, write .fulltext.json sidecar.
     Returns (ok, status) where status is 'OK', 'NOT_AVAILABLE', or an error label."""
     try:
-        r = requests.get(EPMC_XML.format(pmcid=pmcid),
-                          headers={"User-Agent": API_UA}, timeout=30)
-        if r.status_code == 404:
-            return False, "NOT_AVAILABLE"
-        if r.status_code != 200:
-            return False, f"HTTP_{r.status_code}"
-        if not r.content or not r.content.strip().startswith(b"<"):
-            return False, "EMPTY_OR_NON_XML"
-        parsed = parse_jats(r.content)
+        content, status = fetch_jats_xml(pmcid, API_UA)  # c13: 404 -> NOT_AVAILABLE, etc.
+        if content is None:
+            return False, status
+        parsed = parse_jats(content)
         lit_util.atomic_write_json(sidecar_path, parsed)  # RC4: crash-safe write
         return True, "OK"
     except Exception as e:

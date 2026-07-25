@@ -35,25 +35,19 @@ import lit_util
 import lit_net  # B1/c8: shared GET retry + doi_to_pmcid_batch
 lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from jats_to_text import parse_jats
+from jats_to_text import parse_jats, fetch_jats_xml  # c13: shared JATS GET
 
 EMAIL    = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
-EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 API_UA   = f"GETPAID-backfill/1.0 (mailto:{EMAIL})"
 
 
 def fetch_sidecar(pmcid, sidecar_path):
     """Returns (ok, status)."""
     try:
-        r = requests.get(EPMC_XML.format(pmcid=pmcid),
-                          headers={"User-Agent":API_UA}, timeout=30)
-        if r.status_code == 404:
-            return False, "NOT_AVAILABLE"
-        if r.status_code != 200:
-            return False, f"HTTP_{r.status_code}"
-        if not r.content or not r.content.strip().startswith(b"<"):
-            return False, "EMPTY_OR_NON_XML"
-        parsed = parse_jats(r.content)
+        content, status = fetch_jats_xml(pmcid, API_UA)  # c13: 404 -> NOT_AVAILABLE, etc.
+        if content is None:
+            return False, status
+        parsed = parse_jats(content)
         # RC5: --refresh re-fetches over an existing sidecar; the fresh JATS parse has
         # no fetched figure image_path/image_url and may lack a doi/authors the prior
         # write carried. merge_sidecar keeps those enriched fields when re-fetching.

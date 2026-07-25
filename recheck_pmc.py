@@ -19,7 +19,6 @@ Usage:
   python recheck_pmc.py --lib-dir DIR --dry-run         # show plan, don't fetch
 """
 import os, sys, io, time, argparse, csv
-import requests
 
 import lit_util
 import lit_net  # B1/c8: shared GET retry + doi_to_pmcid_batch
@@ -27,12 +26,11 @@ lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import fitz  # pymupdf
-from jats_to_text import parse_jats
+from jats_to_text import parse_jats, fetch_jats_xml  # c13: shared JATS GET
 import ris_emit as _R      # title_similarity for the sidecar title sanity check
 
 EMAIL    = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA       = f"GETPAID-recheck/1.0 (mailto:{EMAIL})"
-EPMC_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
 
 
 def extract_pdf_head_text(pdf_path, max_chars=5000):
@@ -61,13 +59,10 @@ def fetch_jats_sidecar(pmcid, sidecar_path, doi="", pdf_head_text="", title_sim_
     sidecar and report TITLE_MISMATCH instead of silently filing a confidently-wrong one.
     RC4: the sidecar is written atomically (tmp + os.replace)."""
     try:
-        r = requests.get(EPMC_XML.format(pmcid=pmcid),
-                          headers={"User-Agent":UA}, timeout=30)
-        if r.status_code != 200:
-            return False, f"HTTP_{r.status_code}"
-        if not r.content.strip().startswith(b"<"):
-            return False, "EMPTY_OR_NON_XML"
-        parsed = parse_jats(r.content)
+        content, status = fetch_jats_xml(pmcid, UA)  # c13: now labels a 404 NOT_AVAILABLE
+        if content is None:
+            return False, status
+        parsed = parse_jats(content)
         jats_title = (parsed.get("title") or "").strip()
         if pdf_head_text and jats_title and len(jats_title) >= 8:
             head_norm = _R.normalize_title(pdf_head_text)

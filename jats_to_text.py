@@ -341,16 +341,45 @@ def parse_jats(xml_bytes: bytes) -> dict:
     }
 
 
+# c13: single home for the Europe PMC JATS full-text GET that pmc_fetch,
+# backfill_fulltext, recheck_pmc, and _smoke_test each duplicated.
+EPMC_JATS_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
+
+
+def fetch_jats_xml(pmcid, ua, timeout=30):
+    """GET a Europe PMC JATS full-text XML document for a PMCID.
+
+    Returns (content_bytes, "OK") when the response is a 200 whose body looks
+    like XML. Otherwise returns (None, status):
+      - "NOT_AVAILABLE"     404 -- no JATS full text for this PMCID
+      - "HTTP_<code>"       any other non-200
+      - "EMPTY_OR_NON_XML"  200 but the body is empty or doesn't start with '<'
+
+    Transport-level failures (timeout/DNS/reset) are NOT caught here -- they
+    propagate so each caller keeps its own established except-clause and error
+    label (pmc/recheck: bare 'ERROR_<msg>'; backfill: 'ERROR_<type>:<msg>').
+    `requests` is imported lazily so importing this parser module stays
+    stdlib-light (it is imported widely across the pipeline)."""
+    import requests
+    r = requests.get(EPMC_JATS_XML.format(pmcid=pmcid),
+                     headers={"User-Agent": ua}, timeout=timeout)
+    if r.status_code == 404:
+        return None, "NOT_AVAILABLE"
+    if r.status_code != 200:
+        return None, f"HTTP_{r.status_code}"
+    if not r.content or not r.content.strip().startswith(b"<"):
+        return None, "EMPTY_OR_NON_XML"
+    return r.content, "OK"
+
+
 def _smoke_test(pmcid: str, dump: bool) -> int:
     """Fetch a JATS-XML article from Europe PMC and dump the parsed structure."""
-    import requests
     UA = f"litpipe-jats-smoke/1.0 (mailto:{os.environ.get('LITPIPE_EMAIL', lit_util.DEFAULT_EMAIL)})"
-    r = requests.get(f"https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML",
-                      headers={"User-Agent": UA}, timeout=30)
-    print(f"HTTP {r.status_code} ({len(r.content)} bytes)")
-    if r.status_code != 200:
+    content, status = fetch_jats_xml(pmcid, UA)
+    print(f"JATS fetch: {status}" + (f" ({len(content)} bytes)" if content else ""))
+    if content is None:
         return 1
-    out = parse_jats(r.content)
+    out = parse_jats(content)
     print(f"Title:    {out['title'][:80]}")
     print(f"DOI:      {out['doi']}")
     print(f"Authors:  {len(out['authors'])} ({', '.join(out['authors'][:3])}...)")
