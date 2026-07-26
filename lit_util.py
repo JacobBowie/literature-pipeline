@@ -284,6 +284,62 @@ def extract_doi_from_text(text, max_chars=None):
             return cand
     return ""
 
+# ---------------------------------------------------------------- RIS metadata parsing
+_RIS_TAG = re.compile(r"^([A-Z][A-Z0-9])\s{2}-\s?(.*)$")
+
+def parse_ris(ris_path):
+    """Parse a .ris file's canonical metadata. Single source of truth for the two former
+    copies (index_portfolio + harvest_citations, Stage 3 c10/c11).
+
+    Returns {doi, year, title, venue, lastname, authors, authors_raw}:
+      - year is int-or-None (paper_metadata.year is INTEGER; the ingest invariant).
+      - authors_raw is an ALIAS of authors, for the harvest/enw/nbib-family consumers
+        that read that key; index/ingest reads authors.
+    Union of the two prior behaviors: single-pass so a wrapped TI/JO value continuing on
+    an untagged line is joined not truncated (T6); accepts the AU/A1, PY/Y1, TI/T1 tag
+    aliases; falls back to a doi.org DOI in a UR line when no DO tag is present (hand-dropped
+    EndNote/Zotero .ris). Reads with errors='replace' so a stray non-UTF-8 byte degrades
+    gracefully instead of raising. Pipeline-written .ris are single-line with a DO tag, so
+    canonical sidecars are unaffected."""
+    out = {"doi": "", "year": None, "lastname": "", "title": "", "venue": "", "authors": []}
+    try:
+        with open(ris_path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        out["authors_raw"] = out["authors"]
+        return out
+    ur_vals = []
+    cur_tag = None
+    for line in text.splitlines():
+        m = _RIS_TAG.match(line)
+        if not m:
+            cont = line.strip()  # untagged continuation of a wrapped TI/JO value
+            if cont and cur_tag in ("TI", "T1") and out["title"]:
+                out["title"] = (out["title"] + " " + cont).strip()
+            elif cont and cur_tag == "JO" and out["venue"]:
+                out["venue"] = (out["venue"] + " " + cont).strip()
+            continue
+        tag, val = m.group(1), m.group(2).strip()
+        cur_tag = tag
+        if tag == "DO" and not out["doi"]: out["doi"] = val.lower()
+        elif tag == "UR": ur_vals.append(val)
+        elif tag in ("PY", "Y1") and out["year"] is None and val[:4].isdigit():
+            out["year"] = int(val[:4])
+        elif tag in ("TI", "T1") and not out["title"]: out["title"] = val
+        elif tag == "JO" and not out["venue"]: out["venue"] = val
+        elif tag in ("AU", "A1"):
+            out["authors"].append(val)
+            if not out["lastname"]:
+                out["lastname"] = val.split(",")[0].strip() if "," in val else val.split()[0].strip()
+    if not out["doi"]:  # UR-only-DOI fallback: a .ris with no DO but a doi.org UR still has a DOI
+        for u in ur_vals:
+            d = extract_doi_from_text(u)
+            if d:
+                out["doi"] = d
+                break
+    out["authors_raw"] = out["authors"]  # alias for the harvest/enw/nbib-family consumers
+    return out
+
 # ---------------------------------------------------------------- RC5: non-clobbering sidecar merge
 _ENRICHED_FIELDS = ("doi", "title", "subtitle", "year", "journal", "authors",
                     "pmid", "pmcid", "abstract", "figures", "metadata_source",

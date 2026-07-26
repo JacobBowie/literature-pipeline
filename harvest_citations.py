@@ -49,40 +49,11 @@ EXTS = {".ris", ".enw", ".nbib"}
 
 # ---------- per-format parsers ----------
 
-def parse_ris(path):
-    """Return dict with doi, title, year, lastname, authors[]."""
-    try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            text = f.read()
-    except OSError:
-        return {}
-    # RIS uses two-letter tag, two spaces, hyphen, space, value
-    fields = {}
-    for line in text.splitlines():
-        m = re.match(r"^([A-Z][A-Z0-9])\s{2}-\s?(.*)$", line)
-        if not m: continue
-        tag, val = m.group(1), m.group(2).strip()
-        fields.setdefault(tag, []).append(val)
-    doi = (fields.get("DO", [""])[0] or "").lower()
-    if not doi:
-        # Some exports stash DOI in UR
-        for url in fields.get("UR", []):
-            d = R.extract_doi_from_text(url)
-            if d: doi = d; break
-    title = (fields.get("TI", []) + fields.get("T1", []) + [""])[0]
-    year  = (fields.get("PY", []) + fields.get("Y1", []) + [""])[0][:4]
-    authors_raw = fields.get("AU", []) + fields.get("A1", [])
-    lastname = ""
-    if authors_raw:
-        first = (authors_raw[0] or "").strip()
-        if first:
-            if "," in first:
-                lastname = first.split(",")[0].strip()
-            else:
-                parts = first.split()
-                lastname = parts[0].strip() if parts else ""
-    return {"doi": doi, "title": title, "year": year, "lastname": lastname,
-            "authors_raw": authors_raw}
+# parse_ris was promoted to lit_util (Stage 3 c10); re-exported so detect_and_parse's `parse_ris(path)`
+# keeps working. The union returns `authors_raw` (alias of authors) so this module's consumer
+# (parsed["authors_raw"]) is unchanged, and canonical_stem tolerates the now-int year. parse_enw /
+# parse_nbib below stay bespoke (their own tag grammars) and still return the authors_raw shape.
+parse_ris = lit_util.parse_ris
 
 
 def parse_enw(path):

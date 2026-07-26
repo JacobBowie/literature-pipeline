@@ -165,51 +165,10 @@ ORDER BY n_projects DESC;
 
 # ---------- helpers ----------
 
-def parse_ris(ris_path: Path) -> dict:
-    """Pull the canonical metadata fields out of a .ris file.
-
-    T6 (2026-06-25 audit): handles continuation lines (a wrapped TI/JO value continues on an
-    untagged line) so a line-wrapped title is not truncated into the canonical stem, and falls
-    back to a DOI in a UR line when no DO tag is present (hand-dropped EndNote/Zotero .ris often
-    carry the DOI only as a doi.org URL). Pipeline-written .ris are single-line with a DO tag,
-    so canonical sidecars are unaffected."""
-    out = {"doi": "", "year": None, "lastname": "", "title": "",
-           "venue": "", "authors": []}
-    try:
-        with open(ris_path, encoding="utf-8") as f:
-            text = f.read()
-    except OSError:
-        return out
-    ur_vals = []
-    cur_tag = None
-    for line in text.splitlines():
-        m = re.match(r"^([A-Z][A-Z0-9])\s{2}-\s?(.*)$", line)
-        if not m:
-            cont = line.strip()
-            if cont and cur_tag in ("TI", "T1") and out["title"]:
-                out["title"] = (out["title"] + " " + cont).strip()
-            elif cont and cur_tag == "JO" and out["venue"]:
-                out["venue"] = (out["venue"] + " " + cont).strip()
-            continue
-        tag, val = m.group(1), m.group(2).strip()
-        cur_tag = tag
-        if tag == "DO" and not out["doi"]: out["doi"] = val.lower()
-        elif tag == "UR": ur_vals.append(val)
-        elif tag == "PY" and not out["year"] and val[:4].isdigit(): out["year"] = int(val[:4])
-        elif tag in ("TI", "T1") and not out["title"]: out["title"] = val
-        elif tag == "JO" and not out["venue"]: out["venue"] = val
-        elif tag == "AU":
-            out["authors"].append(val)
-            if not out["lastname"]:
-                out["lastname"] = val.split(",")[0].strip() if "," in val else val.split()[0].strip()
-    # T6: UR-only-DOI fallback -- a .ris with no DO but a doi.org UR still carries a DOI.
-    if not out["doi"]:
-        for u in ur_vals:
-            d = lit_util.extract_doi_from_text(u)
-            if d:
-                out["doi"] = d
-                break
-    return out
+# parse_ris was promoted to lit_util (Stage 3 c10, unioning the harvest_citations copy: single-pass
+# continuation lines + AU/A1, PY/Y1, TI/T1 aliases + int-or-None year + UR-DOI fallback). Re-exported
+# here so the `parse_ris(...)` / `I.parse_ris(...)` call sites (and test_index_prune) keep working.
+parse_ris = lit_util.parse_ris
 
 
 def sidecar_info(path: Path):
@@ -526,14 +485,10 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
         stem = seed_filename
         for ext in (".txt", ".pdf"):
             if stem.endswith(ext): stem = stem[:-len(ext)]
-        # Try .ris in lib
+        # Try .ris in lib -- c11: route through the shared parse_ris (adds the UR-only-DOI
+        # fallback these seed reads previously lacked) rather than a bespoke DO-line regex.
         ris = lib / (stem + ".ris")
-        d = ""
-        if ris.exists():
-            with open(ris, encoding="utf-8") as fh:
-                for line in fh:
-                    m = re.match(r"^DO\s{2}-\s?(.+)$", line)
-                    if m: d = m.group(1).strip().lower(); break
+        d = parse_ris(ris).get("doi", "") if ris.exists() else ""
         seed_doi_cache[seed_filename] = d
         return d
 
