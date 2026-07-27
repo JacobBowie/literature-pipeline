@@ -540,6 +540,24 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
 # the rebuild path below calls it directly. (enrich_*/snowball/seed_queue share the same helper.)
 
 
+def _abstract_count(db_path_str):
+    """Harvested-abstract count in a DuckDB file, 0 if unreadable/absent. Read-only and ALWAYS
+    closes its handle in a finally (a leaked handle would lock the file on Windows and block the
+    --rebuild drop/backup -- the A3 concern). Sizes the DISCARDS-N warning AND stops C1 from
+    overwriting a .bak that holds more abstracts than the current (e.g. crashed-rebuild) DB."""
+    c = None
+    try:
+        c = duckdb.connect(db_path_str, read_only=True)
+        return c.execute("SELECT COUNT(*) FROM paper_metadata "
+                         "WHERE abstract IS NOT NULL AND abstract != ''").fetchone()[0]
+    except Exception:
+        return 0
+    finally:
+        if c is not None:
+            try: c.close()
+            except Exception: pass
+
+
 def load_config():
     from ris_emit import load_projects_config
     return load_projects_config(CONFIG_PATH).get("projects", {})
@@ -599,19 +617,31 @@ def main():
     if args.rebuild and db_path.exists():
         # The abstract column (enriched by enrich_abstracts.py from CrossRef) lives ONLY in the DB;
         # dropping it discards that harvest. Count + warn loudly so it's never an accidental loss.
-        _n = None
-        try:
-            _c = duckdb.connect(str(db_path), read_only=True)
-            _n = _c.execute("SELECT COUNT(*) FROM paper_metadata "
-                            "WHERE abstract IS NOT NULL AND abstract != ''").fetchone()[0]
-            _c.close()  # MUST close before unlink (Windows locks open files)
-        except Exception:
-            pass
+        # A3: _abstract_count opens read-only and always closes, so a COUNT failure can't leave a
+        # handle that locks the file against the drop/backup below.
+        _n = _abstract_count(str(db_path))
         print(f"[--rebuild] dropping {db_path.name}"
               + (f" — DISCARDS {_n} harvested abstracts; re-run enrich_abstracts.py to restore"
                  if _n else ""), file=sys.stderr)
-        db_path.unlink()
-        # Also clear the WAL if present
+        # C1: snapshot the old DB to <db>.bak (atomic move) BEFORE dropping, so a --rebuild that dies
+        # partway -- or a regretted --rebuild -- is recoverable instead of an irreversible loss. But
+        # NEVER overwrite an existing .bak that holds MORE harvested abstracts than the current DB: a
+        # crashed rebuild leaves a 0-abstract DB (abstracts come from a separate enrich pass, not the
+        # rebuild), and the natural retry must not clobber the good pre-crash snapshot with it.
+        # Abstracts are the DB-only layer C1 exists to protect (a fresh rebuild regenerates the rest).
+        # Normal shutdowns checkpoint the WAL into the DB, so .bak is self-contained; a stale WAL is
+        # cleared for the fresh rebuild.
+        bak = db_path.with_suffix(db_path.suffix + ".bak")
+        if bak.exists() and _abstract_count(str(bak)) > _n:
+            print(f"[--rebuild] keeping existing {bak.name} (more harvested abstracts than the "
+                  f"current DB) rather than overwrite it; dropping current DB", file=sys.stderr)
+            db_path.unlink()
+        else:
+            try:
+                db_path.replace(bak)
+                print(f"[--rebuild] previous DB backed up to {bak.name}", file=sys.stderr)
+            except OSError:
+                db_path.unlink()  # fallback: if the backup move fails, still drop as before
         wal = db_path.with_suffix(db_path.suffix + ".wal")
         if wal.exists(): wal.unlink()
     con = lit_util.connect_db(str(db_path))  # RC10 retry-open (on_fail="raise" default)

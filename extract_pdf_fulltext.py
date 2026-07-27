@@ -123,6 +123,25 @@ def _load_existing_sidecar(sidecar_path):
         return None
 
 
+def _is_jats_sourced(sidecar):
+    """True if this sidecar carries JATS-derived structured content that a plain PDF re-extract
+    (pdftotext/pdfminer) cannot reproduce -- structured sections, parsed formulas, or an explicit
+    non-PDF provenance. Used by the D2 --refresh guard so re-extraction never downgrades a JATS
+    sidecar to bare PDF text. Covers sidecars written by extract (extracted_from_pdf / extractor)
+    AND by pmc_fetch/backfill/recheck (raw parse_jats output: sections/formulas but no provenance
+    flag)."""
+    if not sidecar:
+        return False
+    if sidecar.get("extracted_from_pdf") is False:
+        return True
+    if sidecar.get("extractor") == "jats_xml_sibling":
+        return True
+    # sections/formulas/tables are JATS-only structure a PDF re-extract cannot reproduce; a
+    # PDF-sourced sidecar has all three empty (from _empty_sidecar), so no over-protection risk.
+    return (bool(sidecar.get("sections")) or bool(sidecar.get("n_formulas"))
+            or bool(sidecar.get("tables")))
+
+
 def _empty_sidecar():
     """Shape matches jats_to_text.parse_jats() output; JATS-only fields empty."""
     return {
@@ -274,6 +293,17 @@ def main():
             print(f"  WARN JATS parse failed ({jats_err}) for {fn[:55]} — falling back to PDF",
                   file=sys.stderr)
 
+        # D2: on --refresh we only reach the PDF path when the JATS sibling is gone or failed to
+        # parse. If the EXISTING sidecar is JATS-sourced, keep it -- re-extracting to bare PDF text
+        # would silently downgrade the structured sections/formulas/abstract (F1, landed, makes
+        # n_formulas=0 a real value so the signal is trustworthy). Metadata-only refreshes are
+        # unaffected (a PDF-sourced sidecar is not guarded).
+        old = _load_existing_sidecar(sidecar) if args.refresh else None
+        if old is not None and _is_jats_sourced(old):
+            print(f"  KEEP {fn[:60]} (refresh: JATS sidecar not downgraded to PDF text)")
+            n_skip += 1
+            continue
+
         text, extractor, status = extract(pdf_path)
         if not text.strip():
             print(f"  FAIL {fn[:65]} ({status})", file=sys.stderr)
@@ -283,12 +313,23 @@ def main():
         rec["text"] = text
         rec["extractor"] = extractor
         rec["formula_failures"] = detect_math_indicators(text, pdf_path)
-        # RC5: on --refresh, _empty_sidecar() has blank doi/title/year/authors/figures;
-        # merge_sidecar preserves whatever fill_missing_dois/backfill already wrote
-        # (this is the confirmed PD DOI-wipe bug). Plain re-extract only touches
-        # text/extractor/formula_failures. RC4: write atomically.
+        # RC5: on --refresh, _empty_sidecar() has blank doi/title/year/authors/figures; merge_sidecar
+        # preserves whatever fill_missing_dois/backfill already wrote (the confirmed PD DOI-wipe bug).
+        # Plain re-extract only touches text/extractor/formula_failures.
         if args.refresh:
-            rec = lit_util.merge_sidecar(_load_existing_sidecar(sidecar), rec)
+            rec = lit_util.merge_sidecar(old, rec)
+        # Gap2: seed the sidecar DOI from the companion .ris, but ONLY when it is still not a valid
+        # DOI AFTER the merge -- so an enriched/corrected DOI (fill_missing_dois writes it to the
+        # sidecar before the .ris is regenerated) is never clobbered by a stale .ris value (RC5).
+        # normalize_doi + is_valid_doi gate it (matching fill_missing_dois' T7 discipline): a
+        # URL-form .ris DOI is recovered, a malformed one is left out rather than written raw and
+        # suppressing later recovery. Fills born-empty DataCite/arXiv sidecars, nothing else.
+        if not lit_util.is_valid_doi(rec.get("doi", "")):
+            ris_path = os.path.join(lib, fn[:-4] + ".ris")
+            if os.path.exists(ris_path):
+                ris_doi = lit_util.normalize_doi(lit_util.parse_ris(ris_path).get("doi", ""))
+                if ris_doi and lit_util.is_valid_doi(ris_doi):
+                    rec["doi"] = ris_doi
         lit_util.atomic_write_json(sidecar, rec)
         print(f"  DL   {extractor:<11} {len(text):>7}c -> {fn[:60]}")
         n_dl += 1

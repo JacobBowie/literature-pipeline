@@ -136,43 +136,56 @@ def canonical_filename(year, lastname, title):
 
 
 def cascade_rename(lib_dir, old_pdf, new_pdf):
-    """Rename PDF + .fulltext.json + .ris + .fig{N}.*; update image_path in sidecar."""
+    """Rename PDF + .fulltext.json + .ris + .fig{N}.* as a unit, then fix image_path in the sidecar.
+
+    A2 all-or-nothing: the renames are staged and, if any one raises, the already-done renames are
+    rolled back (newest first) so the library never lands in a half-renamed state. The sidecar
+    image_path rewrite happens only AFTER every rename commits (so a mid-cascade failure can't leave
+    the sidecar pointing at names that were rolled back), and is written atomically (F3)."""
     old_stem = old_pdf[:-4]
     new_stem = new_pdf[:-4]
     renamed = []
-    # PDF
-    os.rename(os.path.join(lib_dir, old_pdf), os.path.join(lib_dir, new_pdf))
-    renamed.append(("pdf", old_pdf, new_pdf))
-    # Sidecar (.fulltext.json)
-    old_sc = old_stem + ".fulltext.json"
+
+    def _rename(kind, old_name, new_name):
+        os.rename(os.path.join(lib_dir, old_name), os.path.join(lib_dir, new_name))
+        renamed.append((kind, old_name, new_name))
+
+    try:
+        _rename("pdf", old_pdf, new_pdf)
+        old_sc = old_stem + ".fulltext.json"
+        if os.path.exists(os.path.join(lib_dir, old_sc)):
+            _rename("sidecar", old_sc, new_stem + ".fulltext.json")
+        old_ris = old_stem + ".ris"
+        if os.path.exists(os.path.join(lib_dir, old_ris)):
+            _rename("ris", old_ris, new_stem + ".ris")
+        for f in sorted(os.listdir(lib_dir)):
+            if f.startswith(old_stem + ".fig"):
+                _rename("figure", f, new_stem + f[len(old_stem):])
+    except OSError:
+        for kind, old_name, new_name in reversed(renamed):  # A2: undo, newest first
+            try:
+                os.rename(os.path.join(lib_dir, new_name), os.path.join(lib_dir, old_name))
+            except OSError:
+                print(f"      (rollback FAILED: {new_name} -> {old_name}; library may be "
+                      f"partially renamed)", file=sys.stderr)
+        raise
+
+    # All renames committed -> now fix image_path inside the (renamed) sidecar. F3: atomic write.
     new_sc = new_stem + ".fulltext.json"
-    if os.path.exists(os.path.join(lib_dir, old_sc)):
-        os.rename(os.path.join(lib_dir, old_sc), os.path.join(lib_dir, new_sc))
-        # Update image_path inside sidecar
+    if os.path.exists(os.path.join(lib_dir, new_sc)):
         try:
             with open(os.path.join(lib_dir, new_sc), encoding="utf-8") as fh:
                 d = json.load(fh)
+            changed = False
             for fig in d.get("figures", []):
                 ip = fig.get("image_path", "")
                 if ip and ip.startswith(old_stem):
                     fig["image_path"] = ip.replace(old_stem, new_stem, 1)
-            with open(os.path.join(lib_dir, new_sc), "w", encoding="utf-8") as f:
-                json.dump(d, f, indent=2, ensure_ascii=False)
+                    changed = True
+            if changed:
+                lit_util.atomic_write_json(os.path.join(lib_dir, new_sc), d)
         except (OSError, json.JSONDecodeError, UnicodeDecodeError) as e:
             print(f"      (sidecar update warning: {e})", file=sys.stderr)
-        renamed.append(("sidecar", old_sc, new_sc))
-    # RIS sidecar (.ris)
-    old_ris = old_stem + ".ris"
-    new_ris = new_stem + ".ris"
-    if os.path.exists(os.path.join(lib_dir, old_ris)):
-        os.rename(os.path.join(lib_dir, old_ris), os.path.join(lib_dir, new_ris))
-        renamed.append(("ris", old_ris, new_ris))
-    # Figure images
-    for f in os.listdir(lib_dir):
-        if f.startswith(old_stem + ".fig"):
-            new_f = new_stem + f[len(old_stem):]
-            os.rename(os.path.join(lib_dir, f), os.path.join(lib_dir, new_f))
-            renamed.append(("figure", f, new_f))
     return renamed
 
 
@@ -265,16 +278,17 @@ def main():
             print(f"  YEAR-DIFF {fn[:60]:<60} cur={cur_year} cr={cr['year']} ({proposed[:50]})")
             continue
         n_propose += 1
+        rename_ok = True
         if args.execute:
             try:
                 cascade_rename(lib, fn, proposed)
-                seen_canonical.discard(fn); seen_canonical.add(proposed)
                 rows.append({"current": fn, "proposed": proposed, "doi": doi,
                               "status": "RENAMED" + qh_tag})
                 n_renamed += 1
                 tag = " [QH]" if qh_tag else ""
                 print(f"  RENAMED{tag}  {fn[:65]:<65} -> {proposed}")
             except OSError as e:
+                rename_ok = False  # rename failed -> do NOT free/claim names in the seen-set
                 rows.append({"current": fn, "proposed": proposed, "doi": doi,
                               "status": f"RENAME_ERROR_{e}" + qh_tag})
                 print(f"  ERR      {fn[:65]:<65} ({e})", file=sys.stderr)
@@ -283,6 +297,13 @@ def main():
                           "status": "WOULD_RENAME" + qh_tag})
             tag = " [QH]" if qh_tag else ""
             print(f"  PROPOSE{tag}  {fn[:65]:<65} -> {proposed}")
+        # D3: reflect the executed-OR-proposed rename in the seen-set in BOTH modes so a dry-run's
+        # collision detection matches --execute -- a name being vacated (fn) frees up and the new
+        # name (proposed) becomes taken. Previously this only ran under --execute, so dry-run
+        # reported phantom collisions against names it was itself about to vacate (and missed
+        # two-files-propose-the-same-name collisions).
+        if rename_ok:
+            seen_canonical.discard(fn); seen_canonical.add(proposed)
 
     # Write report
     report_path = args.report or os.path.join(lib, "_filename_audit_report.csv")
