@@ -30,9 +30,7 @@ import lit_util
 lit_util.utf8_stdout()
 
 HERE = Path(__file__).resolve().parent
-PROJECTS = HERE.parent.parent  # _tools/literature_pipeline/ -> Projects/
 CONFIG_PATH = HERE / "projects.json"
-LOOSE_ENDS = PROJECTS / "Operations-Manager" / "files" / "LOOSE_ENDS.md"
 
 
 def find_queues(only_project=None):
@@ -262,10 +260,34 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None):
             "report": str(summary_csv), "processed": str(processed)}
 
 
+def resolve_loose_ends_path():
+    """Path of the cross-project lit-pull log, from the gitignored projects.json
+    "loose_ends" key (relative to lit_util.PROJECTS_ROOT, or an absolute path).
+
+    Returns None when the key is absent. The log is an OPT-IN feature -- the
+    literature-pipeline skill/SOP documents wiring it -- so the code does not invent a
+    location; the caller reports the skip and the sweep proceeds. Keeping the path in
+    gitignored config (not source) is also what keeps an internal project name out of
+    this public repo.
+    """
+    cfg = lit_util.load_projects_config(CONFIG_PATH, missing_ok=True)
+    configured = cfg.get("loose_ends")
+    if not configured:
+        return None
+    p = Path(configured).expanduser()
+    return p if p.is_absolute() else (lit_util.PROJECTS_ROOT / p)
+
+
 def append_loose_end(line):
-    LOOSE_ENDS.parent.mkdir(parents=True, exist_ok=True)
-    with open(LOOSE_ENDS, "a", encoding="utf-8") as f:
+    """Append `line` to the configured lit-pull log and return the path written, or
+    None when no "loose_ends" key is set (nothing written -- the caller reports it)."""
+    path = resolve_loose_ends_path()
+    if path is None:
+        return None
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
         f.write(line.rstrip() + "\n")
+    return path
 
 
 def main():
@@ -295,6 +317,11 @@ def main():
         print(f"  {key}/{q.name}")
     print()
 
+    if resolve_loose_ends_path() is None:
+        print("[litpipe] no `loose_ends` key in projects.json -- cross-project "
+              "lit-pull log is off this run; see the literature-pipeline skill to "
+              "enable it.", file=sys.stderr)
+
     for key, proj, q in queues:
         print(f"\n=== {key} ===")
         result = run_pipeline(proj, q, dry_run=args.dry_run, run_date=args.date)
@@ -308,14 +335,16 @@ def main():
             partial = (f"⏸️ Lit pull PARTIAL: {key}/ — fetch stage incomplete, "
                        f"{key}/lit_pull_queue.csv left for re-sweep. "
                        f"Report: {Path(result['report']).name}")
-            append_loose_end(partial)
-            print(f"\n  LOOSE_ENDS.md updated: {partial}")
+            dest = append_loose_end(partial)
+            if dest:
+                print(f"\n  {dest} updated: {partial}")
             continue
         line = (f"✅ Lit pull done: {key}/ — {result['downloaded']}/{result['rows']} "
                 f"fetched (Unpaywall {result['unpaywall']}, PMC {result['pmc']}, "
                 f"Preprint {result.get('preprint',0)}). Report: {Path(result['report']).name}")
-        append_loose_end(line)
-        print(f"\n  LOOSE_ENDS.md updated: {line}")
+        dest = append_loose_end(line)
+        if dest:
+            print(f"\n  {dest} updated: {line}")
     return 0
 
 
