@@ -22,7 +22,7 @@ Usage:
   # Explicit
   python reverse_citations.py --lib-dir /path/to/library [--text-dir /path/to/text]
 """
-import os, sys, io, re, csv, json, argparse
+import sys, io, re, csv, json, argparse
 from pathlib import Path
 
 import lit_util

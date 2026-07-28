@@ -10,7 +10,6 @@ RIS format reference: https://en.wikipedia.org/wiki/RIS_(file_format)
 EndNote ingests RIS natively via "Reference Manager (RIS)" import filter.
 """
 import os, re, sys, difflib
-import requests
 import lit_net  # B1: shared GET with 429/5xx retry
 
 # Config loader + safe_ascii live in lit_util (stdlib-pure); re-exported here so the many

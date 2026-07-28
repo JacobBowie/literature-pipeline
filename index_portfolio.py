@@ -24,7 +24,7 @@ Usage:
   python index_portfolio.py --no-citations     # papers table only (faster)
   python index_portfolio.py --rebuild          # drop+recreate all tables first
 """
-import os, sys, csv, re, json, argparse, datetime
+import sys, csv, json, argparse, datetime
 from pathlib import Path
 
 import duckdb

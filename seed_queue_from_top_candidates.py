@@ -17,7 +17,7 @@ Usage:
   python seed_queue_from_top_candidates.py --project Physiological_Data
   python seed_queue_from_top_candidates.py --project getpaid --min-seeds 5 --limit 50
 """
-import argparse, csv, os, sys, io
+import argparse, csv, sys, io
 from pathlib import Path
 
 import lit_util  # RC4: atomic_write_text for crash-safe draft writes

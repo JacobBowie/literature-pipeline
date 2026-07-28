@@ -135,7 +135,7 @@ def arxiv_match_by_doi(doi, title):
 
 # ---------- Europe PMC preprints ----------
 
-def _keywordize(title, n=8):
+def _keywordize(title):
     """Extract significant title words for a non-phrase keyword query."""
     skip = {"a","an","the","of","in","on","and","or","to","for","at","from","with","by","as",
              "is","are","was","were","be","been","this","that","these","those"}
@@ -170,7 +170,7 @@ def search_epmc_preprints(title, n=5):
     bioRxiv/medRxiv pattern), and a `landing_url` flag for ones requiring scrape.
     """
     try:
-        kws = _keywordize(title, n=10)
+        kws = _keywordize(title)
         q = f'({kws}) AND SRC:PPR'
         r = lit_net.get(EPMC_SEARCH,
                           params={"query": q, "format": "json", "pageSize": n,

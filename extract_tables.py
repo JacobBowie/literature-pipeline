@@ -16,7 +16,7 @@ Output:
 Usage:
   python tools/extract_tables.py [--lib-dir DIR] [--limit N]
 """
-import os, sys, csv, argparse
+import os, csv, argparse
 import lit_util
 lit_util.utf8_stdout()
 

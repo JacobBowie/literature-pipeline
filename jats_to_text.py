@@ -43,11 +43,9 @@ try:
     from mathml_to_latex.converter import MathMLToLaTeX
     _MML_CONV = MathMLToLaTeX()
     _MATH_AVAILABLE = True
-    _MML_SOURCE = "vendor" if _VENDOR_DIR else "pip"
 except ImportError:
     _MML_CONV = None
     _MATH_AVAILABLE = False
-    _MML_SOURCE = "missing"
 
 
 def _itertext(elem, skip_tags=()):
