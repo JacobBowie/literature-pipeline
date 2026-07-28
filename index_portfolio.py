@@ -16,7 +16,7 @@ Why DuckDB (not SQLite):
   - Vector extension (`vss`) for embeddings if/when we add a RAG layer
   - Better SQL surface (window funcs, list/struct types) for citation-graph analytics
 
-Output: ~/Projects/_references/portfolio.duckdb
+Output: <root>/_references/portfolio.duckdb  (root defaults to ~/Projects; set projects.json "root" to move it)
 
 Usage:
   python index_portfolio.py                  # rebuild full index
@@ -34,9 +34,8 @@ import lit_util  # RC1 DOI validity gate, RC4 atomic writes (shared, pre-tested)
 
 lit_util.utf8_stdout()
 
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"
-DB_PATH       = PROJECTS_ROOT / "_references" / "portfolio.duckdb"
+DB_PATH       = lit_util.PROJECTS_ROOT / "_references" / "portfolio.duckdb"
 
 SCHEMA = """
 -- Schema v2 (2026-05-04). Normalized:

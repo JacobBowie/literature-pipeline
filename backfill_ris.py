@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as R
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
-DEFAULT_LIB = os.path.expanduser("~/Projects/Physiological_Data/docs/literature")
+DEFAULT_LIB = str(lit_util.PROJECTS_ROOT / "Physiological_Data" / "docs" / "literature")
 
 
 def doi_from_sidecar(sidecar_path: Path) -> str:

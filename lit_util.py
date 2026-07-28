@@ -138,8 +138,6 @@ def safe_ascii(s):
     return no_combining.encode("ascii", "ignore").decode("ascii")
 
 # ---------------------------------------------------------------- project registry + path resolution
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
-
 def load_projects_config(config_path, missing_ok=False):
     """Load and parse projects.json. Canonical loader for the whole pipeline
     (re-exported from ris_emit for backward-compatible `from ris_emit import ...`).
@@ -163,6 +161,26 @@ def load_projects_config(config_path, missing_ok=False):
         sys.exit(2)
     with open(p, encoding="utf-8") as fh:
         return json.load(fh)
+
+def _resolve_projects_root(cfg):
+    """Resolve the projects root from a loaded projects.json dict. CONFIG-ONLY
+    (no env var). Precedence: cfg["root"] -> default "~/Projects". Resolution:
+    expanduser(); an absolute path is used verbatim; a bare-relative path is
+    anchored to HOME (e.g. "Work/lit" -> ~/Work/lit). Kept pure (no I/O) so it
+    unit-tests without import/reload gymnastics."""
+    raw = (cfg or {}).get("root") or "~/Projects"
+    p = Path(raw).expanduser()
+    return p if p.is_absolute() else (Path.home() / p)
+
+# The single projects-root anchor for the whole pipeline, resolved ONCE at import
+# from the optional top-level "root" key in projects.json (config-only; ~/Projects
+# default; missing_ok so a fresh clone / CI with no projects.json stays import-safe).
+# Consumers read lit_util.PROJECTS_ROOT via ATTRIBUTE access (never
+# `from lit_util import PROJECTS_ROOT`), so project_root/lib_paths pick up the value
+# at call time and tests can monkeypatch this single attribute.
+PROJECTS_ROOT = _resolve_projects_root(
+    load_projects_config(Path(__file__).parent / "projects.json", missing_ok=True)
+)
 
 def project_root(key, p):
     """On-disk working dir of a (possibly nested) registered project — where its

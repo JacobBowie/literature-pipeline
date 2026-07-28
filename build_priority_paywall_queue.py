@@ -27,7 +27,7 @@ import lit_util  # coerce_int: shared int()-on-messy-CSV-cell guard (2026-06-25 
 
 lit_util.utf8_stdout()
 
-ROOT = os.path.expanduser("~/Projects")
+ROOT = str(lit_util.PROJECTS_ROOT)
 DB = os.path.join(ROOT, "_references", "portfolio.duckdb")
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects.json")
 

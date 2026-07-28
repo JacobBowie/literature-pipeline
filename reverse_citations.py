@@ -29,7 +29,6 @@ import lit_util
 
 lit_util.utf8_stdout()
 
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
 # ---------- references-section locator ----------
@@ -159,7 +158,7 @@ def resolve_project(name: str):
     if name not in cfg:
         print(f"[ERR] '{name}' not in projects.json", file=sys.stderr); sys.exit(2)
     p = cfg[name]
-    base = PROJECTS_ROOT / (p.get("parent") or name)
+    base = lit_util.PROJECTS_ROOT / (p.get("parent") or name)
     lib = base / p["lib_dir"]
     text_dir = (base / p["data_dir"] / "text") if p.get("data_dir") else None
     return lib, text_dir

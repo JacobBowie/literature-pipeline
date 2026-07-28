@@ -14,7 +14,7 @@ breakage (not just config-conformance):
     were never retried successfully
 
 Usage:
-  python audit_portfolio.py                  # Audit all projects under ~/Projects
+  python audit_portfolio.py                  # Audit all projects under the configured root (default ~/Projects)
   python audit_portfolio.py --project getpaid  # Single project
   python audit_portfolio.py --json out.json    # Machine-readable output
 """
@@ -26,7 +26,6 @@ from lit_util import companion_path  # dot-safe sidecar naming
 import lit_util
 lit_util.utf8_stdout()
 
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH = Path(__file__).parent / "projects.json"
 
 
@@ -315,7 +314,7 @@ def main():
         for doi, files in deep["doi_to_files"].items():
             for fn in files:
                 portfolio_doi.setdefault(doi, []).append((name, fn))
-        proj_root = PROJECTS_ROOT / name.split("/")[0]
+        proj_root = lit_util.PROJECTS_ROOT / name.split("/")[0]
         q = audit_queue(proj_root)
         out.append({"audit": a, "queue": q})
         print(fmt_report(a, q))

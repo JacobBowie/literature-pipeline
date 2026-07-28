@@ -28,8 +28,8 @@ lit_util.utf8_stdout()
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"
-DB_PATH = Path(os.path.expanduser("~/Projects/_references/portfolio.duckdb"))
-LOG_PATH = Path(os.path.expanduser("~/Projects/_references/convergence_log.csv"))
+DB_PATH = lit_util.PROJECTS_ROOT / "_references" / "portfolio.duckdb"
+LOG_PATH = lit_util.PROJECTS_ROOT / "_references" / "convergence_log.csv"
 
 
 def log_iteration(project: str, iter_num: int, n_before: int, n_after: int, growth_pct: float):

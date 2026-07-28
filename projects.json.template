@@ -1,6 +1,7 @@
 {
-  "_comment": "Central registry for projects using the literature pipeline. Copy this file to projects.json and edit. Two tiers: Tier 1 = full systematic-review workflow (discovery+fetch+extract+report). Tier 2 = library-only (just PDFs + sidecars + .ris). Promotion 2 to 1 is opt-in; never automatic.",
+  "_comment": "Central registry for projects using the literature pipeline. Copy this file to projects.json and edit. Two tiers: Tier 1 = full systematic-review workflow (discovery+fetch+extract+report). Tier 2 = library-only (just PDFs + sidecars + .ris). Promotion 2 to 1 is opt-in; never automatic. Set the OPTIONAL top-level 'root' key to the directory holding all your projects and the shared _references/ index (default '~/Projects'): '~' expands to HOME, an absolute path is used verbatim, a bare-relative path is anchored to HOME. Config-only -- there is NO environment variable for it (unlike LITPIPE_EMAIL). Each project key below resolves to <root>/<key> and its lib_dir to <root>/<key>/<lib_dir>.",
   "_schema": {
+    "root":     "OPTIONAL top-level key (default '~/Projects'): base directory holding every registered project + the shared _references/ index. '~' expands to HOME; an absolute path is used verbatim; a bare-relative path is anchored to HOME. Config-only, no env var.",
     "tier":     "1 (full pipeline) or 2 (library-only)",
     "lib_dir":  "PDF/sidecar/.ris directory, relative to project root",
     "data_dir": "Tier 1 only: build-artifact directory (discovery/triage/tables/text)",
@@ -9,6 +10,7 @@
     "active":   "false to skip in audits without removing from registry"
   },
 
+  "root": "~/Projects",
   "projects": {
     "my_systematic_review": {
       "tier": 1,

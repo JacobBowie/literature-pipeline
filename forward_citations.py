@@ -33,7 +33,6 @@ import lit_util
 
 lit_util.utf8_stdout()
 
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH   = Path(__file__).parent / "projects.json"
 
 EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
@@ -118,7 +117,7 @@ def resolve_project(name: str):
     if name not in cfg:
         print(f"[ERR] '{name}' not in projects.json", file=sys.stderr); sys.exit(2)
     p = cfg[name]
-    base = PROJECTS_ROOT / (p.get("parent") or name)
+    base = lit_util.PROJECTS_ROOT / (p.get("parent") or name)
     return base / p["lib_dir"]
 
 

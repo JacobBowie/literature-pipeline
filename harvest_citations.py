@@ -42,7 +42,7 @@ UA     = f"GETPAID-harvest/1.0 (mailto:{EMAIL})"
 IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 
 DEFAULT_SOURCE = os.path.expanduser("~/Downloads")
-DEFAULT_OUT    = os.path.expanduser("~/Projects/_references/citations")
+DEFAULT_OUT    = str(lit_util.PROJECTS_ROOT / "_references" / "citations")
 
 EXTS = {".ris", ".enw", ".nbib"}
 

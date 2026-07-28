@@ -28,7 +28,7 @@ lit_util.utf8_stdout()
 EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA    = f"GETPAID-recs/1.0 (mailto:{EMAIL})"
 S2    = "https://api.semanticscholar.org/recommendations/v1"
-DB_PATH = os.path.expanduser("~/Projects/_references/portfolio.duckdb")
+DB_PATH = str(lit_util.PROJECTS_ROOT / "_references" / "portfolio.duckdb")
 
 
 class S2Error(Exception):

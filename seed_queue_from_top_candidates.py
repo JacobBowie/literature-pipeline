@@ -26,8 +26,7 @@ lit_util.utf8_stdout()
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"
-DB_PATH = Path(os.path.expanduser("~/Projects/_references/portfolio.duckdb"))
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
+DB_PATH = lit_util.PROJECTS_ROOT / "_references" / "portfolio.duckdb"
 
 
 def main():
@@ -54,7 +53,7 @@ def main():
         destination += "/"
 
     out_path = Path(args.output) if args.output else (
-        PROJECTS_ROOT / args.project / "lit_pull_queue.draft.csv")
+        lit_util.PROJECTS_ROOT / args.project / "lit_pull_queue.draft.csv")
 
     # RC11: `via_projects` is a comma-joined STRING_AGG of source_project names.
     # The old `LIKE '%project%'` substring match leaked subproject candidates

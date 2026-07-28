@@ -47,7 +47,6 @@ from audit_filenames import safe_ascii
 EMAIL = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA = f"GETPAID-doi-fill/1.0 (mailto:{EMAIL})"
 CROSSREF = "https://api.crossref.org/works"
-PROJECTS_ROOT = Path(os.path.expanduser("~/Projects"))
 CONFIG_PATH = Path(__file__).parent / "projects.json"
 
 CANONICAL_RE = re.compile(r"^(\d{4})_([A-Z][A-Za-z\-']+)_([A-Z][A-Za-z0-9\-]+)\.pdf$")
@@ -351,7 +350,7 @@ def discover_projects(arg_project, arg_all):
         if not p.get("active", True):
             continue
         parent = p.get("parent")
-        root = PROJECTS_ROOT / (parent if parent else name)
+        root = lit_util.PROJECTS_ROOT / (parent if parent else name)
         lib = root / p["lib_dir"]
         if not lib.is_dir():
             continue
