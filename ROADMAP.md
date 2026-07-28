@@ -1,7 +1,7 @@
 # Literature Pipeline — Roadmap
 
-**Last updated**: 2026-05-06
-**Status**: pipeline core stable; bridge script + skill + SOP added 2026-05-06; RAG + MCP layers planned, not built; Stage 0 (external topic search) added as new pre-Stage-A candidate 2026-05-06.
+**Last updated**: 2026-07-28 (status refreshed; the forward plan A–D below is unchanged)
+**Status**: pipeline core stable; bridge script + skill + SOP live; RAG + MCP layers (Stages A–D) planned, not built. Stage 0 (external topic search) was **delivered via Consensus MCP** (2026-05-16), not the pubmed/s2 scripts sketched below. For live index/library counts see [CURRENT_STATE.md](CURRENT_STATE.md) — the totals in this file are a 2026-05-04 snapshot.
 
 This roadmap is the persistent plan that survives across Claude Code sessions. The pipeline as-of 2026-05-04 (puller, citation-walker, DuckDB index) is described in [README.md](README.md). This file captures what's *planned* on top of that.
 
@@ -18,7 +18,7 @@ This roadmap is the persistent plan that survives across Claude Code sessions. T
 | Project registry | `projects.json` (Tier 1 / Tier 2 layouts) | **stable** |
 | Citation harvest from EndNote downloads | `harvest_citations.py` | **stable** |
 
-Portfolio totals (2026-05-04): 368 papers indexed, 17,527 unique candidate DOIs, 21,104 citation edges.
+Portfolio totals (2026-05-04 snapshot — see [CURRENT_STATE.md](CURRENT_STATE.md) for live counts): 368 papers indexed, 17,527 unique candidate DOIs, 21,104 citation edges.
 
 ---
 
@@ -26,7 +26,9 @@ Portfolio totals (2026-05-04): 368 papers indexed, 17,527 unique candidate DOIs,
 
 Each stage produces standalone value. None require finishing later stages to be useful.
 
-### Stage 0 — External topic-search wrapper (open-world front-end) 🆕 added 2026-05-06
+### Stage 0 — External topic-search wrapper (open-world front-end) — ✅ DELIVERED via Consensus MCP (2026-05-16)
+
+> **✅ Delivered a different way (2026-05-16):** the open-world front-end is live via `mcp__claude_ai_Consensus__search` (see the SOP's open-world variant). The `pubmed_search.py` / `s2_topic_search.py` scripts sketched below were **not built** — Consensus covers topic→candidates. Kept for history, and in case a keyless S2 topic-search is ever wanted.
 
 **Goal**: enable topic-led queries ("find evidence for X across the broader literature") without requiring the topic to be in the existing seed neighborhood. Today the pipeline is closed-world snowball — it walks out from existing seeds. Stage 0 adds the front-end discovery from external indexes.
 
@@ -232,9 +234,9 @@ Cross-cutting: Python production patterns, DuckDB consistency with ATHENA HR pip
 
 ---
 
-## Quick wins available *before* committing to A-D
+## Quick wins available *before* committing to A-D — ✅ ALL SHIPPED (2026-05-04 → 05-05)
 
-These don't require RAG/MCP planning — they improve the existing pipeline today:
+Kept for history — all four landed: (1) `enrich_abstracts.py` (CrossRef abstract enrichment), (2) `enrich_recommendations.py` (S2 recommendations), (3) the schema-v2 `paper_metadata` + `paper_locations` split (`index_portfolio.py`), (4) `snowball.py --until-convergence`. Original notes:
 
 1. **CrossRef abstract enrichment for candidates**: call `/works/{doi}` for the 17k candidates, store `abstract` column. Without abstracts, embeddings (Stage A) are titles-only — usable but weaker. ~2-3 hrs of polite-rate API time.
 2. **S2 `/paper/{id}/recommendations` enrichment**: free signal. Returns semantically-similar papers per S2's internal embeddings. Adds `s2_similarity_score` column. Bonus signal for candidate ranking.

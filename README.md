@@ -27,17 +27,28 @@ uv sync
 
 This creates a project-local `.venv/` from `uv.lock`. Prefix the commands below with `uv run` (e.g. `uv run python sweep.py --help`), or activate the venv once per shell (`source .venv/bin/activate`, or `.venv\Scripts\activate` on Windows).
 
-Runtime deps: `requests`, `duckdb`, `pymupdf` (imported as `fitz`), `pdfplumber`. The `vendor/mathml_to_latex/` package is bundled, not installed.
+Runtime deps: `requests`, `duckdb`, `pandas`, `pymupdf` (imported as `fitz`), `pdfplumber` (see `pyproject.toml` for the authoritative pinned list). The `vendor/mathml_to_latex/` package is bundled, not installed.
 
 ## Configuration
 
 **Set your contact email first.** Unpaywall, CrossRef, Europe PMC, NCBI, and Semantic Scholar all require a `mailto:` in the User-Agent under their ToS. If `LITPIPE_EMAIL` is unset, the pipeline falls back to the maintainer's inbox and emits a warning on startup — you don't want that.
 
 ```bash
-export LITPIPE_EMAIL="you@example.org"
+export LITPIPE_EMAIL="you@example.org"            # bash / Git Bash
+```
+```powershell
+$env:LITPIPE_EMAIL = "you@example.org"            # PowerShell (Windows)
 ```
 
 Tesseract OCR is optional and only used by `build_pdf_library.py`. Override `TESSDATA_PREFIX` if your installation isn't at the default location.
+
+**Semantic Scholar API key (recommended for snowball).** `forward_citations.py` and `enrich_recommendations.py` send `S2_API_KEY` as an `x-api-key` header when it's set. Without a key you share the unauthenticated Semantic Scholar pool and hit frequent 429 throttling — the main cause of slow, flaky snowball runs. [Request a free key](https://www.semanticscholar.org/product/api#api-key), then:
+
+```bash
+export S2_API_KEY="…"                             # bash;  PowerShell: $env:S2_API_KEY = "…"
+```
+
+**Where your projects live (`root`).** The registry resolves every project under one base directory. Set the optional top-level `"root"` key in `projects.json` to point it anywhere; it defaults to `~/Projects`. `~` expands to your home directory, an absolute path is used verbatim, and a bare-relative path is anchored to HOME. This is **config-only — there is no environment variable for it** (unlike `LITPIPE_EMAIL`). A project keyed `my_review` then resolves to `<root>/my_review`, and its PDFs land under `<root>/my_review/<lib_dir>`.
 
 ## Compatibility
 
@@ -61,27 +72,28 @@ cd literature-pipeline
 uv sync
 export LITPIPE_EMAIL="you@example.org"
 
-# 1. Set up the project registry from the template
+# 1. Create the registry from the template, then register ONE project.
 cp projects.json.template projects.json
-# Edit projects.json — one entry pointing at any directory you want PDFs to land in.
-# Tier 2 (library-only) is the simplest entry point; see schema in the file.
+# Edit projects.json:
+#   - leave "root" at "~/Projects" (or point it wherever you keep projects)
+#   - add a Tier-2 entry keyed "my_review": {"tier": 2, "lib_dir": "literature", "active": true}
+# sweep processes only ACTIVE, REGISTERED projects — an unregistered directory is invisible.
 
-# 2. Make a project directory and a queue
-mkdir -p ~/my_review/literature
-cd ~/my_review
-cat > lit_pull_queue.csv <<'EOF'
+# 2. Create the project UNDER <root> and drop a queue at its ROOT (not nested).
+mkdir -p ~/Projects/my_review/literature
+cat > ~/Projects/my_review/lit_pull_queue.csv <<'EOF'
 doi,title,authors,year,destination,notes
 10.1152/jappl.1972.32.6.812,Predicting rectal temperature,Givoni B; Goldman R,1972,literature/,baseline
 EOF
 
-# 3. Dry-run first — confirms the queue is found and the destination is sane
+# 3. Dry-run first — confirms the queue is found and the destination is sane.
 uv run --project /path/to/literature-pipeline python /path/to/literature-pipeline/sweep.py --project my_review --dry-run
 
-# 4. Pull the PDF
+# 4. Pull the PDF. --project my_review resolves to <root>/my_review (default ~/Projects/my_review).
 uv run --project /path/to/literature-pipeline python /path/to/literature-pipeline/sweep.py --project my_review
-# → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.pdf
-# → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.fulltext.json
-# → ~/my_review/literature/1972_Givoni_PredictingRectalTemperature.ris
+# → ~/Projects/my_review/literature/1972_Givoni_PredictingRectalTemperature.pdf
+# → ~/Projects/my_review/literature/1972_Givoni_PredictingRectalTemperature.fulltext.json
+# → ~/Projects/my_review/literature/1972_Givoni_PredictingRectalTemperature.ris
 ```
 
 The same project registry feeds every downstream tool (`snowball.py` for citation expansion, `audit_filenames.py` for canonical renames, `index_portfolio.py` for the DuckDB index).
@@ -92,7 +104,11 @@ The same project registry feeds every downstream tool (`snowball.py` for citatio
 Projects/_tools/literature_pipeline/
 ├── README.md
 ├── ROADMAP.md                  # forward plan (Stage A → MCP)
-├── projects.json               # registry: which projects use the pipeline (Tier 1 / Tier 2)
+├── projects.json               # registry: which projects use the pipeline (Tier 1 / Tier 2) + top-level "root"
+│
+│   ── SHARED CORE (the consolidation hub) ──
+├── lit_util.py                 # canonical helpers: projects.json loader + PROJECTS_ROOT resolution, DOI/atomic-write/ASCII
+├── lit_net.py                  # shared HTTP GET with 429/5xx retry + backoff
 │
 │   ── FETCH (the puller chain) ──
 ├── sweep.py                    # walk <project>/lit_pull_queue.csv → run all 3 stages
@@ -108,10 +124,14 @@ Projects/_tools/literature_pipeline/
 ├── reverse_citations.py        # parse References sections (sidecar → text dump → PDF fallback)
 ├── enrich_recommendations.py   # S2 /paper/{id}/recommendations (semantic neighbors)
 ├── enrich_abstracts.py         # CrossRef abstract backfill into paper_metadata
+├── fill_missing_dois.py        # backfill missing DOIs on library PDFs (CrossRef title search)
 │
 │   ── ORCHESTRATION ──
 ├── snowball.py                 # forward+reverse+recs+abstracts+index, single command
 ├── seed_queue_from_top_candidates.py  # bridge: top_candidates → draft lit_pull_queue.csv (heuristic-filtered, manual review)
+├── run_daily.py                # daily automation: seed → stage → sweep → migrate over active projects (+ --with-snowball weekly)
+├── build_priority_paywall_queue.py    # rank residual paywalled DOIs into a priority pull queue
+├── paywall_pull.py             # drive a manual institutional-access pull session over that queue (--open/--finish, EZproxy-routed)
 │
 │   ── INDEX ──
 ├── index_portfolio.py          # walks every project → DuckDB at _references/portfolio.duckdb
@@ -142,10 +162,10 @@ Projects/_tools/literature_pipeline/
 
 The pipeline supports two tiers:
 
-- **Tier 1 — full systematic-review build** (discovery → fetch → tables → text dumps → reports). Currently: `getpaid` only.
-- **Tier 2 — library-only** (PDFs + sidecars + .ris; no discovery / build artifacts). Currently: `Physiological_Data`, `thermalphys`, `SOC`, `Genova_Diagnostics`, `Yitts`.
+- **Tier 1 — full systematic-review build** (discovery → fetch → tables → text dumps → reports).
+- **Tier 2 — library-only** (PDFs + sidecars + .ris; no discovery / build artifacts).
 
-Add a project to `projects.json` and tools become layout-aware via `--project NAME`. Promotion 2 → 1 is opt-in, never automatic.
+Add a project to `projects.json` and tools become layout-aware via `--project NAME`. Every project resolves under the top-level `root` (default `~/Projects`; see [Configuration](#configuration)). Promotion 2 → 1 is opt-in, never automatic. (The live `projects.json` is gitignored, so specific project names aren't listed here.)
 
 ## How downstream projects use it
 
@@ -168,7 +188,7 @@ Every tool takes `--base-dir`, `--lib-dir`, etc. — defaults assume the layout 
 
 ### Common commands
 
-All commands below assume you're inside the cloned `literature-pipeline/` directory. `$PROJECT` is whichever project name you registered in `projects.json`.
+All commands below assume the pipeline's uv venv is active (or prefix each with `uv run`; see [Install](#install)). `$PROJECT` is whichever project name you registered in `projects.json`.
 
 ```bash
 # Audit the whole portfolio:
@@ -200,17 +220,19 @@ python seed_queue_from_top_candidates.py --project Physiological_Data
 # See _portfolio/sop/literature_session.md for the full workflow.
 
 # Library hygiene:
-python audit_filenames.py --lib-dir <path>                # CrossRef-canonical rename pass (cascades PDF + .ris + sidecar)
-python audit_filenames.py --lib-dir <path> \
+python audit_filenames.py --lib-dir <path>                # DRY RUN: preview CrossRef-canonical renames (cascades PDF + .ris + sidecar)
+python audit_filenames.py --lib-dir <path> --execute      # apply the renames (dry-run is the default without --execute)
+python audit_filenames.py --lib-dir <path> --execute \
        --queue-history '<project>/lit_pull_queue.*.processed*.csv'  # fall back to queue history for un-OCR'd scans (processed*.csv also catches same-day re-sweep .processed.2.csv)
-python backfill_ris.py --lib-dir <path>                   # write .ris next to existing PDFs
+python backfill_ris.py --lib-dir <path>                   # DRY RUN: preview .ris to write next to existing PDFs
+python backfill_ris.py --lib-dir <path> --commit          # actually write the .ris sidecars
 python backfill_fulltext.py --lib-dir <path>              # retro-fetch JATS sidecars (Tier 1)
 python build_pdf_library.py --base-dir <project>          # text dumps + metadata + library_report (Tier 1)
 ```
 
 ## The lit_pull_queue contract
 
-`sweep.py` looks for `<project_root>/lit_pull_queue.csv` (where `<project_root>` is the parent directory of the `lib_dir` registered in `projects.json`). Append rows when you want PDFs pulled; the next sweep picks them up.
+`sweep.py` looks for `lit_pull_queue.csv` at each **active, registered** project's root — `<root>/<project>` (default `~/Projects/<project>`). It sweeps only projects listed and `active` in `projects.json`; a queue in an unregistered project, or nested inside a subfolder, is invisible. Append rows when you want PDFs pulled; the next sweep picks them up.
 
 ```bash
 # Add a paper to the queue
@@ -242,7 +264,7 @@ doi,title,authors,year,destination,notes
 - `destination` (required) — relative path from `<project>/` where the PDF should land
 - `notes` — free-text reason or context
 
-All rows in one queue should share a `destination`. If you need different destinations, write multiple queues (one per destination) — but realistically a project usually has one `docs/literature/` directory.
+All rows in one queue should share a `destination`. If you need different destinations, write multiple queues (one per destination) — but realistically a project usually has one `docs/literature/` directory. Placement is driven by this CSV `destination` (relative to the project root), **not** the registry `lib_dir` — keep the two equal to avoid surprises.
 
 ## What gets pulled
 
@@ -257,7 +279,7 @@ Each successful fetch also emits a `.ris` sidecar via `ris_emit.py` (CrossRef-dr
 
 ## DuckDB portfolio index
 
-The single source of truth for "what we have" and "what we should fetch next" lives at `~/Projects/_references/portfolio.duckdb`. Schema (v2, 2026-05-04):
+The single source of truth for "what we have" and "what we should fetch next" lives at `<root>/_references/portfolio.duckdb` (default `~/Projects/_references/…`; `<root>` follows the `root` key in `projects.json`). Schema (v2, 2026-05-04):
 
 | Table | Purpose |
 |---|---|
@@ -291,7 +313,7 @@ SELECT project, COUNT(*) FROM paper_locations GROUP BY project;
 
 ## EndNote citation harvest
 
-`harvest_citations.py` consolidates a backlog of `.ris` / `.enw` / `.nbib` files (e.g., from `~/Downloads/`) into a single canonical `.ris` library at `~/Projects/_references/citations/`. Used 2026-05-04 to import 132 papers from Downloads into a single EndNote-ingestible folder.
+`harvest_citations.py` consolidates a backlog of `.ris` / `.enw` / `.nbib` files (e.g., from `~/Downloads/`) into a single canonical `.ris` library at `<root>/_references/citations/` (default `~/Projects/_references/…`). Used 2026-05-04 to import 132 papers from Downloads into a single EndNote-ingestible folder.
 
 ### Figure fetch + Claude vision workflow
 
@@ -327,8 +349,14 @@ The pipeline is **anonymous by design**. In a typical biomedical corpus, expect 
 **For those papers, the legitimate workflow is:**
 
 1. Open the DOI in a browser session authenticated to your institutional library (EZproxy, Shibboleth, OpenAthens — whatever your institution provides). Google Scholar with library link-resolver enabled works well here.
-2. Save the PDF into the project's `<lib_dir>/` with any filename — `audit_filenames.py` will normalize it on the next sweep.
-3. Run `python backfill_ris.py --lib-dir <path>` to attach CrossRef-canonical metadata + `.ris` sidecars.
+2. Save the PDF into the project's `<lib_dir>/` with any filename.
+3. Normalize the filename and attach metadata — a sweep does **not** do this for you:
+   ```bash
+   python audit_filenames.py --lib-dir <path> --execute   # canonical rename (PDF + .ris + sidecar + figures)
+   python backfill_ris.py    --lib-dir <path> --commit     # attach CrossRef-canonical .ris sidecars
+   ```
+
+**Semi-automated pull session.** For a backlog of paywalled DOIs rather than a one-off, `build_priority_paywall_queue.py` builds a citation-ranked, DOI-deduped queue and `paywall_pull.py` drives the session: `--open N` opens the next batch of still-missing DOIs in your authenticated browser (EZproxy-routed), tells you which project `<lib_dir>` to save each into, and `--finish` runs `backfill_ris` + `index_portfolio` and reports what newly landed. The manual 3-step above is the fallback for one or two papers.
 
 This isn't a pipeline limitation we're going to fix — it's a fundamental property of "no auth, no proxy" tooling. Tried adding an OpenAlex Tier 2 to chase green-OA repo mirrors against this exact residual (68 DOIs); empirically zero net new downloads. The papers that exist outside the open-access ecosystem cannot be reached by any anonymous tool.
 
