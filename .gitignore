@@ -46,3 +46,5 @@ POLISH_PUNCHLIST.md
 notes/
 # Research scratch (heavy absolute-path + project-name leaks; not portfolio content)
 eval_pdf_abstract_heuristic_2026-05-22/
+# Harvested third-party API docs (vendor copyright; local reference only)
+reference/
