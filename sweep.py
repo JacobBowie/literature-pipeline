@@ -81,7 +81,7 @@ def normalize_queue_for_pipeline(queue_csv, out_csv):
             w.writerow(r)
 
 
-def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None):
+def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_preprint=False):
     """Run unpaywall_v2 → pmc_fetch against this queue. Returns dict of results."""
     dest_rel = first_destination(queue_csv)
     if not dest_rel:
@@ -94,7 +94,13 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None):
     except ValueError:
         print(f"  ERR destination escapes project root: {dest_rel!r} in {queue_csv}", file=sys.stderr)
         return None
-    lib_dir.mkdir(parents=True, exist_ok=True)
+    # A dry run must not touch the filesystem: mkdir here used to fire BEFORE the
+    # `if dry_run` guard below, so `--dry-run` on a queue with a wrong `destination`
+    # silently created the very shadow library the dry run was meant to warn about
+    # (2026-08-19, VAP subprojects). Both the SOP and README call --dry-run safe to
+    # run unattended -- keep it that way.
+    if not dry_run:
+        lib_dir.mkdir(parents=True, exist_ok=True)
     # D4b: honor an explicit run date (run_daily passes its start date) so this run's report
     # artifacts and migrate's --date stay in lockstep even if the sweep crosses midnight.
     today = run_date or datetime.date.today().isoformat()
@@ -105,13 +111,16 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None):
     residual_csv = queue_csv.with_name(f"lit_pull_queue.{today}.residual.csv")
     summary_csv = queue_csv.with_name(f"lit_pull_queue.{today}.report.csv")
 
+    if dry_run:
+        # Count from the source queue; writing norm_csv is a side effect too.
+        with open(queue_csv, encoding="utf-8") as f:
+            n_rows = sum(1 for _ in csv.DictReader(f))
+        print(f"  DRY would process {n_rows} rows -> {lib_dir}")
+        return {"dry": True, "rows": n_rows, "destination": str(lib_dir)}
+
     normalize_queue_for_pipeline(queue_csv, norm_csv)
     with open(norm_csv, encoding="utf-8") as f:
         n_rows = sum(1 for _ in csv.DictReader(f))
-
-    if dry_run:
-        print(f"  DRY would process {n_rows} rows -> {lib_dir}")
-        return {"dry": True, "rows": n_rows, "destination": str(lib_dir)}
 
     py = sys.executable
     stages_ok = True   # D1: flips False on a non-fatal stage failure (PMC/preprint) so the
@@ -180,7 +189,17 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None):
     with open(norm_csv, encoding="utf-8") as fin:
         residual_rows = [r for r in csv.DictReader(fin)
                          if r.get("doi", "").strip().lower() not in got_dois]
-    if residual_rows:
+    if residual_rows and skip_preprint:
+        # Still WRITE the residual csv, so the rows stay visible to a later targeted pass,
+        # and still leave stages_ok False, so D1 keeps the queue for a re-sweep. Skipping a
+        # stage must not be mistaken for that stage finding nothing.
+        with open(residual_csv, "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=residual_rows[0].keys())
+            w.writeheader(); w.writerows(residual_rows)
+        print(f"  [SKIP] preprint stage skipped by --skip-preprint; "
+              f"{len(residual_rows)} residual row(s) left in {residual_csv.name}")
+        stages_ok = False
+    elif residual_rows:
         with open(residual_csv, "w", encoding="utf-8", newline="") as f:
             w = csv.DictWriter(f, fieldnames=residual_rows[0].keys())
             w.writeheader(); w.writerows(residual_rows)
@@ -295,6 +314,15 @@ def main():
     ap.add_argument("--project", help="Process only this project (default: all)")
     ap.add_argument("--dry-run", action="store_true",
                     help="Show the queues that would be processed without fetching anything.")
+    ap.add_argument("--skip-preprint", action="store_true",
+                    help="Skip stage 3 (preprint_fetch). Default OFF, so behaviour is "
+                         "unchanged unless asked for. Use when the queue is older "
+                         "literature that preprint servers will not hold: on a 2026-09-14 "
+                         "VAP/KINS4500_ExPhys sweep the stage returned 0 hits in 28 rows at "
+                         "~2 rows/min, mostly arXiv/OSF read timeouts, then blocked "
+                         "indefinitely on a socket that never tripped its 20s read timeout. "
+                         "Skipping leaves those rows in the residual set for a later pass; "
+                         "the queue is still NOT marked processed, per D1.")
     ap.add_argument("--date", default=None,
                     help="YYYY-MM-DD to date this run's report artifacts (default: today). "
                          "run_daily passes its run date so sweep + migrate stay in lockstep.")
@@ -324,7 +352,8 @@ def main():
 
     for key, proj, q in queues:
         print(f"\n=== {key} ===")
-        result = run_pipeline(proj, q, dry_run=args.dry_run, run_date=args.date)
+        result = run_pipeline(proj, q, dry_run=args.dry_run, run_date=args.date,
+                              skip_preprint=args.skip_preprint)
         if not result:
             continue
         if result.get("dry"):
