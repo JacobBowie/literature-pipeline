@@ -137,6 +137,14 @@ def run_ids_in_use(dirs):
     return used
 
 
+def run_id_dirs(project_dir, art_dir):
+    """Where a run id may already be in use: the project, this run's artifact dir, and every direct
+    subdirectory of the project (a relative --artifact-dir of an earlier run)."""
+    pd = Path(project_dir)
+    subs = [p for p in pd.iterdir() if p.is_dir()] if pd.is_dir() else []
+    return {pd, Path(art_dir), *subs}
+
+
 def choose_run_id(dirs, date):
     """`date` when no artifact carries it yet, else the first free `date.N` (N >= 2)."""
     used = run_ids_in_use(dirs)
@@ -436,8 +444,8 @@ def prepare_rows(norm_csv, lib_dir, holdings=None):
     to_fetch, settled, meta = [], [], Counter()
     for r in rows:
         raw = (r.get("doi") or "").strip()
-        doi = lit_util.normalize_doi(raw)
-        if not doi or raw.upper().startswith("NO_DOI") or not lit_util.is_valid_doi(doi):
+        doi = None if raw.upper().startswith("NO_DOI") else _doi.normalise(raw)
+        if not doi or not lit_util.is_valid_doi(doi):
             settled.append((r, "INVALID_DOI", f"invalid or placeholder DOI {raw!r}", ""))
             continue
         r["doi"] = doi
@@ -565,6 +573,7 @@ def classify(verdicts, attempts=1):
 
 
 from litpipe.ledger import redact as _ledger_redact   # the one implementation (dispatch 0.5)
+from litpipe import doi as _doi
 
 
 def _redact(text):
@@ -648,7 +657,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
     today = run_date or datetime.date.today().isoformat()
     art_dir = _artifact_dir(project_dir, artifact_dir)
     if run_id is None:
-        run_id = choose_run_id({project_dir, art_dir}, today)
+        run_id = choose_run_id(run_id_dirs(project_dir, art_dir), today)
     names = {s: art_dir / artifact_name(tag, run_id, s) for s in ARTIFACT_STAGES}
 
     if dry_run:
@@ -658,8 +667,8 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
         # network call (no metadata fill, no hold map).
         _, rows = read_queue(queue_csv)
         bad = sum(1 for r in rows
-                  if not lit_util.is_valid_doi(lit_util.normalize_doi((r.get("doi") or "").strip()))
-                  or (r.get("doi") or "").strip().upper().startswith("NO_DOI"))
+                  if (r.get("doi") or "").strip().upper().startswith("NO_DOI")
+                  or _doi.normalise((r.get("doi") or "").strip()) is None)
         blank = sum(1 for r in rows if not (r.get("title") or "").strip()
                     or not (r.get("authors") or "").strip())
         print(f"  DRY would process {len(rows)} rows -> {lib_dir} (run {run_id}; "
@@ -1074,7 +1083,7 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
             out["exit_code"] = EXIT_USAGE
             return out
         art_dir = _artifact_dir(proj, artifact_dir)
-        run_id = choose_run_id({Path(proj), art_dir}, today)
+        run_id = choose_run_id(run_id_dirs(proj, art_dir), today)
         print(f"[sweep] run_id={run_id} project={key}")
         if not dry_run and not hold_loaded:
             holdings, why = _load_holdings(registry)

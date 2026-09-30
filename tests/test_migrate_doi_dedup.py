@@ -48,30 +48,30 @@ def test_run_does_not_reappend_a_doi_listed_in_another_form(env, fixture):
     (env.proj / m.ILL_NAME).write_text("# Manual Pull Queue\n\n" + body, encoding="utf-8")
     listed = [holdings.extract_dois(l)[0] for l in body.splitlines()]
     rows = [row(("https://doi.org/" + d.upper()) if i % 2 else d.upper()) for i, d in enumerate(listed)]
-    chain(env.proj, RUN, rows + [row("10.1234/genuinely-new")])
+    chain(env.proj, RUN, rows + [row("10.1234/genuinely-new9")])
     route(env)
     after = (env.proj / m.ILL_NAME).read_text(encoding="utf-8")
     assert after.startswith("# Manual Pull Queue\n\n" + body)          # curated lines untouched
     added = after[len("# Manual Pull Queue\n\n" + body):]
-    assert holdings.extract_dois(added) == ["10.1234/genuinely-new"]
+    assert holdings.extract_dois(added) == ["10.1234/genuinely-new9"]
 
 
 def test_same_day_second_sweep_keeps_new_doi(env):
     """The 2026-06-23 bug, through the real run(): a second run the same day with new residuals."""
     (env.proj / m.ILL_NAME).write_text(
         "# Manual Pull Queue\n\n## Sweep residuals 2026-09-30: 1 closed (auto-migrated)\n\n"
-        "- [ ] **Old paper** (2024) — DOI `10.1234/already` — oa_status=closed\n", encoding="utf-8")
-    chain(env.proj, "2026-09-30.2", [row("10.1234/already"), row("10.1234/new")])
+        "- [ ] **Old paper** (2024) — DOI `10.1234/already9` — oa_status=closed\n", encoding="utf-8")
+    chain(env.proj, "2026-09-30.2", [row("10.1234/already9"), row("10.1234/new9")])
     route(env, run_id="2026-09-30.2")
     body = text(env.proj / m.ILL_NAME)
-    assert body.count("10.1234/already") == 1 and body.count("10.1234/new") == 1
+    assert body.count("10.1234/already9") == 1 and body.count("10.1234/new9") == 1
 
 
 def test_a_doi_in_two_chains_of_one_run_is_listed_once(env):
-    chain(env.proj, RUN, [row("10.1234/twice")])
-    chain(env.proj, RUN, [row("10.1234/TWICE")], tag="ch15")
+    chain(env.proj, RUN, [row("10.1234/twice9")])
+    chain(env.proj, RUN, [row("10.1234/TWICE9")], tag="ch15")
     route(env)
-    assert holdings.extract_dois(text(env.proj / m.ILL_NAME)) == ["10.1234/twice"]
+    assert holdings.extract_dois(text(env.proj / m.ILL_NAME)) == ["10.1234/twice9"]
 
 
 def test_oa_blocked_worklist_dedups_against_the_vap_form(env):

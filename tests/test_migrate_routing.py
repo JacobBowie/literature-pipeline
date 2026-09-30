@@ -126,7 +126,7 @@ def text(path):
 def acceptance_rows(sidecar_flag=True):
     r403 = row("10.1234/r403", u={"oa_status": "OA", "attempts": "publisher/publishedVersion/HTTP_403",
                                   "error": "HTTP_403"})
-    rdns = row("10.1234/rdns", u={"oa_status": "", "error": DNS_FORMS["plain"]})
+    rdns = row("10.1234/rdns9", u={"oa_status": "", "error": DNS_FORMS["plain"]})
     r500 = row(SIDECAR_DOI, title="Alveolar epithelial type II cell", year="2001",
                p={"pmcid": "PMC59567", "attempts": "europepmc/HTTP_500", "error": "HTTP_500",
                   "sidecar": str(sidecar_flag), "sidecar_status": "OK" if sidecar_flag else "HTTP_500"})
@@ -144,16 +144,16 @@ def test_acceptance_403_dns_and_500_with_a_sidecar(env):
     res = route(env)
     assert res["counts"] == {"OA_BLOCKED": 1, "TRANSIENT": 1, "TEXT_ONLY": 1}
     classes = {d: r["residual_class"] for d, r in routing(env).items()}
-    assert classes == {"10.1234/r403": "OA_BLOCKED", "10.1234/rdns": "TRANSIENT", SIDECAR_DOI: "TEXT_ONLY"}
+    assert classes == {"10.1234/r403": "OA_BLOCKED", "10.1234/rdns9": "TRANSIENT", SIDECAR_DOI: "TEXT_ONLY"}
     assert not (env.proj / mig.ILL_NAME).exists()
     oa = text(env.proj / mig.OA_BLOCKED_NAME)
     assert holdings.extract_dois(oa) == ["10.1234/r403"]
     assert "cause `HTTP_403` via `unpaywall:publisher`" in oa
     rl = {r["doi"]: r for r in retry_rows(env)}
-    assert set(rl) == {"10.1234/r403", "10.1234/rdns"}
+    assert set(rl) == {"10.1234/r403", "10.1234/rdns9"}
     assert rl["10.1234/r403"]["residual_class"] == "OA_BLOCKED" and rl["10.1234/r403"]["not_before"] == "2026-10-03"
-    assert rl["10.1234/rdns"]["residual_class"] == "TRANSIENT" and rl["10.1234/rdns"]["not_before"] == "2026-10-01"
-    assert "TRANSPORT" in rl["10.1234/rdns"]["reason"]
+    assert rl["10.1234/rdns9"]["residual_class"] == "TRANSIENT" and rl["10.1234/rdns9"]["not_before"] == "2026-10-01"
+    assert "TRANSPORT" in rl["10.1234/rdns9"]["reason"]
 
 
 def test_acceptance_500_without_a_sidecar_is_terminal_closed(env):
@@ -185,9 +185,9 @@ def test_sidecar_found_by_the_holdings_map_under_another_stem(env):
 def test_no_written_or_printed_line_carries_an_email(env, capsys, form):
     """I20: the Unpaywall exception text carries `email=`; no report, list or log line may."""
     rows = [
-        row("10.1234/dns", u={"oa_status": "", "error": DNS_FORMS[form]}),
-        row("10.1234/closed", u={"error": DNS_FORMS[form].replace("NameResolutionError", "SSLError")}),
-        row("10.1234/sc", p={"pmcid": "PMC1", "attempts": "europepmc/HTTP_404", "error": "HTTP_404",
+        row("10.1234/dns9", u={"oa_status": "", "error": DNS_FORMS[form]}),
+        row("10.1234/closed9", u={"error": DNS_FORMS[form].replace("NameResolutionError", "SSLError")}),
+        row("10.1234/sc9", p={"pmcid": "PMC1", "attempts": "europepmc/HTTP_404", "error": "HTTP_404",
                              "sidecar_status": "ERROR_Read timed out; UA litpipe (mailto:fixture.user@example.org)"}),
     ]
     chain(env.proj, RUN, rows)
@@ -207,7 +207,7 @@ def test_no_written_or_printed_line_carries_an_email(env, capsys, form):
 def test_ill_line_with_an_email_in_its_trace_is_redacted(env):
     """A legacy ILL row whose `error` carries the email (a consumer residuals shape) is written clean."""
     bad = DNS_FORMS["pct2540"]
-    rows = [{"doi": "10.1234/legacy", "title": "T", "year": "2020", "oa_status": "CLOSED",
+    rows = [{"doi": "10.1234/legacy9", "title": "T", "year": "2020", "oa_status": "CLOSED",
              "error": bad, "stage_pmc": "no_pmcid", "stage_preprint": "no_match",
              "signals": [], "missing": {}}]
     mig.classify_row(rows[0])
@@ -266,14 +266,14 @@ def test_held_elsewhere_with_a_pdf_or_as_text_only(env):
 
 
 def test_manual_preprint_is_oa_blocked(env):
-    chain(env.proj, RUN, [row("10.1234/mp", r={"status": "MANUAL_PREPRINT", "source": "osf"})], preprint=True)
+    chain(env.proj, RUN, [row("10.1234/mp9", r={"status": "MANUAL_PREPRINT", "source": "osf"})], preprint=True)
     route(env)
-    assert routing(env)["10.1234/mp"]["residual_class"] == "OA_BLOCKED"
+    assert routing(env)["10.1234/mp9"]["residual_class"] == "OA_BLOCKED"
     assert "cause `manual_preprint` via `preprint:osf`" in text(env.proj / mig.OA_BLOCKED_NAME)
 
 
 def test_pmc_refusal_links_the_pmc_article(env):
-    chain(env.proj, RUN, [row("10.1234/pmc", p={"pmcid": "PMC555", "error": "HTML",
+    chain(env.proj, RUN, [row("10.1234/pmc9", p={"pmcid": "PMC555", "error": "HTML",
                                                 "attempts": "europepmc/HTTP_403 | ncbi-page/HTML"})])
     route(env)
     assert "(https://pmc.ncbi.nlm.nih.gov/articles/PMC555/) cause `HTTP_403` via `pmc:europepmc`" in \
@@ -288,34 +288,34 @@ def test_api_refusal_is_transient_not_oa_blocked(env):
 
 
 def test_doi_mismatch_goes_to_review_not_ill_and_is_not_a_fetch(env):
-    chain(env.proj, RUN, [row("10.1234/mm", u={
+    chain(env.proj, RUN, [row("10.1234/mm9", u={
         "oa_status": "OA", "attempts": "repository/acceptedVersion/OK",
-        "error": "DOI_MISMATCH:pdf_doi=10.9999/other"})], preprint=False)
+        "error": "DOI_MISMATCH:pdf_doi=10.9999/other9"})], preprint=False)
     route(env)
-    assert routing(env)["10.1234/mm"]["residual_class"] == "IDENTITY_FLAG"
+    assert routing(env)["10.1234/mm9"]["residual_class"] == "IDENTITY_FLAG"
     review = text(env.proj / mig.REVIEW_NAME)
-    assert "DOI `10.1234/mm` flag `DOI_MISMATCH:pdf_doi=10.9999/other` stage `unpaywall`" in review
+    assert "DOI `10.1234/mm9` flag `DOI_MISMATCH:pdf_doi=10.9999/other9` stage `unpaywall`" in review
     assert not (env.proj / mig.ILL_NAME).exists()
 
 
 def test_an_outranked_identity_flag_stays_in_the_reason(env):
     chain(env.proj, RUN, [row("10.1234/mm403", u={
         "oa_status": "OA", "attempts": "publisher/publishedVersion/HTTP_403 | repository/acceptedVersion/OK",
-        "error": "DOI_MISMATCH:pdf_doi=10.9999/other"})])
+        "error": "DOI_MISMATCH:pdf_doi=10.9999/other9"})])
     route(env)
     got = routing(env)["10.1234/mm403"]
     assert got["residual_class"] == "OA_BLOCKED" and "identity: DOI_MISMATCH" in got["reason"]
 
 
 def test_blank_metadata_is_no_metadata(env):
-    chain(env.proj, RUN, [row("10.1234/blank", title="", authors="")])
+    chain(env.proj, RUN, [row("10.1234/blank9", title="", authors="")])
     route(env)
-    assert routing(env)["10.1234/blank"]["residual_class"] == "NO_METADATA"
+    assert routing(env)["10.1234/blank9"]["residual_class"] == "NO_METADATA"
     assert not (env.proj / mig.ILL_NAME).exists()
 
 
 def test_config_outcome_aborts_and_writes_nothing(env, monkeypatch):
-    chain(env.proj, RUN, [row("10.1234/cfg", u={"oa_status": "", "error": "HTTP 422"}),
+    chain(env.proj, RUN, [row("10.1234/cfg9", u={"oa_status": "", "error": "HTTP 422"}),
                           row("10.1234/ok403", u={"oa_status": "OA", "attempts": "p/v/HTTP_403"})])
     before = sorted(p.name for p in env.proj.iterdir())
     assert route(env)["status"] == "config"
@@ -329,19 +329,19 @@ def test_config_outcome_aborts_and_writes_nothing(env, monkeypatch):
 def test_missing_pmc_report_is_pending_unless_pmc_is_excluded(env):
     """T3: a missing report is not 'PMC found nothing'. The row is PENDING (sweep keeps the queue),
     never an ILL line and never a retry_later row (the kept queue re-sweeps it)."""
-    chain(env.proj, RUN, [row("10.1234/nopmc")], pmc=False)
+    chain(env.proj, RUN, [row("10.1234/nopmc9")], pmc=False)
     route(env)
-    got = routing(env)["10.1234/nopmc"]
+    got = routing(env)["10.1234/nopmc9"]
     assert got["residual_class"] == "PENDING" and "report_absent" in got["reason"]
     assert not (env.proj / mig.ILL_NAME).exists() and not retry_rows(env)
     env.cfg["projects"]["P"]["sources"] = ["unpaywall"]
     env.save()
     route(env)
-    assert routing(env)["10.1234/nopmc"]["residual_class"] == "TERMINAL_CLOSED"
+    assert routing(env)["10.1234/nopmc9"]["residual_class"] == "TERMINAL_CLOSED"
 
 
 def test_missing_preprint_report_blocks_only_an_enabled_preprint_stage(env):
-    chain(env.proj, RUN, [row("10.1234/nopre")])
+    chain(env.proj, RUN, [row("10.1234/nopre9")])
     assert route(env, dry_run=True)["counts"] == {"TERMINAL_CLOSED": 1}   # default sources: not enabled
     env.cfg["projects"]["P"]["sources"] = ["unpaywall", "pmc", "biorxiv"]
     env.save()
@@ -350,13 +350,13 @@ def test_missing_preprint_report_blocks_only_an_enabled_preprint_stage(env):
 
 
 def test_a_row_missing_from_a_present_pmc_report_is_not_closed(env):
-    x = row("10.1234/absent")
+    x = row("10.1234/absent9")
     x["p"] = None
-    chain(env.proj, RUN, [x, row("10.1234/present")])
+    chain(env.proj, RUN, [x, row("10.1234/present9")])
     route(env)
     got = routing(env)
-    assert got["10.1234/absent"]["residual_class"] == "PENDING"
-    assert got["10.1234/present"]["residual_class"] == "TERMINAL_CLOSED"
+    assert got["10.1234/absent9"]["residual_class"] == "PENDING"
+    assert got["10.1234/present9"]["residual_class"] == "TERMINAL_CLOSED"
 
 
 # ---------------------------------------------------------------- retry_later
@@ -372,7 +372,7 @@ def test_retry_later_appends_updates_in_place_and_keeps_other_rows(env):
     chain(env.proj, RUN, [r403, rdns])
     route(env)
     rows = retry_rows(env)
-    assert [holdings.doi_key(r["doi"]) for r in rows] == ["10.5555/keep-me", "10.1234/r403", "10.1234/rdns"]
+    assert [holdings.doi_key(r["doi"]) for r in rows] == ["10.5555/keep-me", "10.1234/r403", "10.1234/rdns9"]
     assert rows[0]["jacob_note"] == "hand note" and rows[0]["not_before"] == "2026-09-01"
     assert rows[1]["residual_class"] == "OA_BLOCKED" and rows[1]["first_seen"] == "2026-09-01"
     assert rows[1]["last_seen"] == TODAY.isoformat() and rows[1]["not_before"] == "2026-10-03"
@@ -411,30 +411,30 @@ def test_attempts_survive_readmission_through_the_retry_queue(env):
 
 # ---------------------------------------------------------------- run ids, tags, CLI
 def test_run_ids_and_tagged_chains(env):
-    chain(env.proj, "2026-09-29.10", [row("10.1234/old")])
-    chain(env.proj, "2026-09-30", [row("10.1234/first")])
-    chain(env.proj, "2026-09-30.2", [row("10.1234/untagged")])
-    chain(env.proj, "2026-09-30.2", [row("10.1234/tagged")], tag="retry")
+    chain(env.proj, "2026-09-29.10", [row("10.1234/old9")])
+    chain(env.proj, "2026-09-30", [row("10.1234/first9")])
+    chain(env.proj, "2026-09-30.2", [row("10.1234/untagged9")])
+    chain(env.proj, "2026-09-30.2", [row("10.1234/tagged9")], tag="retry")
     assert mig.latest_sweep_date(env.proj) == "2026-09-30.2"
     assert mig.find_tags(env.proj, "2026-09-30.2") == ["retry"]
     res = route(env)
     assert res["run_id"] == "2026-09-30.2" and res["chains"] == ["", "retry"]
     ill = text(env.proj / mig.ILL_NAME)
-    assert set(holdings.extract_dois(ill)) == {"10.1234/untagged", "10.1234/tagged"}
+    assert set(holdings.extract_dois(ill)) == {"10.1234/untagged9", "10.1234/tagged9"}
     assert "## Sweep residuals 2026-09-30.2 [retry]: 1 closed-access" in ill
     assert "`lit_pull_queue.retry.2026-09-30.2.*.csv`" in ill
-    assert set(routing(env, "2026-09-30.2", "retry")) == {"10.1234/tagged"}
-    chain(env.proj, "2026-09-30.10", [row("10.1234/tenth")])
+    assert set(routing(env, "2026-09-30.2", "retry")) == {"10.1234/tagged9"}
+    chain(env.proj, "2026-09-30.10", [row("10.1234/tenth9")])
     assert mig.latest_sweep_date(env.proj) == "2026-09-30.10"   # numeric, not lexical
 
 
 def test_tag_flag_routes_only_that_chain(env, monkeypatch):
-    chain(env.proj, "2026-09-30.2", [row("10.1234/untagged")])
-    chain(env.proj, "2026-09-30.2", [row("10.1234/tagged")], tag="ch15")
+    chain(env.proj, "2026-09-30.2", [row("10.1234/untagged9")])
+    chain(env.proj, "2026-09-30.2", [row("10.1234/tagged9")], tag="ch15")
     monkeypatch.setattr("sys.argv", ["migrate_closed_to_md.py", "--project", "P", "--run-id", "2026-09-30.2",
                                      "--tag", "ch15", "--no-holdings"])
     assert mig.main() == 0
-    assert holdings.extract_dois(text(env.proj / mig.ILL_NAME)) == ["10.1234/tagged"]
+    assert holdings.extract_dois(text(env.proj / mig.ILL_NAME)) == ["10.1234/tagged9"]
 
 
 def test_dry_run_writes_nothing(env):
@@ -489,7 +489,7 @@ def test_typed_residual_routes_by_sweeps_class(env):
         typed("10.1234/t2", "OA_BLOCKED", "pmc: HTML", stages="unpaywall=CLOSED; pmc=HTML"),
         typed("10.1234/t3", "OA_BLOCKED", "unpaywall: HTTP_403"),
         typed("10.1234/t4", "TRANSIENT", "unpaywall: " + DNS_FORMS["plain"], attempts="2"),
-        typed("10.1234/t5", "IDENTITY_FLAG", "unpaywall: DOI_MISMATCH:pdf_doi=10.9999/x"),
+        typed("10.1234/t5", "IDENTITY_FLAG", "unpaywall: DOI_MISMATCH:pdf_doi=10.9999/x9"),
         typed("10.1234/t6", "HELD_ELSEWHERE", "held in another library", held_at="C:/x/a.pdf; C:/y/b.pdf"),
         typed("10.1234/t7", "TEXT_ONLY", "text sidecar, no PDF"),
         typed("10.1234/t8", "NO_METADATA", "blank title; metadata unavailable", title=""),
@@ -511,7 +511,7 @@ def test_typed_residual_routes_by_sweeps_class(env):
     assert set(rl) == {"10.1234/t2", "10.1234/t3", "10.1234/t4"}
     assert rl["10.1234/t4"]["attempts"] == "2" and rl["10.1234/t4"]["not_before"] == "2026-10-01"
     assert rl["10.1234/t2"]["not_before"] == "2026-10-03"
-    assert "DOI `10.1234/t5` flag `DOI_MISMATCH:pdf_doi=10.9999/x` stage `unpaywall`" in text(env.proj / mig.REVIEW_NAME)
+    assert "DOI `10.1234/t5` flag `DOI_MISMATCH:pdf_doi=10.9999/x9` stage `unpaywall`" in text(env.proj / mig.REVIEW_NAME)
     got = routing(env)
     assert got["10.1234/t6"]["held_paths"] == "C:/x/a.pdf | C:/y/b.pdf"
     assert got["10.1234/t10"]["route"].startswith("none") and got["NO_DOI_123"]["route"] == "none"
@@ -522,25 +522,25 @@ def test_typed_residual_routes_by_sweeps_class(env):
 
 def test_typed_residual_not_before_stale_ignored_future_kept(env):
     typed_residual(env.proj, [
-        typed("10.1234/stale", "TRANSIENT", "unpaywall: HTTP_503", not_before="2026-09-01"),
-        typed("10.1234/embargo", "TRANSIENT", "embargoed", not_before="2026-12-01"),
+        typed("10.1234/stale9", "TRANSIENT", "unpaywall: HTTP_503", not_before="2026-09-01"),
+        typed("10.1234/embargo9", "TRANSIENT", "embargoed", not_before="2026-12-01"),
     ], extra=["not_before"])
     route(env)
     rl = {r["doi"]: r for r in retry_rows(env)}
-    assert rl["10.1234/stale"]["not_before"] == "2026-10-01"      # a re-admitted past date is stale
-    assert rl["10.1234/embargo"]["not_before"] == "2026-12-01"    # a later date the row carries wins
+    assert rl["10.1234/stale9"]["not_before"] == "2026-10-01"      # a re-admitted past date is stale
+    assert rl["10.1234/embargo9"]["not_before"] == "2026-12-01"    # a later date the row carries wins
 
 
 @pytest.mark.parametrize("absolute", [False, True])
 def test_artifact_dir(env, monkeypatch, absolute):
     runs = (env.tmp / "elsewhere") if absolute else (env.proj / "runs")
     runs.mkdir()
-    chain(runs, RUN, [row("10.1234/closed")])
+    chain(runs, RUN, [row("10.1234/closed9")])
     arg = str(runs) if absolute else "runs"
     monkeypatch.setattr("sys.argv", ["migrate_closed_to_md.py", "--project", "P", "--date", RUN,
                                      "--artifact-dir", arg, "--no-holdings"])
     assert mig.main() == 0
-    assert holdings.extract_dois(text(env.proj / mig.ILL_NAME)) == ["10.1234/closed"]   # list: project root
+    assert holdings.extract_dois(text(env.proj / mig.ILL_NAME)) == ["10.1234/closed9"]   # list: project root
     assert mig.artifact_path(runs, RUN, "routing").exists()                             # report: artifact dir
     assert not mig.artifact_path(env.proj, RUN, "routing").exists()
     assert mig.latest_sweep_date(runs) == RUN and mig.latest_sweep_date(env.proj) is None
@@ -548,7 +548,7 @@ def test_artifact_dir(env, monkeypatch, absolute):
 
 def test_a_typed_residual_alone_is_found(env):
     """A run whose Unpaywall stage failed writes only the typed residual (every row PENDING)."""
-    typed_residual(env.proj, [typed("10.1234/p", "PENDING", "unpaywall failed")], run_id="2026-09-30.3", tag="ch15")
+    typed_residual(env.proj, [typed("10.1234/p9", "PENDING", "unpaywall failed")], run_id="2026-09-30.3", tag="ch15")
     assert mig.latest_sweep_date(env.proj) == "2026-09-30.3"
     assert mig.find_tags(env.proj, "2026-09-30.3") == ["ch15"]
     assert route(env)["counts"] == {"PENDING": 1}
@@ -562,8 +562,8 @@ def test_legacy_untyped_residual_falls_back_to_the_reports(env):
 
 
 def test_typed_config_row_aborts(env):
-    typed_residual(env.proj, [typed("10.1234/cfg", "CONFIG", "configuration refused by a source"),
-                              typed("10.1234/closed", "TERMINAL_CLOSED", "unpaywall: CLOSED")])
+    typed_residual(env.proj, [typed("10.1234/cfg9", "CONFIG", "configuration refused by a source"),
+                              typed("10.1234/closed9", "TERMINAL_CLOSED", "unpaywall: CLOSED")])
     before = sorted(p.name for p in env.proj.iterdir())
     assert route(env)["status"] == "config"
     assert sorted(p.name for p in env.proj.iterdir()) == before

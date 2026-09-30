@@ -51,7 +51,7 @@ def test_sweep_module_imports():
 
 def test_first_run_uses_the_plain_dated_names(tmp_path, monkeypatch):
     monkeypatch.setattr(sweep.subprocess, "run", _fake_run)
-    q = _stage(tmp_path, "10.1000/one")
+    q = _stage(tmp_path, "10.1000/one9")
     out = sweep.run_pipeline(tmp_path, q, run_date="2026-06-23")
     assert Path(out["processed"]).name == "lit_pull_queue.2026-06-23.processed.csv"
     assert Path(out["report"]).name == "lit_pull_queue.2026-06-23.report.csv"
@@ -60,14 +60,14 @@ def test_first_run_uses_the_plain_dated_names(tmp_path, monkeypatch):
 
 def test_same_day_resweep_does_not_crash_or_overwrite(tmp_path, monkeypatch):
     monkeypatch.setattr(sweep.subprocess, "run", _fake_run)
-    first = sweep.run_pipeline(tmp_path, _stage(tmp_path, "10.1000/one"), run_date="2026-06-23")
+    first = sweep.run_pipeline(tmp_path, _stage(tmp_path, "10.1000/one9"), run_date="2026-06-23")
     assert first["run_id"] == "2026-06-23"
     first_report = tmp_path / "lit_pull_queue.2026-06-23.unpaywall.csv"
     before = first_report.read_text(encoding="utf-8")
-    second = sweep.run_pipeline(tmp_path, _stage(tmp_path, "10.1000/two"), run_date="2026-06-23")
+    second = sweep.run_pipeline(tmp_path, _stage(tmp_path, "10.1000/two9"), run_date="2026-06-23")
     assert Path(second["processed"]).name == "lit_pull_queue.2026-06-23.2.processed.csv"
     assert first_report.read_text(encoding="utf-8") == before          # original NOT clobbered
-    assert "10.1000/two" in (tmp_path / "lit_pull_queue.2026-06-23.2.unpaywall.csv").read_text(
+    assert "10.1000/two9" in (tmp_path / "lit_pull_queue.2026-06-23.2.unpaywall.csv").read_text(
         encoding="utf-8")
 
 
@@ -77,7 +77,7 @@ def test_legacy_processed_suffixes_count_as_taken(tmp_path, monkeypatch):
     monkeypatch.setattr(sweep.subprocess, "run", _fake_run)
     (tmp_path / "lit_pull_queue.2026-06-23.processed.csv").write_text("a", encoding="utf-8")
     (tmp_path / "lit_pull_queue.2026-06-23.processed.2.csv").write_text("b", encoding="utf-8")
-    out = sweep.run_pipeline(tmp_path, _stage(tmp_path, "10.1000/x"), run_date="2026-06-23")
+    out = sweep.run_pipeline(tmp_path, _stage(tmp_path, "10.1000/x9"), run_date="2026-06-23")
     assert out["run_id"] == "2026-06-23.2"
     assert (tmp_path / "lit_pull_queue.2026-06-23.processed.2.csv").read_text(encoding="utf-8") == "b"
     assert Path(out["processed"]).exists()

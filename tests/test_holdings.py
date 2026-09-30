@@ -136,12 +136,12 @@ def test_pdf_beats_sidecar_on_the_same_base(tmp_path, root):
 
 def test_empty_sidecar_and_orphan_ris_are_not_content(tmp_path, root):
     lib = _lib(root, "A/lib")
-    _sidecar(lib / "x.fulltext.json", "10.1000/empty", text="   ")
+    _sidecar(lib / "x.fulltext.json", "10.1000/empty9", text="   ")
     _copy(RIS, lib)  # no PDF, no sidecar
     hm = holdings.build(_reg(tmp_path, A="lib"))
-    assert hm.where("10.1000/empty") == [] and hm.where(RIS_DOI) == []
-    assert "10.1000/empty" not in hm and len(hm) == 0
-    assert [r.kind for r in hm.records("10.1000/empty")] == [holdings.EMPTY_SIDECAR]
+    assert hm.where("10.1000/empty9") == [] and hm.where(RIS_DOI) == []
+    assert "10.1000/empty9" not in hm and len(hm) == 0
+    assert [r.kind for r in hm.records("10.1000/empty9")] == [holdings.EMPTY_SIDECAR]
     assert [r.kind for r in hm.records(RIS_DOI)] == [holdings.RIS_ONLY]
     assert hm.stats["empty_sidecars"] == 1 and hm.stats["orphan_ris"] == 1
 
@@ -170,10 +170,10 @@ def test_mismatch_quarantine_and_subdirs_are_not_holdings(tmp_path, root):
 def test_ris_and_sidecar_disagreement_maps_both_and_is_reported(tmp_path, root):
     lib = _lib(root, "A/lib")
     _copy(RIS, lib, "base.ris")
-    _sidecar(lib / "base.fulltext.json", "10.1000/other")
+    _sidecar(lib / "base.fulltext.json", "10.1000/other9")
     _pdf(lib / "base.pdf")
     hm = holdings.build(_reg(tmp_path, A="lib"))
-    assert hm.where(RIS_DOI) == hm.where("10.1000/other") == [lib / "base.pdf"]
+    assert hm.where(RIS_DOI) == hm.where("10.1000/other9") == [lib / "base.pdf"]
     assert hm.stats["ris_sidecar_doi_disagreements"][0]["ris"] == RIS_DOI
 
 
@@ -228,15 +228,15 @@ def test_warm_build_reads_no_unchanged_file(tmp_path, root):
 
 def test_warm_build_rereads_a_changed_file(tmp_path, root):
     lib = _lib(root, "A/lib")
-    sc = _sidecar(lib / "x.fulltext.json", "10.1000/old")
+    sc = _sidecar(lib / "x.fulltext.json", "10.1000/old9")
     reg = _reg(tmp_path, A="lib")
     holdings.build(reg)
-    _sidecar(sc, "10.1000/new-and-longer")
+    _sidecar(sc, "10.1000/new-and-longer9")
     st = sc.stat()
     os.utime(sc, ns=(st.st_atime_ns, st.st_mtime_ns + 5_000_000_000))
     warm = holdings.build(reg)
     assert warm.stats["files_read"] == 1
-    assert warm.where("10.1000/new-and-longer") == [sc] and warm.where("10.1000/old") == []
+    assert warm.where("10.1000/new-and-longer9") == [sc] and warm.where("10.1000/old9") == []
 
 
 def test_warm_build_sees_a_new_pdf_without_rereading(tmp_path, root):

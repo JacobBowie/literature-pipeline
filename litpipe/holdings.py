@@ -36,8 +36,9 @@ from urllib.parse import unquote
 
 import lit_util
 from litpipe import config
+from litpipe import doi as _doi
 
-CACHE_VERSION = 1
+CACHE_VERSION = 2   # 2: DOIs normalised by litpipe.doi
 CACHE_NAME = "holdings_cache.json"
 SIDECAR_SUFFIX = ".fulltext.json"
 
@@ -65,15 +66,7 @@ def normalise_doi(raw) -> str:
     link's `)` does not). Returns "" for anything that is not a DOI."""
     if not raw:
         return ""
-    d = str(raw).strip().strip("`<>\"' ")
-    d = _RESOLVER.sub("", d)
-    d = _DOI_PREFIX.sub("", d)
-    if "%" in d:
-        d = unquote(d)
-    d = d.strip().lower()
-    while d and (d[-1] in _TRAIL or (d[-1] == ")" and d.count("(") < d.count(")"))):
-        d = d[:-1]
-    return d if re.match(r"^10\.\d{4,9}/\S+$", d) else ""
+    return _doi.normalise(str(raw)) or ""
 
 
 def doi_key(raw) -> str:
@@ -84,10 +77,12 @@ def doi_key(raw) -> str:
 
 def extract_dois(text) -> list:
     """Every DOI in free text, normalised, first-seen order, no repeats."""
-    out = []
-    for m in _DOI_IN_TEXT.finditer(_PCT_SLASH.sub("/", text or "")):
-        d = normalise_doi(m.group(0))
-        if d and d not in out:
+    out, seen = [], set()
+    for pos, d in _doi.iter_candidates(_PCT_SLASH.sub("/", text or "")):
+        if pos in seen:          # the most specific form of each occurrence only
+            continue
+        seen.add(pos)
+        if d not in out:
             out.append(d)
     return out
 
@@ -215,11 +210,11 @@ def libraries(registry=None) -> list:
     return out
 
 
-def cache_path(registry=None, cache_dir=None) -> Path:
+def cache_path(registry=None, cache_dir=None, create=True) -> Path:
     if cache_dir is not None:
         return Path(cache_dir) / CACHE_NAME
     cfg, full = _config(registry)
-    return config.state_dir(cfg if full else None) / CACHE_NAME
+    return config.state_dir(cfg if full else None, create=create) / CACHE_NAME
 
 
 def _load_cache(path):
@@ -246,7 +241,7 @@ def _entry_stat(entry):
 
 
 # ---------------------------------------------------------------- build
-def build(registry=None, *, cache_dir=None, use_cache=True) -> HoldMap:
+def build(registry=None, *, cache_dir=None, use_cache=True, write_cache=True) -> HoldMap:
     """Scan every registered library and return the HoldMap. `registry` is a loaded projects.json
     (or just its `projects` mapping); None reads litpipe.config.CONFIG_PATH. The cache lives in
     `cache_dir`, default `state_dir`; with no library to scan nothing is read or written there."""
@@ -257,7 +252,7 @@ def build(registry=None, *, cache_dir=None, use_cache=True) -> HoldMap:
         "orphan_ris": 0, "empty_sidecars": 0, "ris_sidecar_doi_disagreements": [],
         "cache_path": None, "cache_used": False, "cache_written": False, "cache_error": None,
     }
-    cpath = cache_path(registry, cache_dir) if (use_cache and libs) else None
+    cpath = cache_path(registry, cache_dir, create=write_cache) if (use_cache and libs) else None
     old = _load_cache(cpath) if cpath else {}
     stats["cache_path"] = str(cpath) if cpath else None
     stats["cache_used"] = bool(old)
@@ -353,7 +348,7 @@ def build(registry=None, *, cache_dir=None, use_cache=True) -> HoldMap:
             changed = True
         new_cache[lkey] = {"files": files_out}
 
-    if cpath is not None and (changed or set(old) != set(new_cache)):
+    if cpath is not None and write_cache and (changed or set(old) != set(new_cache)):
         try:
             _save_cache(cpath, new_cache)
             stats["cache_written"] = True

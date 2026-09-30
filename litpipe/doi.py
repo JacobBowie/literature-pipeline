@@ -191,7 +191,7 @@ def _capture(text: str, start: int, end: int):
             if last in ".-" and re.fullmatch(r"[A-Z][A-Za-z]*[.,:;)]*", tok):
                 break                                   # prose starts: "Introduction", "I.", "Energetics"
             if last == ".":
-                if re.fullmatch(r"\d+[.,;:)]*", tok) and suffix_has_digit:
+                if re.fullmatch(r"\d{1,4}[.,;:)]*", tok) and suffix_has_digit:
                     if alt is None:
                         alt = "".join(body) + re.sub(r"[.,;:)]+$", "", tok)
                     break                               # a line number or year (V2-N2)

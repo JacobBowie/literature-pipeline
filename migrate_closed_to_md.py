@@ -830,7 +830,9 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
     if not run_id:
         print(f"[--] no sweep artifacts found at {art_dir.name}; nothing to migrate")
         return {**res, "status": "nothing"}
-    today = today or datetime.date.today()
+    # not_before counts from the later of the clock and the run's own date, so sweep --date and
+    # migrate stay in lockstep (a run dated ahead of the clock never re-admits its rows the same day)
+    today = today or max(datetime.date.today(), datetime.date.fromisoformat(run_id[:10]))
 
     def chain_rows(tag):
         if tag is None and art_dir == project_root:
@@ -871,7 +873,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
         own_libs = {_norm_lib(default_lib)} if default_lib is not None else set()
         if holdmap is None and use_holdings:
             try:
-                holdmap = holdings.build(registry=cfg)
+                holdmap = holdings.build(registry=cfg, write_cache=not dry_run)
             except Exception as e:  # noqa: BLE001 -- routing still works without the map; say so
                 print(f"[WARN] holdings map unavailable ({type(e).__name__}: {redact(e)}); "
                       f"held papers may be routed as residuals", file=sys.stderr)

@@ -223,11 +223,11 @@ def test_first_run_of_the_day_keeps_the_legacy_names(env):
 
 
 def test_two_same_day_sweeps_keep_two_complete_artifact_sets(env):
-    env.queue(["10.1000/first"])
+    env.queue(["10.1000/first9"])
     assert env.sweep() == 0
-    env.queue(["10.1000/second"])
+    env.queue(["10.1000/second9"])
     assert env.sweep() == 0
-    for run_id, doi in ((DAY, "10.1000/first"), (f"{DAY}.2", "10.1000/second")):
+    for run_id, doi in ((DAY, "10.1000/first9"), (f"{DAY}.2", "10.1000/second9")):
         for stage in ("unpaywall", "pmc", "preprint", "residual", "report", "processed"):
             assert env.art(stage, run_id).exists(), (run_id, stage)
         assert [r["doi"] for r in read_csv(env.art("unpaywall", run_id))] == [doi]
@@ -236,11 +236,11 @@ def test_two_same_day_sweeps_keep_two_complete_artifact_sets(env):
 
 
 def test_two_tagged_queues_in_one_run_keep_separate_artifacts(env):
-    env.queue(["10.1000/plain"])
+    env.queue(["10.1000/plain9"])
     env.queue(["10.1000/a1", "10.1000/a2"], name="lit_pull_queue.alpha.csv")
     env.queue(["10.1000/b1"], name="lit_pull_queue.beta.csv")
     assert env.sweep() == 0
-    for tag, dois in (("", ["10.1000/plain"]), ("alpha", ["10.1000/a1", "10.1000/a2"]),
+    for tag, dois in (("", ["10.1000/plain9"]), ("alpha", ["10.1000/a1", "10.1000/a2"]),
                       ("beta", ["10.1000/b1"])):
         assert [r["doi"] for r in read_csv(env.art("unpaywall", tag=tag))] == dois
         assert env.report(tag=tag)[("total", "rows")]["count"] == str(len(dois))
@@ -311,14 +311,14 @@ def test_help_lists_the_exit_codes():
 
 # ---------------------------------------------------------------- retirement and classes
 def test_skip_preprint_retires_the_queue_and_writes_no_partial_line(env):
-    env.queue(["10.1000/closed", "10.1000/got"])
-    env.stages.spec["10.1000/got"] = {"unpaywall": {"oa_status": "OA", "downloaded": "True"}}
+    env.queue(["10.1000/closed9", "10.1000/got9"])
+    env.stages.spec["10.1000/got9"] = {"unpaywall": {"oa_status": "OA", "downloaded": "True"}}
     assert env.sweep("--skip-preprint") == 0
     assert "preprint" not in env.stages.stages_called()
     assert env.art("processed").exists()
     res = env.residual()
-    assert res["10.1000/closed"]["residual_class"] == "TERMINAL_CLOSED"
-    assert res["10.1000/closed"]["skipped_sources"] == "preprint"
+    assert res["10.1000/closed9"]["residual_class"] == "TERMINAL_CLOSED"
+    assert res["10.1000/closed9"]["skipped_sources"] == "preprint"
     lines = env.loose_lines()
     assert len(lines) == 1 and lines[0].startswith(sweep.LOOSE_DONE)
     assert not any(sweep.LOOSE_PARTIAL in ln for ln in lines)
@@ -368,10 +368,10 @@ def test_real_report_rows_classify_per_the_residual_table(env):
 
 
 def test_report_counts_skip_exists_apart_from_downloads(env):
-    env.queue(["10.1000/held", "10.1000/new", "10.1000/pmc"])
-    env.stages.spec["10.1000/held"] = {"unpaywall": {"oa_status": "SKIP_EXISTS"}}
-    env.stages.spec["10.1000/new"] = {"unpaywall": {"oa_status": "OA", "downloaded": "True"}}
-    env.stages.spec["10.1000/pmc"] = {"pmc": {"skipped": "True", "winning_source": "ALREADY_EXISTS",
+    env.queue(["10.1000/held9", "10.1000/new9", "10.1000/pmc9"])
+    env.stages.spec["10.1000/held9"] = {"unpaywall": {"oa_status": "SKIP_EXISTS"}}
+    env.stages.spec["10.1000/new9"] = {"unpaywall": {"oa_status": "OA", "downloaded": "True"}}
+    env.stages.spec["10.1000/pmc9"] = {"pmc": {"skipped": "True", "winning_source": "ALREADY_EXISTS",
                                               "error": ""}}
     assert env.sweep() == 0
     rep = env.report()
@@ -413,20 +413,20 @@ def test_a_row_held_in_another_library_is_skipped_with_its_path(env):
     other = env.root / "Other" / "lit" / "2020_Smith_Title.pdf"
     text_only = env.root / "Other" / "lit" / "2021_Jones_Title.fulltext.json"
     own = env.pdir() / "lit" / "x.fulltext.json"
-    env.holdings.held = {"10.1000/elsewhere": [other], "10.1000/own": [own],
-                         "10.1000/textonly": [text_only]}
-    env.queue(["10.1000/elsewhere", "10.1000/own", "10.1000/new", "10.1000/textonly"])
+    env.holdings.held = {"10.1000/elsewhere9": [other], "10.1000/own9": [own],
+                         "10.1000/textonly9": [text_only]}
+    env.queue(["10.1000/elsewhere9", "10.1000/own9", "10.1000/new9", "10.1000/textonly9"])
     assert env.sweep() == 0
     # held elsewhere as a PDF: not fetched; held elsewhere only as text: the PDF is still fetched
-    assert env.stages.triage_dois() == ["10.1000/own", "10.1000/new", "10.1000/textonly"]
-    row = env.residual()["10.1000/elsewhere"]
+    assert env.stages.triage_dois() == ["10.1000/own9", "10.1000/new9", "10.1000/textonly9"]
+    row = env.residual()["10.1000/elsewhere9"]
     assert row["residual_class"] == "HELD_ELSEWHERE" and row["held_at"] == str(other)
 
 
 def test_invalid_and_placeholder_dois_are_skipped_and_reported(env):
-    env.queue(["NO_DOI_smith2020", "not-a-doi", "10.1000/ok"])
+    env.queue(["NO_DOI_smith2020", "not-a-doi", "10.1000/ok9"])
     assert env.sweep() == 0
-    assert env.stages.triage_dois() == ["10.1000/ok"]
+    assert env.stages.triage_dois() == ["10.1000/ok9"]
     res = env.residual()
     assert res["NO_DOI_smith2020"]["residual_class"] == "INVALID_DOI"
     assert res["not-a-doi"]["residual_class"] == "INVALID_DOI"
@@ -434,7 +434,7 @@ def test_invalid_and_placeholder_dois_are_skipped_and_reported(env):
 
 
 def test_a_blank_title_row_is_filled(env, monkeypatch):
-    env.queue(["10.1000/blank"], extra={"10.1000/blank": {"title": "", "authors": "", "year": ""}})
+    env.queue(["10.1000/blank9"], extra={"10.1000/blank9": {"title": "", "authors": "", "year": ""}})
     monkeypatch.setattr(sweep, "_resolve_meta", lambda doi: (
         {"title": "Heat <i>strain</i> model", "year": "1972",
          "authors": [{"family": "Givoni", "given": "B."}, {"family": "Goldman", "given": "Ralph F"}]},
@@ -451,11 +451,11 @@ def test_a_blank_title_row_is_filled(env, monkeypatch):
     lambda doi: (_ for _ in ()).throw(RuntimeError("https://api.x/?email=me@uconn.edu")),
 ])
 def test_an_unfillable_blank_title_row_is_marked_not_fetched(env, monkeypatch, resolver):
-    env.queue(["10.1000/blank", "10.1000/ok"], extra={"10.1000/blank": {"title": "", "authors": ""}})
+    env.queue(["10.1000/blank9", "10.1000/ok9"], extra={"10.1000/blank9": {"title": "", "authors": ""}})
     monkeypatch.setattr(sweep, "_resolve_meta", resolver)
     assert env.sweep() == 0
-    assert env.stages.triage_dois() == ["10.1000/ok"]
-    row = env.residual()["10.1000/blank"]
+    assert env.stages.triage_dois() == ["10.1000/ok9"]
+    row = env.residual()["10.1000/blank9"]
     assert row["residual_class"] == "NO_METADATA"
     assert "@" not in env.art("residual").read_text(encoding="utf-8")
 
@@ -473,32 +473,32 @@ def test_a_draft_with_hash_lines_sweeps(env):
 def test_a_due_retry_later_row_is_swept_and_a_future_one_is_not(env):
     d = env.pdir()
     write_csv(d / sweep.RETRY_LATER_FILE, [
-        {"doi": "10.1000/due", "title": "Due", "authors": "A B", "year": "2020",
+        {"doi": "10.1000/due9", "title": "Due", "authors": "A B", "year": "2020",
          "destination": "", "notes": "", "not_before": "2026-09-29", "attempts": "1"},
-        {"doi": "10.1000/today", "title": "Today", "authors": "A B", "year": "2020",
+        {"doi": "10.1000/today9", "title": "Today", "authors": "A B", "year": "2020",
          "destination": "lit", "notes": "", "not_before": DAY, "attempts": "0"},
-        {"doi": "10.1000/later", "title": "Later", "authors": "A B", "year": "2020",
+        {"doi": "10.1000/later9", "title": "Later", "authors": "A B", "year": "2020",
          "destination": "lit", "notes": "", "not_before": "2026-10-03", "attempts": "0"},
     ], list(sweep.QUEUE_COLUMNS) + ["not_before", "attempts"])
     assert env.sweep() == 0
     assert sorted(r["doi"] for r in read_csv(env.art("unpaywall", tag="retry"))) == [
-        "10.1000/due", "10.1000/today"]
-    assert [r["doi"] for r in read_csv(d / sweep.RETRY_LATER_FILE)] == ["10.1000/later"]
+        "10.1000/due9", "10.1000/today9"]
+    assert [r["doi"] for r in read_csv(d / sweep.RETRY_LATER_FILE)] == ["10.1000/later9"]
     assert env.art("processed", tag="retry").exists()
-    assert env.residual(tag="retry")["10.1000/due"]["attempts"] == "2"
+    assert env.residual(tag="retry")["10.1000/due9"]["attempts"] == "2"
 
 
 def test_retry_admission_survives_a_crash_between_writes(tmp_path):
     """The retry queue is written first; re-admitting the same due rows de-duplicates."""
     write_csv(tmp_path / sweep.RETRY_LATER_FILE,
-              [{"doi": "10.1000/due", "destination": "lit", "not_before": ""}],
+              [{"doi": "10.1000/due9", "destination": "lit", "not_before": ""}],
               ["doi", "destination", "not_before"])
     assert sweep.admit_retries(tmp_path, DAY)["admitted"] == 1
     write_csv(tmp_path / sweep.RETRY_LATER_FILE,   # as if the second write never happened
-              [{"doi": "10.1000/DUE", "destination": "lit", "not_before": ""}],
+              [{"doi": "10.1000/DUE9", "destination": "lit", "not_before": ""}],
               ["doi", "destination", "not_before"])
     sweep.admit_retries(tmp_path, DAY)
-    assert [r["doi"] for r in read_csv(tmp_path / "lit_pull_queue.retry.csv")] == ["10.1000/due"]
+    assert [r["doi"] for r in read_csv(tmp_path / "lit_pull_queue.retry.csv")] == ["10.1000/due9"]
 
 
 # ---------------------------------------------------------------- dry run, destination, env
@@ -513,7 +513,7 @@ def test_a_dry_run_writes_nothing(env, monkeypatch, capsys):
     env.queue(["10.1000/t1"], name="lit_pull_queue.alpha.csv")
     env.queue(["10.1000/q1"], key="Q", dest="wrong/")
     write_csv(env.pdir() / sweep.RETRY_LATER_FILE,
-              [{"doi": "10.1000/due", "destination": "lit", "not_before": "2026-01-01"}],
+              [{"doi": "10.1000/due9", "destination": "lit", "not_before": "2026-01-01"}],
               ["doi", "destination", "not_before"])
     env.loose.parent.mkdir(parents=True)
     env.loose.write_text("x\n", encoding="utf-8")
