@@ -250,9 +250,8 @@ def looks_like_pdf(blob):
 # across every DOI from that publisher. Listed by md5 + a fallback text snippet
 # (md5 catches the exact byte file; text snippet catches re-spun versions).
 #
-# Add new entries when the LWW-style trap is observed for other publishers. See
-# `notes/2026-05-22_lww_boilerplate_trap.md` for the post-mortem and how the
-# 3-PDF batch (Currier 2026, Lim 2022, Agostinho 2015) was diagnosed.
+# Add new entries when the LWW-style trap is observed for other publishers.
+# The original 2026-05-22 batch: Currier 2026, Lim 2022, Agostinho 2015.
 KNOWN_BOILERPLATE_MD5 = {
     "518fe51393a7ba381f861b58f296832e": "lww_author_permission_guidelines_v1",
     # 2026-05-22 audit additions (Agent C cross-project sweep):

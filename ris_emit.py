@@ -154,7 +154,7 @@ def crossref_meta(msg: dict) -> dict:
 # written -> the paper is invisible to index_portfolio. This pair mirrors the
 # CrossRef pair above and returns the SAME flattened dict shape build_ris consumes;
 # resolve_meta keeps CrossRef first and falls back to DataCite on a miss.
-# Full finding: notes/2026-07-20_datacite_ris_gap.md (validated 20/20 live, FRED prototype).
+# Validated 2026-07-20 against 20/20 live DataCite DOIs.
 DATACITE_WORK = "https://api.datacite.org/dois/{doi}"
 
 # Common DataCite registrants (fast-path hint; resolve_meta falls back on ANY CrossRef

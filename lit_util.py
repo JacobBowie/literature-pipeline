@@ -1,7 +1,6 @@
 """Shared safety primitives for the literature pipeline (added 2026-06-05 audit remediation).
 
-Centralizes the fixes for the cross-cutting failure modes found in the 2026-06-05 code audit
-(see notes/2026-06-05_pipeline_audit.md):
+Centralizes the fixes for the cross-cutting failure modes found in the 2026-06-05 code audit:
   - RC4  atomic_write_*  : crash-safe writes (tmp + os.replace) so an interrupt never truncates
                            a sidecar/.ris/CSV into invalid JSON.
   - RC1  DOI handling    : extract_doi_from_text() that does NOT truncate line-wrapped DOIs, plus

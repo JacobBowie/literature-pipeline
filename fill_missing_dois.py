@@ -7,9 +7,8 @@ results by document type, score the top match, label it by confidence, and
 optionally write the resolved DOI/title/year/authors/journal back to the
 sidecar.
 
-Spec: _tools/literature_pipeline/notes/2026-05-21_scope_fill_missing_dois.md
-Empirical basis: 21-sample test in crossref_titlematch_test.py (~70% recovery
-across the 317 portfolio orphans).
+Empirical basis: a 21-sample title-match test showed ~70% recovery across the
+317 portfolio orphans.
 
 Usage:
   python fill_missing_dois.py --project getpaid                    # dry-run report

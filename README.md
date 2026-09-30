@@ -40,7 +40,7 @@ export LITPIPE_EMAIL="you@example.org"            # bash / Git Bash
 $env:LITPIPE_EMAIL = "you@example.org"            # PowerShell (Windows)
 ```
 
-Tesseract OCR is optional and only used by `build_pdf_library.py`. Override `TESSDATA_PREFIX` if your installation isn't at the default location.
+**Tesseract OCR: not wired into the pipeline yet.** `pytesseract` and `pillow` are locked dependencies, so OCR tooling that runs in this environment has them, but no pipeline module calls them. `build_pdf_library.py` sets `TESSDATA_PREFIX` at import and nothing in this repo reads it. What the pipeline does have is *detection*: `build_pdf_library.py` lists PDFs under 500 chars/page as "PDFs needing OCR" in its report, and nothing acts on that list yet. The Tesseract engine itself (`tesseract.exe` on Windows) is not a Python package and is not in the lock; install it separately if you run OCR.
 
 **Semantic Scholar API key (recommended for snowball).** `forward_citations.py` and `enrich_recommendations.py` send `S2_API_KEY` as an `x-api-key` header when it's set. Without a key you share the unauthenticated Semantic Scholar pool and hit frequent 429 throttling — the main cause of slow, flaky snowball runs. [Request a free key](https://www.semanticscholar.org/product/api#api-key), then:
 
@@ -264,7 +264,9 @@ doi,title,authors,year,destination,notes
 - `destination` (required) — relative path from `<project>/` where the PDF should land
 - `notes` — free-text reason or context
 
-All rows in one queue should share a `destination`. If you need different destinations, write multiple queues (one per destination) — but realistically a project usually has one `docs/literature/` directory. Placement is driven by this CSV `destination` (relative to the project root), **not** the registry `lib_dir` — keep the two equal to avoid surprises.
+All rows in one queue should share a `destination`. If you need different destinations, write multiple queues (one per destination) — but realistically a project usually has one `docs/literature/` directory. Placement is driven by this CSV `destination`, **not** the registry `lib_dir`.
+
+> **⚠ Subprojects: `destination` and `lib_dir` are NOT the same string.** They use different bases. `destination` is relative to the SUBPROJECT root (`lit_util.project_root`), while the registry `lib_dir` is relative to the PARENT root and therefore carries the subproject tail (see `lit_util.lib_rel`). For key `A/B` with `lib_dir: "B/literature"`, the queue `destination` must be `literature/`, copying `B/literature/` across produces `<root>/A/B/B/literature/`, a doubled tail that silently creates a shadow library `sweep.py` will happily fill. For a top-level project the two ARE equal, which is what makes this easy to miss. Confirm with `sweep.py --project <key> --dry-run`, which prints the resolved absolute destination. (Bit `VAP/KINS4500_ExPhys` + `VAP/KINS2227_ExRx`, 2026-08-19.)
 
 ## What gets pulled
 

@@ -1,8 +1,7 @@
 """Tests for fill_missing_dois.py — filename parsing, type filtering, scoring.
 
-Network calls (crossref_query, run_project, main) are not exercised here.
-Those are covered by manual smoke runs documented in
-notes/2026-05-21_scope_fill_missing_dois.md.
+Network calls (crossref_query, run_project, main) are not exercised here;
+they are covered only by manual smoke runs, not committed to the repo.
 """
 import json
 
