@@ -1,0 +1,4 @@
+- [ ] **Should we target increased physical activity or less sedentary behavior in the battle against cardiovascular disease ris** (2020) [10.1016/j.atherosclerosis.2020.07.010](https://doi.org/10.1016/j.atherosclerosis.2020.07.010) cause `HTML`
+- [ ] **Resistance training reduces systolic blood pressure in metabolic syndrome: a systematic review and meta-analysis of rand** (2016) [10.1136/bjsports-2015-094715](https://doi.org/10.1136/bjsports-2015-094715) cause `HTTP_403`
+- [ ] **Association of Resistance Exercise, Independent of and Combined With Aerobic Exercise, With the Incidence of Metabolic S** (2017) [10.1016/j.mayocp.2017.02.018](https://doi.org/10.1016/j.mayocp.2017.02.018) cause `HTTP_403`
+- [ ] **The combined effect of physical activity and sedentary behaviors on a clustered cardio-metabolic risk score: The Helena ** (2015) [10.1016/j.ijcard.2015.03.176](https://doi.org/10.1016/j.ijcard.2015.03.176) cause `HTTP_403`

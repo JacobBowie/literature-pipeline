@@ -1,0 +1,11 @@
+doi,filename,pmcid,downloaded,skipped,winning_source,attempts,error,sidecar,sidecar_status
+10.3390/nu16020189,2024_Jimenez-Alfageme_AreDietarynutritionalRecommendationsMetAnalysisIntake.pdf,PMC10820672,False,False,,europepmc/HTTP_403 | ncbi-page/HTML,HTML,True,OK
+10.1080/07853890.2024.2304650,2024_Behrendt_Brain-derivedNeurotrophicFactorInflammatoryBiomarkersAre.pdf,PMC10810628,False,False,,europepmc/HTTP_403 | ncbi-page/HTML | ncbi-citation_pdf_url/HTML,HTML,True,OK
+10.1007/s40279-015-0365-0,2015_Milanovic_EffectivenessHigh-intensityIntervalTrainingHitContinuous.pdf,,False,False,,,NO_PMCID,False,
+10.1016/j.cmet.2018.04.010,2018_Sutton_EarlyTime-restrictedFeedingImprovesInsulinSensitivity.pdf,PMC5990470,False,False,,europepmc/HTTP_403 | ncbi-page/HTML | ncbi-citation_pdf_url/HTML,HTML,False,HTTP_500
+10.1038/nrcardio.2017.224,2018_Farah_NitricOxideSignallingCardiovascularHealthDisease.pdf,,False,False,,,NO_PMCID,False,
+10.1016/s2213-8587(18)30137-2,2018_Eckel_TransitionMetabolicHealthyUnhealthyPhenotypesAssociation.pdf,,False,False,,,NO_PMCID,False,
+10.3305/nh.2015.31.3.8434,2015_Prieto_ImpactExerciseBodyCompositionAerobicCapacity.pdf,,False,False,,,NO_PMCID,False,
+10.1186/s12966-019-0858-6,2019_Wijndaele_SubstitutingProlongedSedentaryTimeCardiovascularRisk.pdf,PMC6822444,False,False,,europepmc/HTTP_403 | ncbi-page/HTML | ncbi-citation_pdf_url/HTML,HTML,True,OK
+10.3390/ijms23158713,2022_Assar_EffectPhysicalActivityExerciseOxidativeStress.pdf,PMC9369066,False,False,,europepmc/HTTP_403 | ncbi-page/HTML,HTML,True,OK
+10.1111/jch.13895,2020_Yazdi_ValidityAnthropometricIndicesPredictingHighBlood.pdf,PMC8029738,False,False,,europepmc/ERROR | ncbi-page/ERROR,ERROR,False,"ERROR_HTTPSConnectionPool(host='www.ebi.ac.uk', port=443): Max ret"
