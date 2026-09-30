@@ -1,0 +1,65 @@
+{
+ "_source": "GET https://api.crossref.org/works/10.1515/9789882204508-009 (redirected to the prime record), live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "status": "ok",
+  "message": {
+   "DOI": "10.5790/hongkong/9789888528011.003.0007",
+   "type": "book-chapter",
+   "title": [
+    "Humor, Vernacularization, and Intermedial Laughter in Maoist Pingtan"
+   ],
+   "subtitle": [],
+   "container-title": [
+    "Maoist Laughter"
+   ],
+   "short-container-title": [],
+   "author": [
+    {
+     "given": "Li",
+     "family": "Guo",
+     "sequence": "first"
+    }
+   ],
+   "published-print": {
+    "date-parts": [
+     [
+      2019,
+      11,
+      1
+     ]
+    ]
+   },
+   "published-online": {
+    "date-parts": [
+     [
+      2020,
+      5,
+      21
+     ]
+    ]
+   },
+   "published": {
+    "date-parts": [
+     [
+      2019,
+      11,
+      1
+     ]
+    ]
+   },
+   "issued": {
+    "date-parts": [
+     [
+      2019,
+      11,
+      1
+     ]
+    ]
+   },
+   "page": "105-120",
+   "abstract": "<p>\n                    This chapter explores how humor in Maoist \n                    <italic>pingtan</italic>\n                     tales facilitated the vernacularization of the tastes and practices of popular culture, and revamped \n                    <italic>pingtan</italic>\n                     into an ideal media of socialist new comedy. Adaptations of \n                    <italic>pingtan</italic>\n                     tales through film, folk performances, and radio broadcasted songs facilitated the vernacularization of new notions of the self and the nation, generated intermedial laughter in various taste cultures and media territories, and instigated the individuals’ negotiation and interaction with multivalent socio-political ideals. Guo argues that vernacularization of Maoist \n                    <italic>pingtan</italic>\n                    , which allowed multiple styles to bleed into this classic storytelling art, was a process of necessity and accommodation in Maoist China when revolutionary linguistic codes are transposed into traditional arts, as well as the shifting relationships between individuals and the nation-state community.\n                  </p>",
+   "publisher": "Hong Kong University Press"
+  }
+ }
+}

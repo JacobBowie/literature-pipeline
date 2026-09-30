@@ -1,0 +1,10 @@
+{
+ "_source": "GET https://doi.org/doiRA/10.3305/nh.2015.31.3.8434, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": [
+  {
+   "DOI": "10.3305/nh.2015.31.3.8434",
+   "RA": "mEDRA"
+  }
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "_source": "doi.org content negotiation (Accept CSL-JSON), 302 to japanlinkcenter.org, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "DOI": "10.18999/nagjms.84.4.782",
+  "URL": "https://doi.org/10.18999/nagjms.84.4.782",
+  "language": "en",
+  "title": "Sex differences in blood pressure and inactive limb blood flow responses during dynamic leg exercise with increased inspiratory muscle work",
+  "author": [
+   {
+    "given": "Kana",
+    "family": "Shiozawa"
+   },
+   {
+    "given": "Kaori",
+    "family": "Shimizu"
+   },
+   {
+    "given": "Mitsuru",
+    "family": "Saito"
+   },
+   {
+    "given": "Koji",
+    "family": "Ishida"
+   },
+   {
+    "given": "Sahiro",
+    "family": "Mizuno"
+   },
+   {
+    "given": "Keisho",
+    "family": "Katayama"
+   }
+  ],
+  "publisher": "Nagoya University Graduate School of Medicine, School of Medicine",
+  "issued": {
+   "date-parts": [
+    [
+     2022,
+     11
+    ]
+   ]
+  },
+  "volume": "84",
+  "number": "4",
+  "page": "782-798",
+  "container-title": "Nagoya Journal of Medical Science"
+ }
+}

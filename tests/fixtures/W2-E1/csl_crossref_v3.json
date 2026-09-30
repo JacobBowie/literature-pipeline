@@ -1,0 +1,100 @@
+{
+ "_source": "doi.org content negotiation for 10.1152/japplphysiol.00775.2024, endpoint audit 2026-09-25",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped; abstract cut to 600 chars",
+ "body": {
+  "DOI": "10.1152/japplphysiol.00775.2024",
+  "type": "journal-article",
+  "title": "Effect of condensed heat acclimation on thermophysiological adaptations, hypoxic cross-tolerance, exercise performance, and deacclimation",
+  "subtitle": [],
+  "container-title": "Journal of Applied Physiology",
+  "author": [
+   {
+    "given": "Charlotte E.",
+    "family": "Stevens",
+    "sequence": "first"
+   },
+   {
+    "given": "Joseph T.",
+    "family": "Costello",
+    "sequence": "additional"
+   },
+   {
+    "given": "Michael J.",
+    "family": "Tipton",
+    "sequence": "additional"
+   },
+   {
+    "given": "Ella F.",
+    "family": "Walker",
+    "sequence": "additional"
+   },
+   {
+    "given": "Alex A. M.",
+    "family": "Gould",
+    "sequence": "additional"
+   },
+   {
+    "given": "John S.",
+    "family": "Young",
+    "sequence": "additional"
+   },
+   {
+    "given": "Ben J.",
+    "family": "Lee",
+    "sequence": "additional"
+   },
+   {
+    "given": "Thomas B.",
+    "family": "Williams",
+    "sequence": "additional"
+   },
+   {
+    "given": "Fiona A.",
+    "family": "Myers",
+    "sequence": "additional"
+   },
+   {
+    "given": "Jo",
+    "family": "Corbett",
+    "sequence": "additional"
+   }
+  ],
+  "published-print": {
+   "date-parts": [
+    [
+     2025,
+     3,
+     1
+    ]
+   ]
+  },
+  "issued": {
+   "date-parts": [
+    [
+     2025,
+     3,
+     1
+    ]
+   ]
+  },
+  "published": {
+   "date-parts": [
+    [
+     2025,
+     3,
+     1
+    ]
+   ]
+  },
+  "volume": "138",
+  "issue": "3",
+  "page": "634-650",
+  "ISSN": [
+   "8750-7587",
+   "1522-1601"
+  ],
+  "publisher": "American Physiological Society",
+  "abstract": "<jats:p>This study has shown, for the first time, that a novel condensed heat acclimation program can elicit an array of thermophysiological adaptations, many of which do not differ from traditional heat acclimation. These findings suggest that accumulated thermal “dose” is an important factor contributing to the adaptive responses to heat stress and that condensed heat acclimation may represent a viable option for time-restricted individuals (e.g., military personnel, firefighters, and athletes) preparing to enter a hot environment.</jats:p>",
+  "URL": "http://dx.doi.org/10.1152/japplphysiol.00775.2024"
+ }
+}

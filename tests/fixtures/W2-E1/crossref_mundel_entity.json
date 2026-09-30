@@ -1,0 +1,53 @@
+{
+ "_source": "GET https://api.crossref.org/works/10.1159/000151554, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "status": "ok",
+  "message": {
+   "DOI": "10.1159/000151554",
+   "type": "book-chapter",
+   "title": [
+    "Exercise Heat Stress and Metabolism"
+   ],
+   "subtitle": [],
+   "container-title": [
+    "Medicine and Sport Science",
+    "Thermoregulation and Human Performance"
+   ],
+   "short-container-title": [],
+   "author": [
+    {
+     "given": "Toby",
+     "family": "M&uuml;ndel",
+     "sequence": "first"
+    }
+   ],
+   "published-print": {
+    "date-parts": [
+     [
+      2008
+     ]
+    ]
+   },
+   "published": {
+    "date-parts": [
+     [
+      2008
+     ]
+    ]
+   },
+   "issued": {
+    "date-parts": [
+     [
+      2008
+     ]
+    ]
+   },
+   "page": "121-129",
+   "ISSN": [
+    "0254-5020"
+   ],
+   "publisher": "KARGER"
+  }
+ }
+}

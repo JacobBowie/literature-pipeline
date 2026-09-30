@@ -1,0 +1,112 @@
+{
+ "_source": "GET https://api.crossref.org/works/10.4085/1062-6050-352-21, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "status": "ok",
+  "message": {
+   "DOI": "10.4085/1062-6050-352-21",
+   "type": "journal-article",
+   "title": [
+    "Current Clinical Concepts: Heat Tolerance Testing"
+   ],
+   "subtitle": [],
+   "container-title": [
+    "Journal of Athletic Training"
+   ],
+   "short-container-title": [],
+   "author": [
+    {
+     "given": "Cody",
+     "family": "Butler",
+     "sequence": "first"
+    },
+    {
+     "given": "Erin",
+     "family": "Dierickx",
+     "sequence": "additional"
+    },
+    {
+     "given": "Michelle",
+     "family": "Bruneau",
+     "sequence": "additional"
+    },
+    {
+     "given": "Rebecca",
+     "family": "Stearns",
+     "sequence": "additional"
+    },
+    {
+     "given": "Douglas J.",
+     "family": "Casa",
+     "sequence": "additional"
+    }
+   ],
+   "published-print": {
+    "date-parts": [
+     [
+      2023,
+      2,
+      1
+     ]
+    ]
+   },
+   "published-online": {
+    "date-parts": [
+     [
+      2021,
+      11,
+      18
+     ]
+    ]
+   },
+   "published": {
+    "date-parts": [
+     [
+      2021,
+      11,
+      18
+     ]
+    ]
+   },
+   "issued": {
+    "date-parts": [
+     [
+      2021,
+      11,
+      18
+     ]
+    ]
+   },
+   "journal-issue": {
+    "issue": "2",
+    "published-online": {
+     "date-parts": [
+      [
+       2021,
+       11,
+       18
+      ]
+     ]
+    },
+    "published-print": {
+     "date-parts": [
+      [
+       2023,
+       2,
+       1
+      ]
+     ]
+    }
+   },
+   "volume": "58",
+   "issue": "2",
+   "page": "84-90",
+   "ISSN": [
+    "1938-162X",
+    "1062-6050"
+   ],
+   "abstract": "<jats:p>Heat tolerance testing (HTT) has been developed to assess readiness for work or exercise in the heat based on thermoregulation during exertion. Although the Israeli Defense Forces protocol has been the most widely used and referenced, other protocols and variables considered in the interpretation of the testing are emerging. Our purpose was to summarize the role of HTT after exertional heat stroke; assess the validity of HTT; and provide a review of best-practice recommendations to guide clinicians, coaches, and researchers in the performance, interpretation, and future direction of HTT. We also offer the strength of evidence for these recommendations using the Strength of Recommendation Taxonomy system.</jats:p>",
+   "publisher": "National Athletic Trainers' Association"
+  }
+ }
+}

@@ -1,8 +1,9 @@
 """Regression tests for ris_emit's CrossRef-message → RIS pipeline.
 
 The functions tested here are network-free helpers (`crossref_meta`,
-`build_ris`, `_ris_pages`, `write_ris`). The live CrossRef HTTP call
-(`crossref_by_doi`) is excluded — tested separately at the integration layer.
+`build_ris`, `_ris_pages`, `write_ris`). The CrossRef HTTP call (`crossref_by_doi`)
+is tested through litpipe.net against a loopback mock in tests/test_w2e1_net.py.
+`write_ris` records hashes in the state the autouse fixture injects (in memory).
 """
 from __future__ import annotations
 import os
@@ -131,10 +132,20 @@ class TestWriteRis:
         assert write_ris(str(path), "new", overwrite=False) is False
         assert path.read_text(encoding="utf-8") == "original\n"
 
-    def test_overwrites_when_overwrite_true(self, tmp_path):
+    def test_overwrites_a_pipeline_written_file_when_overwrite_true(self, tmp_path):
+        path = tmp_path / "test.ris"
+        assert write_ris(str(path), "original\n") is True        # recorded in the manifest
+        assert write_ris(str(path), "new", overwrite=True) is True
+        assert path.read_text(encoding="utf-8") == "new"
+
+    def test_keeps_an_unrecorded_file_even_when_overwrite_true(self, tmp_path):
+        # DEC-29: a file the pipeline has no record of is treated as curated (the old behaviour
+        # replaced it, which would regenerate EndNote-curated records).
         path = tmp_path / "test.ris"
         path.write_text("original\n", encoding="utf-8")
-        assert write_ris(str(path), "new", overwrite=True) is True
+        assert write_ris(str(path), "new", overwrite=True) is False
+        assert path.read_text(encoding="utf-8") == "original\n"
+        assert write_ris(str(path), "new", overwrite=True, force=True) is True
         assert path.read_text(encoding="utf-8") == "new"
 
     def test_empty_ris_string_returns_false(self, tmp_path):

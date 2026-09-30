@@ -1,0 +1,33 @@
+{
+ "_source": "doi.org content negotiation (Accept CSL-JSON), 302 to data.medra.org, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "type": "article-journal",
+  "language": "spa",
+  "author": [
+   {
+    "family": "Prieto",
+    "given": "Jose Antonio"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2015,
+     3,
+     1
+    ]
+   ]
+  },
+  "container-title": "NUTRICION HOSPITALARIA",
+  "DOI": "10.3305/nh.2015.31.3.8434",
+  "ISSN": "0212-1611",
+  "issue": "3",
+  "medium": "JB",
+  "page": "1217–1224",
+  "publisher": "GRUPO AULA MEDICA",
+  "publisher-place": "ES",
+  "title": "REPERCUSIÓN DEL EJERCICIO FÍSICO EN LA COMPOSICIÓN CORPORAL Y LA",
+  "URL": "https://doi.org/10.3305/nh.2015.31.3.8434"
+ }
+}

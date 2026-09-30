@@ -1,0 +1,57 @@
+{
+ "_source": "GET https://api.datacite.org/dois?query=titles.titleType:Subtitle&page[size]=1&publisher=true (first record), live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "data": {
+   "attributes": {
+    "doi": "10.5281/zenodo.23064158",
+    "titles": [
+     {
+      "title": "Quantum Prime | ♾️ | The One"
+     },
+     {
+      "titleType": "Subtitle",
+      "title": "The Singular Realization Equality, Realization, qCoupling, Field, Shoot, Receive, Reverse/Replay, and 1–0 Closure"
+     },
+     {
+      "titleType": "Subtitle",
+      "title": "Equality → Realization →Coupling/Lock →Acceleration/Shqoot Full Supremum Accounting, Direction-Independent Reconstruction, Source/Receiver Closure,"
+     },
+     {
+      "titleType": "Other",
+      "title": "Quantum Prime | ♾️ | The One"
+     }
+    ],
+    "creators": [
+     {
+      "nameType": "Personal",
+      "givenName": "Jeremy",
+      "familyName": "Storm",
+      "name": "Storm, Jeremy"
+     }
+    ],
+    "publisher": {
+     "name": "Zenodo"
+    },
+    "container": {},
+    "publicationYear": 2026,
+    "dates": [
+     {
+      "date": "2026-09-30",
+      "dateType": "Issued"
+     }
+    ],
+    "types": {
+     "resourceTypeGeneral": "Preprint"
+    },
+    "descriptions": [
+     {
+      "descriptionType": "Abstract",
+      "description": "Quantum Prime | ♾️ | 1\n\nThe Singular Realization\n\nEquality, Realization, qCoupling, Field, Shoot, Receive, Reverse/Replay, and 1–0 Closure\n\n♾️ Release"
+     }
+    ],
+    "url": "https://zenodo.org/doi/10.5281/zenodo.23064158"
+   }
+  }
+ }
+}

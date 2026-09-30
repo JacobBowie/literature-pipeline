@@ -1,0 +1,47 @@
+{
+ "_source": "GET https://api.datacite.org/dois/10.17605/osf.io/7zrnc?publisher=true, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "data": {
+   "attributes": {
+    "doi": "10.17605/osf.io/7zrnc",
+    "titles": [
+     {
+      "title": "Determinants of Patient-Reported Experience Measures (PREMs) in Middle-Income Hospital Environments: A Scoping Review Protocol"
+     }
+    ],
+    "creators": [
+     {
+      "name": "VENKATA SAI RAMA MOHAN REDDY PALAKOLANU",
+      "nameType": "Personal"
+     }
+    ],
+    "publisher": {
+     "name": "OSF Registries"
+    },
+    "container": {},
+    "publicationYear": 2026,
+    "dates": [
+     {
+      "date": "2026-09-25",
+      "dateType": "Created"
+     },
+     {
+      "date": "2026-09-25",
+      "dateType": "Updated"
+     }
+    ],
+    "types": {
+     "resourceTypeGeneral": "StudyRegistration"
+    },
+    "descriptions": [
+     {
+      "descriptionType": "Abstract",
+      "description": "This scoping review systematically maps and synthesizes global empirical evidence regarding the organizational, workforce, and economic determinants of patient experience in hospital environments across middle-income countries (LMICs and UMICs). \n\nGuided by the Joanna Briggs Institute (JBI) methodology for scoping reviews and reported in accordance with the PRISMA-ScR statement, this protocol outl"
+     }
+    ],
+    "url": "https://osf.io/7zrnc/"
+   }
+  }
+ }
+}

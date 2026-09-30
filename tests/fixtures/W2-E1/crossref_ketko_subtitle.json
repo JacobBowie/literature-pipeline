@@ -1,0 +1,110 @@
+{
+ "_source": "GET https://api.crossref.org/works/10.4161/temp.29752, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "status": "ok",
+  "message": {
+   "DOI": "10.4161/temp.29752",
+   "type": "journal-article",
+   "title": [
+    "The thermal-circulatory ratio (TCR)"
+   ],
+   "subtitle": [
+    "An index to evaluate the tolerance to heat"
+   ],
+   "container-title": [
+    "Temperature"
+   ],
+   "short-container-title": [
+    "Temperature"
+   ],
+   "author": [
+    {
+     "given": "Itay",
+     "family": "Ketko",
+     "sequence": "first"
+    },
+    {
+     "given": "Uri",
+     "family": "Eliyahu",
+     "sequence": "additional"
+    },
+    {
+     "given": "Yoram",
+     "family": "Epstein",
+     "sequence": "additional"
+    },
+    {
+     "given": "Yuval",
+     "family": "Heled",
+     "sequence": "additional"
+    }
+   ],
+   "published-print": {
+    "date-parts": [
+     [
+      2014,
+      9,
+      30
+     ]
+    ]
+   },
+   "published-online": {
+    "date-parts": [
+     [
+      2014,
+      7,
+      2
+     ]
+    ]
+   },
+   "published": {
+    "date-parts": [
+     [
+      2014,
+      7,
+      2
+     ]
+    ]
+   },
+   "issued": {
+    "date-parts": [
+     [
+      2014,
+      7,
+      2
+     ]
+    ]
+   },
+   "journal-issue": {
+    "issue": "2",
+    "published-online": {
+     "date-parts": [
+      [
+       2014,
+       5,
+       8
+      ]
+     ]
+    },
+    "published-print": {
+     "date-parts": [
+      [
+       2014,
+       9,
+       30
+      ]
+     ]
+    }
+   },
+   "volume": "1",
+   "issue": "2",
+   "page": "101-106",
+   "ISSN": [
+    "2332-8940",
+    "2332-8959"
+   ],
+   "publisher": "Informa UK Limited"
+  }
+ }
+}

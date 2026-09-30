@@ -1,0 +1,61 @@
+{
+ "_source": "doi.org content negotiation for 10.48550/arxiv.2605.29559, endpoint audit 2026-09-25",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "type": "article",
+  "id": "https://doi.org/10.48550/arxiv.2605.29559",
+  "categories": [
+   "Computation and Language (cs.CL)",
+   "FOS: Computer and information sciences",
+   "FOS: Computer and information sciences"
+  ],
+  "author": [
+   {
+    "family": "Peng",
+    "given": "Xiaoxuan"
+   },
+   {
+    "family": "Zhang",
+    "given": "Kaiqi"
+   },
+   {
+    "family": "Lu",
+    "given": "Xinyu"
+   },
+   {
+    "family": "Cao",
+    "given": "Boxi"
+   },
+   {
+    "family": "Lu",
+    "given": "Yaojie"
+   },
+   {
+    "family": "Lin",
+    "given": "Hongyu"
+   },
+   {
+    "family": "Han",
+    "given": "Xianpei"
+   },
+   {
+    "family": "Sun",
+    "given": "Le"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2026
+    ]
+   ]
+  },
+  "abstract": "Mastering terminal environments requires language agents capable of multi-step planning, feedback-grounded execution, and dynamic state adaptation. However, training such agents is currently bottlenecked by a reliance on scraped external repositories, which limits domain diversity, environment controllability, and the targeting of specific capability deficits. We introduce LiteCoder-Terminal-Gen, a zero-dependency synthesis pipeline that autonomously generates executable and verifiable terminal training environments directly from domain specifications. Using this framework, we construct two large-scale resources: LiteCoder-Terminal-SFT, comprising 11,255 expert trajectories across 10 domains, and LiteCoder-Terminal-RL, featuring 602 verifiable environments for trajectory-level preference optimization. Supervised fine-tuning of Qwen-family models on our SFT dataset yields agents that significantly outperform their base counterparts. Notably, our 32B variant achieves 29.06%, 18.54%, and 34.00% pass@1 on Terminal Bench 1.0, 2.0, and Pro, respectively. Furthermore, applying Direct Multi-turn Preference Optimization (DMPO) on our RL environments yields additional performance gains. These results systematically demonstrate that fully synthetic, executable environments offer a scalable and verifiable supervision signal for mastering complex, real-world command-line workflows.",
+  "DOI": "10.48550/ARXIV.2605.29559",
+  "publisher": "arXiv",
+  "title": "LiteCoder-Terminal: Scaling Long-Horizon Terminal Environments for Learning Language Agents",
+  "URL": "https://arxiv.org/abs/2605.29559",
+  "copyright": "arXiv.org perpetual, non-exclusive license",
+  "version": "1"
+ }
+}

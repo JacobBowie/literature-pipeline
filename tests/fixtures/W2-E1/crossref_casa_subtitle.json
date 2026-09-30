@@ -1,0 +1,81 @@
+{
+ "_source": "GET https://api.crossref.org/works/10.1249/jsr.0b013e31825615cc, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "status": "ok",
+  "message": {
+   "DOI": "10.1249/jsr.0b013e31825615cc",
+   "type": "journal-article",
+   "title": [
+    "Exertional Heat Stroke"
+   ],
+   "subtitle": [
+    "New Concepts Regarding Cause and Care"
+   ],
+   "container-title": [
+    "Current Sports Medicine Reports"
+   ],
+   "short-container-title": [
+    "Current Sports Medicine Reports"
+   ],
+   "author": [
+    {
+     "given": "Douglas J.",
+     "family": "Casa",
+     "sequence": "first"
+    },
+    {
+     "given": "Lawrence E.",
+     "family": "Armstrong",
+     "sequence": "additional"
+    },
+    {
+     "given": "Glen P.",
+     "family": "Kenny",
+     "sequence": "additional"
+    },
+    {
+     "given": "Francis G.",
+     "family": "O’Connor",
+     "sequence": "additional"
+    },
+    {
+     "given": "Robert A.",
+     "family": "Huggins",
+     "sequence": "additional"
+    }
+   ],
+   "published-print": {
+    "date-parts": [
+     [
+      2012
+     ]
+    ]
+   },
+   "published": {
+    "date-parts": [
+     [
+      2012
+     ]
+    ]
+   },
+   "issued": {
+    "date-parts": [
+     [
+      2012
+     ]
+    ]
+   },
+   "journal-issue": {
+    "issue": "3"
+   },
+   "volume": "11",
+   "issue": "3",
+   "page": "115-123",
+   "ISSN": [
+    "1537-890X"
+   ],
+   "publisher": "Ovid Technologies (Wolters Kluwer Health)"
+  }
+ }
+}

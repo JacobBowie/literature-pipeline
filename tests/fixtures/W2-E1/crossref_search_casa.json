@@ -1,0 +1,368 @@
+{
+ "_source": "GET https://api.crossref.org/works?query.bibliographic=...&query.author=Casa&rows=5, live probe 2026-09-30 through litpipe.net",
+ "_trimmed": "fields the metadata writer reads; references, licences, links dropped",
+ "body": {
+  "status": "ok",
+  "message": {
+   "items": [
+    {
+     "DOI": "10.1249/jsr.0b013e31825615cc",
+     "type": "journal-article",
+     "title": [
+      "Exertional Heat Stroke"
+     ],
+     "subtitle": [
+      "New Concepts Regarding Cause and Care"
+     ],
+     "container-title": [
+      "Current Sports Medicine Reports"
+     ],
+     "short-container-title": [
+      "Current Sports Medicine Reports"
+     ],
+     "author": [
+      {
+       "given": "Douglas J.",
+       "family": "Casa",
+       "sequence": "first"
+      },
+      {
+       "given": "Lawrence E.",
+       "family": "Armstrong",
+       "sequence": "additional"
+      },
+      {
+       "given": "Glen P.",
+       "family": "Kenny",
+       "sequence": "additional"
+      },
+      {
+       "given": "Francis G.",
+       "family": "O’Connor",
+       "sequence": "additional"
+      },
+      {
+       "given": "Robert A.",
+       "family": "Huggins",
+       "sequence": "additional"
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2012
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2012
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2012
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "3"
+     },
+     "volume": "11",
+     "issue": "3",
+     "page": "115-123",
+     "ISSN": [
+      "1537-890X"
+     ],
+     "publisher": "Ovid Technologies (Wolters Kluwer Health)"
+    },
+    {
+     "DOI": "10.3928/19425864-20121212-01",
+     "type": "journal-article",
+     "title": [
+      "Practice Beliefs of Team Physicians Regarding the Recognition and Treatment of Exertional Heat Stroke"
+     ],
+     "container-title": [
+      "Athletic Training &amp; Sports Health Care"
+     ],
+     "short-container-title": [
+      "Athletic Training &amp; Sports Health Care"
+     ],
+     "author": [
+      {
+       "given": "Stephanie",
+       "family": "Mazerolle",
+       "sequence": "first"
+      },
+      {
+       "given": "Kelly",
+       "family": "Pagnotta",
+       "sequence": "additional"
+      },
+      {
+       "given": "Douglas",
+       "family": "Casa",
+       "sequence": "additional"
+      },
+      {
+       "given": "Lindsey",
+       "family": "McDowell",
+       "sequence": "additional"
+      },
+      {
+       "given": "Lawrence",
+       "family": "Armstrong",
+       "sequence": "additional"
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2013,
+        1
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2013,
+        1
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2013,
+        1
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "1",
+      "published-print": {
+       "date-parts": [
+        [
+         2013,
+         1
+        ]
+       ]
+      }
+     },
+     "volume": "5",
+     "issue": "1",
+     "page": "20-28",
+     "ISSN": [
+      "1942-5864",
+      "1942-5872"
+     ],
+     "publisher": "SLACK, Inc."
+    },
+    {
+     "DOI": "10.1007/978-3-030-27805-2_4",
+     "type": "book-chapter",
+     "title": [
+      "Exertional Heat Stroke"
+     ],
+     "container-title": [
+      "Exertional Heat Illness"
+     ],
+     "author": [
+      {
+       "given": "William M.",
+       "family": "Adams",
+       "sequence": "first"
+      },
+      {
+       "given": "Rebecca L.",
+       "family": "Stearns",
+       "sequence": "additional"
+      },
+      {
+       "given": "Douglas J.",
+       "family": "Casa",
+       "sequence": "additional"
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2020
+       ]
+      ]
+     },
+     "published-online": {
+      "date-parts": [
+       [
+        2019,
+        11,
+        21
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2019,
+        11,
+        21
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2019,
+        11,
+        21
+       ]
+      ]
+     },
+     "page": "59-79",
+     "publisher": "Springer International Publishing"
+    },
+    {
+     "DOI": "10.4324/9781003526124-12",
+     "type": "book-chapter",
+     "title": [
+      "Is It Possible to Prevent Death From Exertional Heat Stroke?"
+     ],
+     "container-title": [
+      "Quick Questions Heat-Related Illness"
+     ],
+     "author": [
+      {
+       "given": "Yuri",
+       "family": "Hosokawa",
+       "sequence": "first"
+      },
+      {
+       "given": "Douglas J.",
+       "family": "Casa",
+       "sequence": "additional"
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2024,
+        5,
+        28
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2024,
+        5,
+        28
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2024,
+        5,
+        28
+       ]
+      ]
+     },
+     "page": "53-56",
+     "publisher": "Routledge"
+    },
+    {
+     "DOI": "10.5608/070130",
+     "type": "journal-article",
+     "title": [
+      "Promoting Best Practices Regarding Exertional Heat Stroke: A Perspective from the Team Physician"
+     ],
+     "container-title": [
+      "Athletic Training Education Journal"
+     ],
+     "short-container-title": [
+      "Athl Train Educ J"
+     ],
+     "author": [
+      {
+       "given": "Stephanie",
+       "family": "Mazerolle",
+       "sequence": "first"
+      },
+      {
+       "given": "Kelly",
+       "family": "Pagnotta",
+       "sequence": "additional"
+      },
+      {
+       "given": "Lindsey",
+       "family": "McDowell",
+       "sequence": "additional"
+      },
+      {
+       "given": "Douglas",
+       "family": "Casa",
+       "sequence": "additional"
+      },
+      {
+       "given": "Lawrence",
+       "family": "Armstrong",
+       "sequence": "additional"
+      }
+     ],
+     "published-online": {
+      "date-parts": [
+       [
+        2012,
+        4,
+        11
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2012,
+        4,
+        11
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2012,
+        4,
+        11
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "1",
+      "published-online": {
+       "date-parts": [
+        [
+         2012,
+         4,
+         11
+        ]
+       ]
+      }
+     },
+     "volume": "7",
+     "issue": "1",
+     "page": "30-37",
+     "ISSN": [
+      "1947-380X"
+     ],
+     "publisher": "National Athletic Trainers' Association"
+    }
+   ]
+  }
+ }
+}
