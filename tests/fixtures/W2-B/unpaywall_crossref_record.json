@@ -1,0 +1,91 @@
+{
+ "doi": "10.1152/japplphysiol.00775.2024",
+ "is_oa": true,
+ "oa_status": "bronze",
+ "title": "Effect of condensed heat acclimation on thermophysiological adaptations, hypoxic cross-tolerance, exercise performance, and deacclimation",
+ "year": 2025,
+ "genre": "journal-article",
+ "publisher": "American Physiological Society",
+ "journal_name": "Journal of Applied Physiology",
+ "updated": "2026-09-11T13:22:54Z",
+ "has_repository_copy": true,
+ "z_authors": [
+  {
+   "author_position": "first",
+   "is_corresponding": false,
+   "raw_author_name": "Charlotte E. Stevens"
+  },
+  {
+   "author_position": "middle",
+   "is_corresponding": false,
+   "raw_author_name": "Joseph T. Costello"
+  }
+ ],
+ "best_oa_location": {
+  "host_type": "publisher",
+  "is_best": true,
+  "license": null,
+  "url": "https://doi.org/10.1152/japplphysiol.00775.2024",
+  "url_for_landing_page": "https://doi.org/10.1152/japplphysiol.00775.2024",
+  "url_for_pdf": null,
+  "version": "publishedVersion"
+ },
+ "oa_locations": [
+  {
+   "host_type": "publisher",
+   "version": "publishedVersion",
+   "url": "https://doi.org/10.1152/japplphysiol.00775.2024",
+   "url_for_pdf": null,
+   "url_for_landing_page": "https://doi.org/10.1152/japplphysiol.00775.2024",
+   "is_best": true,
+   "license": null,
+   "endpoint_id": null,
+   "repository_institution": null
+  },
+  {
+   "host_type": "repository",
+   "version": "publishedVersion",
+   "url": "https://pureportal.coventry.ac.uk/en/publications/ea6ede39-7b9c-4964-a850-28a4db792d6f",
+   "url_for_pdf": null,
+   "url_for_landing_page": "https://pureportal.coventry.ac.uk/en/publications/ea6ede39-7b9c-4964-a850-28a4db792d6f",
+   "is_best": false,
+   "license": "cc-by",
+   "endpoint_id": "b016e2424db52f0f336",
+   "repository_institution": "Coventry University"
+  },
+  {
+   "host_type": "repository",
+   "version": "acceptedVersion",
+   "url": "https://eprints.soton.ac.uk/506866/1/stevens-et-al-2025-effect-of-condensed-heat-acclimation-on-thermophysiological-adaptations-hypoxic-cross-tolerance.pdf",
+   "url_for_pdf": "https://eprints.soton.ac.uk/506866/1/stevens-et-al-2025-effect-of-condensed-heat-acclimation-on-thermophysiological-adaptations-hypoxic-cross-tolerance.pdf",
+   "url_for_landing_page": "http://doi.org/10.1152/japplphysiol.00775.2024>).",
+   "is_best": false,
+   "license": null,
+   "endpoint_id": "153c903e687e00d4e72",
+   "repository_institution": "University of Southampton"
+  },
+  {
+   "host_type": "repository",
+   "version": "submittedVersion",
+   "url": "https://research.tees.ac.uk/files/94960783/94922730.pdf",
+   "url_for_pdf": null,
+   "url_for_landing_page": "https://research.tees.ac.uk/files/94960783/94922730.pdf",
+   "is_best": false,
+   "license": "cc-by",
+   "endpoint_id": "gviwre2kwlk2brap3xoi",
+   "repository_institution": "Teesside University"
+  },
+  {
+   "host_type": "repository",
+   "version": "submittedVersion",
+   "url": "https://research.tees.ac.uk/en/publications/a5604608-df75-41ab-9ee8-964c77a385ba",
+   "url_for_pdf": null,
+   "url_for_landing_page": "https://research.tees.ac.uk/en/publications/a5604608-df75-41ab-9ee8-964c77a385ba",
+   "is_best": false,
+   "license": "cc-by",
+   "endpoint_id": "fa4aszi2mt4r44uweede",
+   "repository_institution": "Teesside University"
+  }
+ ],
+ "_fixture_note": "api.unpaywall.org live 2026-09-30 (litpipe.net probe, upw_crossref); trimmed to the fields the stage reads; full key list: best_oa_location, data_standard, doi, doi_url, first_oa_location, genre, has_repository_copy, is_oa, is_paratext, journal_is_in_doaj, journal_is_oa, journal_issn_l, journal_issns, journal_name, oa_locations, oa_locations_embargoed, oa_status, published_date, publisher, title, updated, year, z_authors"
+}

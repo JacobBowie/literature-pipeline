@@ -1,0 +1,5 @@
+{
+    "HTTP_status_code": 422,
+    "error": true,
+    "message": "Email address required in API call, see http://unpaywall.org/products/api"
+}

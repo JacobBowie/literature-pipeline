@@ -1,0 +1,69 @@
+{
+ "doi": "10.3390/ijms21072269",
+ "is_oa": true,
+ "oa_status": "gold",
+ "title": "Alveolar Epithelial Type II Cells as Drivers of Lung Fibrosis in Idiopathic Pulmonary Fibrosis",
+ "year": 2020,
+ "genre": "journal-article",
+ "publisher": "MDPI AG",
+ "journal_name": "International Journal of Molecular Sciences",
+ "updated": "2026-08-27T15:17:08Z",
+ "has_repository_copy": true,
+ "z_authors": [
+  {
+   "author_position": "first",
+   "is_corresponding": true,
+   "raw_author_name": "Tanyalak Parimon"
+  },
+  {
+   "author_position": "middle",
+   "is_corresponding": false,
+   "raw_author_name": "Changfu Yao"
+  }
+ ],
+ "best_oa_location": {
+  "host_type": "publisher",
+  "is_best": true,
+  "license": "cc-by",
+  "url": "https://www.mdpi.com/1422-0067/21/7/2269/pdf?version=1585484823",
+  "url_for_landing_page": "https://doi.org/10.3390/ijms21072269",
+  "url_for_pdf": "https://www.mdpi.com/1422-0067/21/7/2269/pdf?version=1585484823",
+  "version": "publishedVersion"
+ },
+ "oa_locations": [
+  {
+   "host_type": "publisher",
+   "version": "publishedVersion",
+   "url": "https://www.mdpi.com/1422-0067/21/7/2269/pdf?version=1585484823",
+   "url_for_pdf": "https://www.mdpi.com/1422-0067/21/7/2269/pdf?version=1585484823",
+   "url_for_landing_page": "https://doi.org/10.3390/ijms21072269",
+   "is_best": true,
+   "license": "cc-by",
+   "endpoint_id": null,
+   "repository_institution": null
+  },
+  {
+   "host_type": "repository",
+   "version": "submittedVersion",
+   "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/7177323",
+   "url_for_pdf": null,
+   "url_for_landing_page": "https://www.ncbi.nlm.nih.gov/pmc/articles/7177323",
+   "is_best": false,
+   "license": "cc-by",
+   "endpoint_id": "ac9de7698155b820de7",
+   "repository_institution": "National Institutes of Health"
+  },
+  {
+   "host_type": "repository",
+   "version": "submittedVersion",
+   "url": "https://doaj.org/article/7146995628f6430cbdef43facb38df2b",
+   "url_for_pdf": null,
+   "url_for_landing_page": "https://doaj.org/article/7146995628f6430cbdef43facb38df2b",
+   "is_best": false,
+   "license": "cc-by-sa",
+   "endpoint_id": "8e556f4518885d9a235",
+   "repository_institution": null
+  }
+ ],
+ "_fixture_note": "api.unpaywall.org live 2026-09-30 (litpipe.net probe, upw_mdpi); trimmed to the fields the stage reads; full key list: best_oa_location, data_standard, doi, doi_url, first_oa_location, genre, has_repository_copy, is_oa, is_paratext, journal_is_in_doaj, journal_is_oa, journal_issn_l, journal_issns, journal_name, oa_locations, oa_locations_embargoed, oa_status, published_date, publisher, title, updated, year, z_authors"
+}

@@ -37,7 +37,7 @@ def test_safe_ascii(inp, want):
     assert safe_ascii(inp) == want
 
 
-# ---------- last_name spec (documented in unpaywall_fetch_v2.py:48) ----------
+# ---------- last_name spec (documented in unpaywall_fetch_v2.last_name) ----------
 
 @pytest.mark.parametrize("authors,want", [
     ("Periard JD; Casa DJ",            "Periard"),    # LastName + Initial
@@ -52,6 +52,159 @@ def test_safe_ascii(inp, want):
 ])
 def test_last_name(authors, want):
     assert last_name(authors) == want
+
+
+# ---------- DEC-14 (REG-I17): initials of 1-5 capitals, particles joined, new files only ----------
+
+@pytest.mark.parametrize("authors,want", [
+    # the dispatch cases
+    ("Durnin JVGA; Womersley J",          "Durnin"),
+    ("van der Walt JHA; Smith B",         "vanderWalt"),
+    ("De Vries H",                        "DeVries"),
+    ("Garcia-Lopez J",                    "Garcia-Lopez"),
+    ("García-López J",                    "Garcia-Lopez"),
+    # shapes found in the queue history (census 2026-09-30)
+    ("Alberti KGMM",                      "Alberti"),
+    ("Masset KVDSB",                      "Masset"),       # 5 initials
+    ("Pan L-M",                           "Pan"),          # hyphenated initials
+    ("Stephenson Mark D",                 "Stephenson"),   # Surname Given Initial
+    ("Coyne Joseph O C",                  "Coyne"),
+    ("A Purcell S",                       "Purcell"),
+    ("Del Giudice M",                     "DelGiudice"),
+    ("van Amstel RBE",                    "vanAmstel"),
+    ("St. Pierre J",                      "StPierre"),     # the auditor's own example
+    ("Smith J.M.",                        "Smith"),
+    ("Smith J M",                         "Smith"),
+    ("Hugo De Vries",                     "DeVries"),      # Given Particle Surname
+    ("I. Di Domenico",                    "DiDomenico"),
+    ("S. van der Zwaard",                 "vanderZwaard"),
+    ("Gabriel G. de la Torre",            "delaTorre"),
+    ("Tom H. B. den Ouden",               "denOuden"),
+    ("Moda Tomé Edson dos Reis",          "dosReis"),
+    ("Bin Yang",                          "Yang"),         # a given name, not a particle
+    ("Le Ma",                             "Ma"),
+    ("Di Tang",                           "Tang"),
+    ("Le Roux, Elisa",                    "LeRoux"),       # Surname, Given: all of it
+    ("Del Vecchio A, Casolo A, Negro F, et al.", "DelVecchio"),
+    ("Tseng et al. (Cornell)",            "Tseng"),        # cut at "et al"
+    ("et al",                             "Unknown"),
+    ("",                                  "Unknown"),
+    (None,                                "Unknown"),
+])
+def test_last_name_dec14(authors, want):
+    assert last_name(authors) == want
+
+
+@pytest.mark.parametrize("authors,old", [
+    ("Durnin JVGA; Womersley J",  "JVGA"),
+    ("van der Walt JHA; Smith B", "van"),
+    ("De Vries H",                "De"),
+    ("Periard JD; Casa DJ",       "Periard"),
+])
+def test_legacy_last_name_pins_the_old_rule(authors, old):
+    """Existing files keep their names (DEC-14: new files only); the stage recognises them by the
+    old rule, so the old rule must stay exactly as it was."""
+    from unpaywall_fetch_v2 import legacy_last_name
+    assert legacy_last_name(authors) == old
+
+
+def test_particle_surnames_agree_with_the_auditors():
+    """audit_filenames builds the expected name from Crossref's family name with spaces removed
+    (`van der Walt` -> `vanderWalt`); the writer now agrees instead of writing `van`."""
+    for authors, family in (("van der Walt JHA; Smith B", "van der Walt"), ("De Vries H", "De Vries"),
+                            ("Del Giudice M", "Del Giudice")):
+        assert build_filename("2019", authors, "Heat and the heart") == \
+            canonical_filename("2019", family, "Heat and the heart")
+
+
+# ---------- DEC-15: one slug writer (ris_emit.slug) ----------
+
+def test_slug_title_is_ris_emit_slug():
+    import ris_emit
+    for t in ["Is this the effect that heat has, or not?", "These are those that been",
+              "<i>In vivo</i> heat acclimation", "Périard Heat Stress", "", "A the of"]:
+        assert slug_title(t) == ris_emit.slug(t), t
+    assert slug_title("Is heat stress or cold stress worse", max_words=2) == "HeatStress"
+
+
+def test_slug_title_has_no_stoplist_of_its_own(monkeypatch):
+    """Delegation, not a copy: a word added to ris_emit.SLUG_SKIP disappears from slug_title too."""
+    import ris_emit
+    monkeypatch.setattr(ris_emit, "SLUG_SKIP", ris_emit.SLUG_SKIP | {"heat"})
+    assert slug_title("Heat acclimation in athletes") == "AcclimationAthletes"
+
+
+def test_build_filename_is_canonical_stem():
+    import ris_emit
+    from unpaywall_fetch_v2 import last_name as ln
+    for year, authors, title in [("2024", "Müller A; Schmidt B", "Is the drift in athletes real"),
+                                 ("n/a", "", ""), ("2019", "van der Walt JHA", "The heart")]:
+        assert build_filename(year, authors, title) == ris_emit.canonical_stem(year, ln(authors), title) + ".pdf"
+
+
+def test_legacy_names_stay_derivable():
+    """Files written before DEC-14/15 keep their names; legacy_build_filename rebuilds them (the
+    stage's SKIP_EXISTS check and a queue-history map for old files need it)."""
+    from unpaywall_fetch_v2 import legacy_build_filename
+    args = ("2019", "van der Walt JHA; Smith B", "Is the effect of heat on the heart large")
+    assert legacy_build_filename(*args) == "2019_van_IsEffectHeatHeartLarge.pdf"
+    assert build_filename(*args) == "2019_vanderWalt_EffectHeatHeartLarge.pdf"
+
+
+# ---------- lock-in: audit_filenames --queue-history still maps a known file ----------
+
+KNOWN_ROW = {"doi": "10.1123/ijspp.2019-0123", "title": "Heat acclimation and athletic performance",
+             "authors": "Periard JD; Racinais S", "year": "2020", "destination": "lib", "notes": ""}
+KNOWN_FILE = "2020_Periard_HeatAcclimationAthleticPerformance.pdf"
+
+
+def _queue_history(tmp_path, rows):
+    import csv as _csv
+    p = tmp_path / "lit_pull_queue.2026-09-01.processed.csv"
+    with open(p, "w", encoding="utf-8", newline="") as f:
+        w = _csv.DictWriter(f, fieldnames=["doi", "title", "authors", "year", "destination", "notes"])
+        w.writeheader()
+        w.writerows(rows)
+    return str(tmp_path / "lit_pull_queue.*.processed*.csv")
+
+
+def test_queue_history_maps_a_known_file(tmp_path):
+    import audit_filenames
+    from unpaywall_fetch_v2 import legacy_build_filename
+    row = KNOWN_ROW
+    assert build_filename(row["year"], row["authors"], row["title"]) == KNOWN_FILE
+    assert legacy_build_filename(row["year"], row["authors"], row["title"]) == KNOWN_FILE
+    mapping, paths = audit_filenames.load_queue_history(_queue_history(tmp_path, [row]))
+    assert len(paths) == 1 and mapping == {KNOWN_FILE: row["doi"]}
+
+
+def test_queue_history_cli_path_uses_the_map_for_a_known_file(tmp_path, monkeypatch):
+    """The --queue-history flag end to end: a known file with no DOI in its text or sidecar gets
+    its DOI from the queue history (Crossref stubbed; nothing is renamed without --execute)."""
+    import csv as _csv
+    import sys as _sys
+    import fitz
+    import audit_filenames
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    doc = fitz.open()
+    doc.new_page().insert_text((72, 72), "a scan with no identifiers")
+    (lib / KNOWN_FILE).write_bytes(doc.tobytes())
+    doc.close()
+    seen = []
+    monkeypatch.setattr(audit_filenames, "crossref", lambda doi: seen.append(doi) or
+                        {"title": KNOWN_ROW["title"], "year": "2020", "lastname": "Periard"})
+    monkeypatch.setattr(audit_filenames.time, "sleep", lambda s: None)
+    report = tmp_path / "audit.csv"
+    monkeypatch.setattr(_sys, "argv", ["audit_filenames.py", "--lib-dir", str(lib), "--queue-history",
+                                       _queue_history(tmp_path, [KNOWN_ROW]), "--report", str(report)])
+    audit_filenames.main()
+    assert seen == [KNOWN_ROW["doi"]]
+    with open(report, encoding="utf-8") as f:
+        rows = list(_csv.DictReader(f))
+    assert rows == [{"current": KNOWN_FILE, "proposed": KNOWN_FILE, "doi": KNOWN_ROW["doi"],
+                     "status": "ALREADY_CANONICAL_QH"}]
+    assert sorted(p.name for p in lib.iterdir()) == [KNOWN_FILE]
 
 
 # ---------- writer/auditor agreement on accented inputs ----------

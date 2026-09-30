@@ -1,0 +1,16 @@
+{
+ "responseCode": 1,
+ "handle": "10.1186/s12933-025-02652-5",
+ "values": [
+  {
+   "index": 1,
+   "type": "URL",
+   "data": {
+    "format": "string",
+    "value": "https://cardiab.biomedcentral.com/articles/10.1186/s12933-025-02652-5"
+   },
+   "ttl": 86400,
+   "timestamp": "2025-03-01T09:43:10Z"
+  }
+ ]
+}

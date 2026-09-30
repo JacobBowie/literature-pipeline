@@ -145,9 +145,8 @@ _EMAIL_MODULES = [
     "audit_filenames", "backfill_fulltext", "backfill_ris", "enrich_abstracts",
     "enrich_recommendations", "fill_missing_dois", "forward_citations",
     "harvest_citations", "pmc_fetch", "preprint_fetch", "recheck_pmc",
-    "unpaywall_fetch_v2",
-    # ris_emit left in W2-E1: it binds no EMAIL; litpipe.net injects identity (pinned by
-    # test_w2e1_net.py). Modules drop out of this list as W2 rewires them onto litpipe.net.
+    # unpaywall_fetch_v2 (W2-B) and ris_emit (W2-E1) left: they bind no EMAIL; litpipe.net injects identity (pinned by
+    # test_w2e1_net.py, test_unpaywall_stage_has_no_email_constant). Modules drop out of this list as W2 rewires them onto litpipe.net.
 ]
 
 
@@ -272,3 +271,8 @@ def test_connect_db_rejects_tries_below_one(tmp_path):
     """The shared helper fails fast on a computed tries<1 rather than `raise None` -> TypeError."""
     with pytest.raises(ValueError):
         lit_util.connect_db(str(tmp_path / "t.duckdb"), tries=0)
+
+
+def test_unpaywall_stage_has_no_email_constant():
+    import unpaywall_fetch_v2 as m   # DEC-13: identity comes from litpipe.net (W2-B)
+    assert not hasattr(m, "EMAIL") and not hasattr(m, "API_UA")
