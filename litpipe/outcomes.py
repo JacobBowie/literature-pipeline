@@ -78,6 +78,18 @@ _FULLTEXT_STAGES = frozenset({"fulltext", "fulltextxml", "jats", "sidecar"})
 _NO_MATCH_TOKENS = frozenset({"NO_PMCID", "NOT_FOUND", "NOT_IN_UNPAYWALL", "NO_MATCH"})
 _REFUSED_TOKENS = frozenset({"HTML", "NOT_PDF"})
 _DONE_TOKENS = frozenset({"OK", "SKIP_EXISTS", "ALREADY_EXISTS"})  # a file is in place
+# Typed tokens the rewired stages write into legacy status columns (W2a): the kind they name wins
+# over any rule below. Checked in this order, so a CONFIG or EMBARGOED token is never masked.
+_TYPED_TOKENS = (
+    ("CONFIG", Kind.CONFIG),
+    ("EMBARGOED", Kind.EMBARGOED),
+    ("DEFERRED", Kind.DEFERRED),
+    ("HOST_REFUSED", Kind.REFUSED), ("REDIRECT_BLOCKED", Kind.REFUSED), ("REFUSED", Kind.REFUSED),
+    ("NOT_AVAILABLE", Kind.NOT_AVAILABLE), ("PROHIBITED", Kind.NOT_AVAILABLE),
+    ("EMPTY_OR_NON_XML", Kind.OUTAGE), ("OUTAGE", Kind.OUTAGE),
+    ("TRANSPORT", Kind.TRANSPORT),
+    ("NOT_AT_RA", Kind.NOT_AT_RA),
+)
 
 
 def _words(s):
@@ -111,6 +123,10 @@ def from_legacy(error_string, stage=None) -> Kind:
         return Kind.OK
     if s == "DRY":
         return Kind.SKIPPED
+    words = _words(s)
+    for token, kind in _TYPED_TOKENS:          # a typed token written by a rewired stage (W2a)
+        if token in words:
+            return kind
     low = s.lower()
     codes = [int(c) for c in _HTTP_CODE.findall(s)] + [int(c) for c in _TOO_MANY.findall(s)]
     api = _API_FORM.fullmatch(s)

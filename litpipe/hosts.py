@@ -172,8 +172,10 @@ def _rows():
                    note="3 rps unkeyed (X-Ratelimit-Limit: 3), 10 with a key; idconv fallback (W2-A1)"),
         HostPolicy("pmc-oa-opendata.s3.amazonaws.com", min_interval_s=0.25, identity="anonymous",
                    note="no stated limit; verify md5 against ?md5=, not the ETag"),
-        HostPolicy("www.ncbi.nlm.nih.gov", min_interval_s=0.5, identity="ncbi", offpeak=NCBI_OFFPEAK,
-                   note="BioC API; 'absent' is 200 text/html; /pmc/articles/ prohibited"),
+        HostPolicy("www.ncbi.nlm.nih.gov", min_interval_s=1.0, identity="ncbi", offpeak=NCBI_OFFPEAK,
+                   retry=_NO_429_RETRY,
+                   note="BioC API; 'absent' is 200 text/html; /pmc/articles/ prohibited; BioC answered 429 "
+                        "(no Retry-After) at a 0.65 s gap on 2026-09-30 (W2-A2): 1 s spacing, a 429 is final"),
         HostPolicy("www.ebi.ac.uk", min_interval_s=1.0,
                    note="Europe PMC REST (/europepmc/webservices/rest/) only; fullTextXML 500 = not available; "
                         "30 s timeout; europepmc.org website pages prohibited"),

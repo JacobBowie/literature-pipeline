@@ -405,7 +405,7 @@ def test_host_table_matches_refactor_scope_2_2():
         "pmc.ncbi.nlm.nih.gov": (1.0, "ncbi", "urllib"),
         "eutils.ncbi.nlm.nih.gov": (0.4, "ncbi", "requests"),
         "pmc-oa-opendata.s3.amazonaws.com": (0.25, "anonymous", "requests"),
-        "www.ncbi.nlm.nih.gov": (0.5, "ncbi", "requests"),
+        "www.ncbi.nlm.nih.gov": (1.0, "ncbi", "requests"),   # 0.5 in scope 2.2; BioC 429 at 0.65 s (W2-A2, 2026-09-30)
         "www.ebi.ac.uk": (1.0, "ua", "requests"),
         "export.arxiv.org": (3.5, "ua", "requests"),
         "api.osf.io": (36.0, "ua", "requests"),

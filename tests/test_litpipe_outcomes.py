@@ -134,3 +134,33 @@ def test_legacy_outcome_carries_status_and_original_detail():
     assert legacy_outcome(URLLIB3_429_EXHAUSTED).status == 429
     t = legacy_outcome(URLLIB3_DNS)
     assert t.kind is Kind.TRANSPORT and t.status is None and t.detail == URLLIB3_DNS
+
+
+# ---------------------------------------------------------------- W2a integration (dispatcher)
+# Typed tokens the rewired stages now write into legacy status columns (W2-A1, W2-A2, W2-B
+# reports): each used to fall through to ERROR, which the router turns TERMINAL_CLOSED after three
+# runs (an embargoed paper closed for good).
+@pytest.mark.parametrize("s,stage,kind", [
+    ("idconv/EMBARGOED until 2027-03-11", "pmc", Kind.EMBARGOED),
+    ("NOT_AVAILABLE", "pmc", Kind.NOT_AVAILABLE),
+    ("NOT_AVAILABLE", "fulltext", Kind.NOT_AVAILABLE),
+    ("DEFERRED", "fulltext", Kind.DEFERRED),
+    ("REFUSED: pmc.ncbi.nlm.nih.gov refused for the run", "pmc", Kind.REFUSED),
+    ("HOST_REFUSED", "unpaywall", Kind.REFUSED),
+    ("REDIRECT_BLOCKED", "unpaywall", Kind.REFUSED),
+    ("PROHIBITED", "unpaywall", Kind.NOT_AVAILABLE),
+    ("TRANSPORT: URLError getaddrinfo failed", "fulltext", Kind.TRANSPORT),
+    ("EMPTY_OR_NON_XML", "fulltext", Kind.OUTAGE),
+    ("CONFIG: LITPIPE_EMAIL is not set", "unpaywall", Kind.CONFIG),
+    ("NOT_AT_RA", "unpaywall", Kind.NOT_AT_RA),
+])
+def test_typed_tokens_written_by_rewired_stages_keep_their_kind(s, stage, kind):
+    assert from_legacy(s, stage) is kind
+
+
+def test_bioc_host_row_paces_at_1s_and_never_retries_a_429():
+    """W2-A2: BioC answered 429 (no Retry-After) at a 0.65 s gap; the row paced at 0.5 s and
+    retried 429 six times into it."""
+    from litpipe import hosts
+    row = hosts.policy("https://www.ncbi.nlm.nih.gov/research/bionlp/RESTful/pmcoa.cgi/BioC_json/PMC1/unicode")
+    assert row.min_interval_s >= 1.0 and 429 not in row.retry.statuses

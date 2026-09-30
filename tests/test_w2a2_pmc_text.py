@@ -202,7 +202,7 @@ def test_bioc_429_is_not_retried_and_refuses_the_host(env, monkeypatch):
     assert data is None and status == "HTTP_429" and len(sent) == 1
     assert env.state.is_refused("www.ncbi.nlm.nih.gov")
     assert J.fetch_bioc("PMC1")[1].startswith("REFUSED") and len(sent) == 1   # nothing more sent
-    assert 429 in hosts.policy("www.ncbi.nlm.nih.gov").retry.statuses        # the override was scoped
+    assert 429 not in hosts.policy("www.ncbi.nlm.nih.gov").retry.statuses    # the row itself never retries a 429 (W2a integration)
 
 
 def test_bioc_transport_failure(env, monkeypatch):
