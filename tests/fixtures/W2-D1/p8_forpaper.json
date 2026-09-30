@@ -1,0 +1,86 @@
+{
+ "_source": "notes/2026-09-23_s2_probes/P8_raw/forpaper_0.json (S2 probe, 2026-09-23); 3 of 20 papers",
+ "request": {
+  "method": "GET",
+  "path": "/recommendations/v1/papers/forpaper/DOI:10.1152%2Fjappl.1964.19.3.531",
+  "params": {
+   "fields": "title,year,publicationDate,externalIds,fieldsOfStudy,s2FieldsOfStudy",
+   "limit": 20
+  }
+ },
+ "status": 200,
+ "body": {
+  "recommendedPapers": [
+   {
+    "paperId": "8c4ff4c608866a9009819045dd9163f0c565ea39",
+    "externalIds": {
+     "DOI": "10.1109/ACCESS.2026.3726408",
+     "CorpusId": 291415744
+    },
+    "title": "A Quantitative Comparison of Human Body Modeling Methods to Synthesize IMU Data",
+    "year": 2026,
+    "fieldsOfStudy": null,
+    "s2FieldsOfStudy": [
+     {
+      "category": "Engineering",
+      "source": "s2-fos-model"
+     },
+     {
+      "category": "Computer Science",
+      "source": "s2-fos-model"
+     }
+    ],
+    "publicationDate": null
+   },
+   {
+    "paperId": "f1afc3db6cfd2fde9ceb0010082cfc25a259452a",
+    "externalIds": {
+     "DOI": "10.1016/j.cbpa.2026.112060",
+     "CorpusId": 291034731,
+     "PubMed": "42580623"
+    },
+    "title": "Methods: External temperature loggers provide an accurate estimate of core body temperature in the lizard Pogona vitticeps.",
+    "year": 2026,
+    "fieldsOfStudy": [
+     "Medicine"
+    ],
+    "s2FieldsOfStudy": [
+     {
+      "category": "Medicine",
+      "source": "external"
+     },
+     {
+      "category": "Biology",
+      "source": "s2-fos-model"
+     },
+     {
+      "category": "Environmental Science",
+      "source": "s2-fos-model"
+     }
+    ],
+    "publicationDate": "2026-08-11"
+   },
+   {
+    "paperId": "78adcd6cda8a83a664670e3c5a42d786634f92d2",
+    "externalIds": {
+     "DOI": "10.3390/bios16090471",
+     "CorpusId": 291499853
+    },
+    "title": "Skin Calorimetry of the Vastus Lateralis During Incremental Exercise: Thermal Analysis and Modeling",
+    "year": 2026,
+    "fieldsOfStudy": null,
+    "s2FieldsOfStudy": [
+     {
+      "category": "Medicine",
+      "source": "s2-fos-model"
+     },
+     {
+      "category": "Engineering",
+      "source": "s2-fos-model"
+     }
+    ],
+    "publicationDate": "2026-08-27"
+   }
+  ]
+ }
+}

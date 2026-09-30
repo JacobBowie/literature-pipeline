@@ -1,0 +1,27 @@
+{
+ "_source": "notes/2026-09-23_s2_probes/P5_raw/01_primary.json (S2 probe, 2026-09-23)",
+ "status": 200,
+ "query": "A Means of Assessing Maximal Oxygen Intake: Correlation Between Field and Treadmill Testing",
+ "body": {
+  "data": [
+   {
+    "paperId": "f2b028a5d0040dde261b2e1ecea5ca6ef83e4632",
+    "externalIds": {
+     "MAG": "1982185822",
+     "DOI": "10.1001/JAMA.1968.03140030033008",
+     "CorpusId": 19633341,
+     "PubMed": "5694044"
+    },
+    "title": "A means of assessing maximal oxygen intake. Correlation between field and treadmill testing.",
+    "year": 1968,
+    "authors": [
+     {
+      "authorId": "7947960",
+      "name": "K. H. Cooper"
+     }
+    ],
+    "matchScore": 276.60718
+   }
+  ]
+ }
+}

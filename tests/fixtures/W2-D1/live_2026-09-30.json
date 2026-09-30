@@ -1,0 +1,846 @@
+{
+ "_source": "W2-D1 live probe of api.semanticscholar.org, 2026-09-30, unkeyed, through litpipe.s2 and litpipe.net (evidence: notes/2026-09-29_update_evidence/W2-D1/live_probes_2026-09-30.json); paper objects trimmed to ids, title, year, counts",
+ "calls": [
+  {
+   "method": "POST",
+   "path": "/graph/v1/paper/batch",
+   "params": {
+    "fields": "externalIds,citationCount,referenceCount,title,year"
+   },
+   "json": {
+    "ids": [
+     "DOI:10.3389/fneur.2024.1455498",
+     "DOI:10.1080/23328940.2022.2149024",
+     "DOI:10.1000/litpipe.w2d1"
+    ]
+   },
+   "kind": "OK",
+   "status": 200,
+   "body": [
+    {
+     "paperId": "52a0715c426c8cd4bb9d01349d44633f3187b534",
+     "title": "Long COVID and hypermobility spectrum disorders have shared pathophysiology",
+     "year": 2024,
+     "citationCount": 7,
+     "referenceCount": 63,
+     "externalIds": {
+      "DOI": "10.3389/fneur.2024.1455498"
+     }
+    },
+    {
+     "paperId": "1f0e364672ad16a52aa47278eff8f2ee2dc56e6d",
+     "title": "Beyond heat exposure — new methods to quantify and link personal heat exposure, stress, and strain in diverse populations and climates: The journal Temperature toolbox",
+     "year": 2022,
+     "citationCount": 33,
+     "referenceCount": 87,
+     "externalIds": {
+      "DOI": "10.1080/23328940.2022.2149024"
+     }
+    },
+    null
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/graph/v1/paper/DOI:10.3389/fneur.2024.1455498/citations",
+   "params": {
+    "fields": "paperId,externalIds,year,publicationDate",
+    "offset": 0,
+    "limit": 1000
+   },
+   "json": null,
+   "kind": "OK",
+   "status": 200,
+   "body": {
+    "offset": 0,
+    "data": [
+     {
+      "citingPaper": {
+       "paperId": "a3a0bb0f34dc43ebc073443bcc8bd4cf541077cb",
+       "year": 2026,
+       "publicationDate": "2026-07-01",
+       "externalIds": {
+        "DOI": "10.1016/j.jsbmb.2026.107090"
+       }
+      }
+     },
+     {
+      "citingPaper": {
+       "paperId": "5b9ca29d1fde550738c68985a54d62db4f7803e9",
+       "year": 2026,
+       "publicationDate": "2026-03-10",
+       "externalIds": {
+        "DOI": "10.59400/apr3021"
+       }
+      }
+     },
+     {
+      "citingPaper": {
+       "paperId": "7f0d061671397ae31c168f872ceadc8d3dc18775",
+       "year": 2025,
+       "publicationDate": "2025-12-01",
+       "externalIds": {
+        "DOI": "10.1136/bmjccgg-2025-000044"
+       }
+      }
+     },
+     {
+      "citingPaper": {
+       "paperId": "39ce1a68bd6f26d4a07b7abf05de45cdf4ec9237",
+       "year": 2025,
+       "publicationDate": "2025-11-01",
+       "externalIds": {
+        "DOI": "10.1016/j.mehy.2025.111812"
+       }
+      }
+     },
+     {
+      "citingPaper": {
+       "paperId": "99d25aa8894f2a7953bf62e70f0e3a5fb7d7772c",
+       "year": 2025,
+       "publicationDate": "2025-10-24",
+       "externalIds": {
+        "DOI": "10.1101/2025.10.22.25338573"
+       }
+      }
+     },
+     {
+      "citingPaper": {
+       "paperId": "8099ffbf2e29fe0262ea6ae01f2433c0fecac420",
+       "year": 2025,
+       "publicationDate": "2025-02-20",
+       "externalIds": {
+        "DOI": "10.26502/ami.936500212"
+       }
+      }
+     },
+     {
+      "citingPaper": {
+       "paperId": "2ac8c316294abbaf62dc0a95ee22ce5d183b3a9b",
+       "year": 2025,
+       "publicationDate": "2025-02-01",
+       "externalIds": {
+        "DOI": "10.3390/cimb47020134"
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/graph/v1/paper/DOI:10.1080/23328940.2022.2149024/references",
+   "params": {
+    "fields": "externalIds,title,year",
+    "offset": 0,
+    "limit": 1000
+   },
+   "json": null,
+   "kind": "OK",
+   "status": 200,
+   "body": {
+    "data": null,
+    "citingPaperInfo": {
+     "title": "Beyond heat exposure — new methods to quantify and link personal heat exposure, stress, and strain in diverse populations and climates: The journal Temperature toolbox",
+     "openAccessPdf": {
+      "disclaimer": "Notice: The following paper fields have been elided by the publisher: {'references'}. Paper or abstract available at https://api.unpaywall.org/v2/10.1080/23328940.2022.2149024?[EMAIL-REDACTED]<INSERT_YOUR_EMAIL> or https://doi.org/10.1080/23328940.2022.2149024, which is subject to the license by the author or copyright owner provided with this content. Please go to the source to verify the license and copyright information for your use."
+     }
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/graph/v1/paper/DOI:10.3389/fneur.2024.1455498/references",
+   "params": {
+    "fields": "externalIds,title,year",
+    "offset": 0,
+    "limit": 1000
+   },
+   "json": null,
+   "kind": "OK",
+   "status": 200,
+   "body": {
+    "offset": 0,
+    "citingPaperInfo": {
+     "title": "Long COVID and hypermobility spectrum disorders have shared pathophysiology"
+    },
+    "data": [
+     {
+      "citedPaper": {
+       "paperId": "1d4e987d6a23ed31866eb3a77974fd1171f598aa",
+       "title": "Myalgic Encephalomyelitis/Chronic Fatigue Syndrome: the biology of a neglected disease",
+       "year": 2024,
+       "externalIds": {
+        "DOI": "10.3389/fimmu.2024.1386607"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "cba9747720574db93977a3f728f3e23d75ef5d8f",
+       "title": "Mitochondrial dysfunction in long COVID: mechanisms, consequences, and potential therapeutic approaches",
+       "year": 2024,
+       "externalIds": {
+        "DOI": "10.1007/s11357-024-01165-5"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "5a4146c56d14ac3bbf0b17bb06e3be9cc883a424",
+       "title": "Long COVID and the Diagnosis of Underlying Hypermobile Ehlers-Danlos Syndrome and Hypermobility Spectrum Disorders (P5-4.014)",
+       "year": 2024,
+       "externalIds": {
+        "DOI": "10.1212/wnl.0000000000204558"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "fb788e2b79d1b4bd34d1c82a24b7c0d9897e7c6f",
+       "title": "Do people with ME/CFS and joint hypermobility represent a disease subgroup? An analysis using registry data",
+       "year": 2024,
+       "externalIds": {
+        "DOI": "10.3389/fneur.2024.1324879"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "2b864eb170ffc814dba0e0253a124016eb027481",
+       "title": "Is joint hypermobility linked to self-reported non-recovery from COVID-19? Case–control evidence from the British COVID Symptom Study Biobank",
+       "year": 2024,
+       "externalIds": {
+        "DOI": "10.1136/bmjph-2023-000478"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "aa5482bfb41ce835b3cbd5a2bbc1db2d568458d2",
+       "title": "Muscle abnormalities worsen after post-exertional malaise in long COVID",
+       "year": 2024,
+       "externalIds": {
+        "DOI": "10.1038/s41467-023-44432-3"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "5c2ce79c2fa4b38231bccb3a5177ecaa1734a68b",
+       "title": "Pro Inflammatory Cytokines Profiles of Patients With Long COVID Differ Between Variant Epochs",
+       "year": 2024,
+       "externalIds": {
+        "DOI": "10.1177/21501319241254751"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "7c49768d850c481752d9e73528133cbf4881f8a4",
+       "title": "Long COVID and the diagnosis of underlying hypermobile Ehlers‐Danlos syndrome and hypermobility spectrum disorders",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1002/pmrj.13120"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "43ffff8f86006e8a0789bba2fc72b55cac04b5db",
+       "title": "Diagnosis and Management of Myalgic Encephalomyelitis/Chronic Fatigue Syndrome.",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1016/j.mayocp.2023.07.032"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "587fabf2c9d07a68cf5f1ecd78c2bc96301cadf7",
+       "title": "Adrenaline blocks key cell cycle genes and exhibits antifibrotic and vasoconstrictor effects in glaucoma surgery.",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1016/j.exer.2023.109561"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "364ed492ea7ba153f3d2d6f89783556c23ae437e",
+       "title": "Physical therapy interventions in generalized hypermobility spectrum disorder and hypermobile Ehlers-Danlos syndrome: a scoping review",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1080/09638288.2023.2216028"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "9d98467ac47f05153dc361edd3c9648ead006cbd",
+       "title": "Cardiopulmonary testing in long COVID-19 versus non–COVID-19 patients with undifferentiated Dyspnea on exertion",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1016/j.pcad.2023.05.005"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "e69ceb976452acc8670059e5b9e8461db2236cad",
+       "title": "Folate-dependent hypermobility syndrome: A proposed mechanism and diagnosis.",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1016/j.heliyon.2023.e15387"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "1519402f7d23be586a12ec88a2e53ab76212a942",
+       "title": "Autonomic dysfunction and postural orthostatic tachycardia syndrome in post-acute COVID-19 syndrome",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1038/s41569-023-00842-w"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "e7b00aef2c3fa2da51aa4647e1e9e38566bf1be6",
+       "title": "Long COVID: major findings, mechanisms and recommendations",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1038/s41579-022-00846-2"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "b7c1fd73e1c25eca0cc0b245af105757f3a5f337",
+       "title": "A novel mutation in collagen transport protein, MIA3 gene, detected in a patient with clinical symptoms of Ehlers-Danlos hypermobile syndrome.",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.17219/acem/158028"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "cd510c202182b29326b1431e0019b6d17d2ba72b",
+       "title": "Incidence of long COVID-19 in people with previous SARS-Cov2 infection: a systematic review and meta-analysis of 120,970 patients",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.1007/s11739-022-03164-w"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "e43b68e8041ef768593c7b380a56f3233f540d63",
+       "title": "Combination of common mtDNA variants results in mitochondrial dysfunction and a connective tissue dysregulation",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.1073/pnas.2212417119"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "5e8e1774c1e65fa535b263642e8b4dda0587a4f2",
+       "title": "Patient experience of chronic illness care and complementary integrative health use: a cross-sectional study of patients with hypermobility spectrum disorders (HSD) and Ehlers–Danlos syndromes (EDS)",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.1080/09638288.2022.2131003"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "fc86f000d74be0c7bcb39bb52612d646410a1d9d",
+       "title": "Small fiber neuropathy in hypermobile Ehlers Danlos syndrome/hypermobility spectrum disorder",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.1111/joim.13539"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "7f40c6a36e50438527f379ff3a72705066445f56",
+       "title": "Mast cell activation syndrome and the link with long COVID.",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.12968/hmed.2022.0123"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "89744649a13539ecfb167b8578ef14a19a9feb64",
+       "title": "P033 The intriguing association between fibromyalgia, hypermobility and neurodivergence: a pilot study",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.1093/rheumatology/keac133.032"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "f081e4c7d6c5682f0cb60573adcddcee1c25d60e",
+       "title": "Post-acute sequelae of COVID-19 (PASC): a meta-narrative review of pathophysiology, prevalence, and management",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.1007/s42399-022-01167-4"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "7a8ca571e875c5799d05c0d7cedf2dc5a54cb988",
+       "title": "The Female-Predominant Persistent Immune Dysregulation of the Post-COVID Syndrome",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.1016/j.mayocp.2021.11.033"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "d06770881713754dd2fd86a05595544c922d06dc",
+       "title": "Mitochondrial DNA and Epigenetics: Investigating Interactions with the One-Carbon Metabolism in Obesity",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.1155/2022/9171684"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "8dd8c344da0f307d480a28075eddf7475f91eed2",
+       "title": "New Clinical Phenotype of the Post-Covid Syndrome: Fibromyalgia and Joint Hypermobility Condition",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.3390/pathophysiology29010003"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "4db425dd688b839a1358ad8f01fc809192e6e240",
+       "title": "Dysautonomia in the Ehlers–Danlos syndromes and hypermobility spectrum disorders—With a focus on the postural tachycardia syndrome",
+       "year": 2021,
+       "externalIds": {
+        "DOI": "10.1002/ajmg.c.31951"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "2259751868b43bde80c15a6bb28194b9e5077efe",
+       "title": "Female gender is associated with long COVID syndrome: a prospective cohort study",
+       "year": 2021,
+       "externalIds": {
+        "DOI": "10.1016/j.cmi.2021.11.002"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "e4e5c55137ff23deffacb509baf2d50efeff47a8",
+       "title": "Diagnosis and Management of Hypermobility Spectrum Disorders in Primary Care",
+       "year": 2021,
+       "externalIds": {
+        "DOI": "10.3122/jabfm.2021.04.200374"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "4372995cffb40c1a019abaa632172d82440dcc42",
+       "title": "Physical therapy treatment of hypermobile Ehlers–Danlos syndrome: A systematic review",
+       "year": 2021,
+       "externalIds": {
+        "DOI": "10.1002/ajmg.a.62393"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "8997b9073b919048245bace56c22ea4c233119a5",
+       "title": "Long COVID and Myalgic Encephalomyelitis/Chronic Fatigue Syndrome (ME/CFS)—A Systemic Review and Comparison of Clinical Presentation and Symptomatology",
+       "year": 2021,
+       "externalIds": {
+        "DOI": "10.3390/medicina57050418"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "8bc5f7cd807fdc6f8f8dd8b28b889af996f45fc0",
+       "title": "Hypermobile Ehlers-Danlos Syndrome and Hypermobility Spectrum Disorders.",
+       "year": 2021
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "d45163dca7284483402fee176eebffe46772560c",
+       "title": "Biological insights in the pathogenesis of hypermobile Ehlers-Danlos syndrome from proteome profiling of patients' dermal myofibroblasts.",
+       "year": 2020,
+       "externalIds": {
+        "DOI": "10.1016/j.bbadis.2020.166051"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "835a383aa247221bc96c9e180b9c694577d45838",
+       "title": "The Relationship between Autism and Ehlers-Danlos Syndromes/Hypermobility Spectrum Disorders",
+       "year": 2020,
+       "externalIds": {
+        "DOI": "10.3390/jpm10040260"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "a45555d63c5b796e8ac85298901f0d1222ec4959",
+       "title": "Neuromuscular Activation Differences During Gait in Patients With Ehlers‐Danlos Syndrome and Healthy Adults",
+       "year": 2020,
+       "externalIds": {
+        "DOI": "10.1002/acr.24067"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "3caa506ecb445e86f208067ed1c0f10d0f8487c9",
+       "title": "Mitochondrial Dysfunction Contributes to Ehlers-Danlos Syndrome - A Patient Presentation",
+       "year": 2020,
+       "externalIds": {
+        "DOI": "10.5296/JBLS.V11I2.17756"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "b7435fb38e9c21abeace8aadf1257feba7ab5298",
+       "title": "Signs of Intracranial Hypertension, Hypermobility, and Craniocervical Obstructions in Patients With Myalgic Encephalomyelitis/Chronic Fatigue Syndrome",
+       "year": 2020,
+       "externalIds": {
+        "DOI": "10.3389/fneur.2020.00828"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "d637ca337c0aace24f0f13be0b5511d26ea9940f",
+       "title": "Arterial Elasticity in Ehlers-Danlos Syndromes",
+       "year": 2020,
+       "externalIds": {
+        "DOI": "10.3390/genes11010055"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "362958dfdc804ed8d9a3a69501abf9925d579180",
+       "title": "Diagnosed prevalence of Ehlers-Danlos syndrome and hypermobility spectrum disorder in Wales, UK: a national electronic cohort study and case–control comparison",
+       "year": 2019,
+       "externalIds": {
+        "DOI": "10.1136/bmjopen-2019-031365"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "8ab2cc9673d396fc3522e8b655d3aff89f2702a5",
+       "title": "Naltrexone Restores Impaired Transient Receptor Potential Melastatin 3 Ion Channel Function in Natural Killer Cells From Myalgic Encephalomyelitis/Chronic Fatigue Syndrome Patients",
+       "year": 2019,
+       "externalIds": {
+        "DOI": "10.3389/fimmu.2019.02545"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "542987d53575cd12a914b6b546a3c540b3a7183d",
+       "title": "Mutations in MTHFR and POLG impaired activity of the mitochondrial respiratory chain in 46-year-old twins with spastic paraparesis",
+       "year": 2019,
+       "externalIds": {
+        "DOI": "10.1038/s10038-019-0689-y"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "80c0f3193a8b62d2d4162775b0333e8efce021fb",
+       "title": "Joint Hypermobility Syndrome: Recognizing a Commonly Overlooked Cause of Chronic Pain.",
+       "year": 2017,
+       "externalIds": {
+        "DOI": "10.1016/j.amjmed.2017.02.013"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "e82107887e81b5e4bcd219fc876c2a6408e19351",
+       "title": "Pain management in the Ehlers–Danlos syndromes",
+       "year": 2017,
+       "externalIds": {
+        "DOI": "10.1002/ajmg.c.31554"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "448262d2a93d5bcf9af906ff92bff4e276a13360",
+       "title": "The 2017 international classification of the Ehlers–Danlos syndromes",
+       "year": 2017,
+       "externalIds": {
+        "DOI": "10.1002/ajmg.c.31552"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "d7cd813a4acca94d64b268f40bdfd8713e086f46",
+       "title": "A framework for the classification of joint hypermobility and related conditions",
+       "year": 2017,
+       "externalIds": {
+        "DOI": "10.1002/ajmg.c.31539"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "a2ac7f4e15d0a89ce96a85040f39a6818a52cc9e",
+       "title": "Orthostatic intolerance and fatigue in the hypermobility type of Ehlers-Danlos Syndrome.",
+       "year": 2016,
+       "externalIds": {
+        "DOI": "10.1093/rheumatology/kew032"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "795f8c8c920b01efd24e23ab9a4d6c584304e07d",
+       "title": "Small fiber neuropathy is a common feature of Ehlers-Danlos syndromes",
+       "year": 2016,
+       "externalIds": {
+        "DOI": "10.1212/WNL.0000000000002847"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "dec90fe5254da6e8941cee6c5bf3d7c9bd2f610e",
+       "title": "Ehlers-Danlos syndrome, hypermobility type",
+       "year": 2016,
+       "externalIds": {
+        "DOI": "10.32388/0ekfj6"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "6dd20bbf4fcf45547a3897fc6327097c7f7eda1b",
+       "title": "Painful Connections: Densification Versus Fibrosis of Fascia",
+       "year": 2014,
+       "externalIds": {
+        "DOI": "10.1007/s11916-014-0441-4"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "8194491c43a9a423272d3fa3e9927ac6b5e13243",
+       "title": "A double-blind placebo-controlled cross-over study of the vascular effects of midodrine in neuropathic compared with hyperadrenergic postural tachycardia syndrome",
+       "year": 2014,
+       "externalIds": {
+        "DOI": "10.1042/CS20130222"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "bb00ce158719dd3fd1b4ad279c6184939d897fac",
+       "title": "Do people with benign joint hypermobility syndrome (BJHS) have reduced joint proprioception? A systematic review and meta-analysis",
+       "year": 2013,
+       "externalIds": {
+        "DOI": "10.1007/s00296-013-2790-4"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "d54ebc47ae6eeb6b46d94760a4c17706c2858aaf",
+       "title": "Low-dose naltrexone for the treatment of fibromyalgia: findings of a small, randomized, double-blind, placebo-controlled, counterbalanced, crossover trial assessing daily pain levels.",
+       "year": 2013,
+       "externalIds": {
+        "DOI": "10.1002/art.37734"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "fab12d2e061dd291bb5f9766bd77b38287d7c4c0",
+       "title": "Outcomes in Adolescents with Postural Orthostatic Tachycardia Syndrome Treated with Midodrine and β‐Blockers",
+       "year": 2009,
+       "externalIds": {
+        "DOI": "10.1111/j.1540-8159.2008.02207.x"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "6a5746bdc46790d51b80f7a6fcf28edbd19e72ed",
+       "title": "Adrenaline inhibited cell proliferation and regulated expression of TGF-beta1 and bFGF in cultured human hypertrophic scar fibroblasts via alpha-receptor",
+       "year": 2008,
+       "externalIds": {
+        "DOI": "10.17877/DE290R-349"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "07d97e1d0b184e3f83ec4b42bb6160bcadfb9341",
+       "title": "Hypermobility and the hypermobility syndrome.",
+       "year": 2007,
+       "externalIds": {
+        "DOI": "10.1016/J.MATH.2007.05.001"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "fc43f6f3e49140700010ce9dfdeea6e748d382e8",
+       "title": "Joint hypermobility is more common in children with chronic fatigue syndrome than in healthy controls.",
+       "year": 2002,
+       "externalIds": {
+        "DOI": "10.1067/MPD.2002.127496"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "7b435ebd39ae5f01f2198a56f3b41327fa49144f",
+       "title": "Clinical improvement in patients with orthostatic intolerance after treatment with bisoprolol and fludrocortisone",
+       "year": 2000,
+       "externalIds": {
+        "DOI": "10.1007/BF02281112"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "3bc8389eebf91579cae0130bcd2af53106ca72bf",
+       "title": "Orthostatic intolerance and chronic fatigue syndrome associated with Ehlers-Danlos syndrome.",
+       "year": 1999,
+       "externalIds": {
+        "DOI": "10.1016/S0022-3476(99)70173-3"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "dd40a7ba7de110911bf93cac910e5d6595064066",
+       "title": "Joint hypermobility in patients with fibromyalgia syndrome.",
+       "year": 1998,
+       "externalIds": {
+        "DOI": "10.1002/ART.1790110107"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "349515e01f6b3210f6b52abe658ee1eac6db145c",
+       "title": "P254: An isolated ELN gene mutation in a patient with a complicated presentation of hypermobility",
+       "year": 2023,
+       "externalIds": {
+        "DOI": "10.1016/j.gimo.2023.100282"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "214459c3bf0c8d14e58020c39feb6ceef3fbd1dc",
+       "title": "The Links Between Fibromyalgia, Hypermobility and Neurodivergence",
+       "year": 2022,
+       "externalIds": {
+        "DOI": "10.17925/rmd.2022.1.1.3"
+       }
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": null,
+       "title": "Chopra P, Tinkle B",
+       "year": 2021
+      }
+     },
+     {
+      "citedPaper": {
+       "paperId": "a95c7b341b24890baf257fc0d4e1cfeb6c403c31",
+       "title": "Hypermobile Ehlers-Danlos Syndrome",
+       "year": 1993
+      }
+     }
+    ]
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/graph/v1/paper/DOI:10.1000/litpipe.w2d1/citations",
+   "params": {
+    "fields": "paperId",
+    "offset": 0,
+    "limit": 1000
+   },
+   "json": null,
+   "kind": "NO_MATCH",
+   "status": 404,
+   "body": {
+    "error": "Paper with id DOI:10.1000/litpipe.w2d1 not found"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/graph/v1/paper/DOI:10.21105/joss.01686/citations",
+   "params": {
+    "offset": 9999,
+    "limit": 1,
+    "fields": "paperId"
+   },
+   "json": null,
+   "kind": "ERROR",
+   "status": 400,
+   "body": {
+    "error": "offset + limit must be < 10000"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/graph/v1/paper/DOI:10.21105/joss.01686/citations",
+   "params": {
+    "offset": 9998,
+    "limit": 1,
+    "fields": "paperId"
+   },
+   "json": null,
+   "kind": "OK",
+   "status": 200,
+   "body": {
+    "offset": 9998,
+    "next": 9999,
+    "data": [
+     {
+      "citingPaper": {
+       "paperId": "6ac6eb14a5bea57b9bb71802aa88c38d18a5af1b"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

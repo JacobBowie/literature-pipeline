@@ -1,0 +1,50 @@
+{
+ "_source": "notes/2026-09-23_s2_probes/P4_raw/batch_c11.json (S2 probe, 2026-09-23); 3 of 451 positions (2 records, 1 null)",
+ "fields": "externalIds,title,year,publicationDate,citationCount,referenceCount,influentialCitationCount,abstract,isOpenAccess,openAccessPdf,venue,journal,publicationTypes",
+ "ids": [
+  "DOI:10.48550/arxiv.2604.13072",
+  "DOI:10.48550/arxiv.2604.14228",
+  "DOI:10.48550/arxiv.2604.15776"
+ ],
+ "body": [
+  {
+   "paperId": "aa3f70de8566892f98769dd81f3d883b3b2d4c40",
+   "externalIds": {
+    "DBLP": "journals/corr/abs-2604-13072",
+    "ArXiv": "2604.13072",
+    "DOI": "10.48550/arXiv.2604.13072",
+    "CorpusId": 287479488
+   },
+   "title": "LiveClawBench: Benchmarking LLM Agents on Complex, Real-World Assistant Tasks",
+   "year": 2026,
+   "citationCount": 5,
+   "referenceCount": 38,
+   "openAccessPdf": {
+    "url": "",
+    "status": null,
+    "license": null,
+    "disclaimer": "Notice: Paper or abstract available at https://arxiv.org/abs/2604.13072, which is subject to the license by the author or copyright owner provided with this content. Please go to the source to verify the license and copyright information for your use."
+   }
+  },
+  {
+   "paperId": "cb5357aaa71a993f2966b71a002ab55631d4a034",
+   "externalIds": {
+    "ArXiv": "2604.14228",
+    "DBLP": "journals/corr/abs-2604-14228",
+    "DOI": "10.48550/arXiv.2604.14228",
+    "CorpusId": 287508324
+   },
+   "title": "Dive into Claude Code: The Design Space of Today's and Future AI Agent Systems",
+   "year": 2026,
+   "citationCount": 34,
+   "referenceCount": 98,
+   "openAccessPdf": {
+    "url": "",
+    "status": null,
+    "license": null,
+    "disclaimer": "Notice: Paper or abstract available at https://arxiv.org/abs/2604.14228, which is subject to the license by the author or copyright owner provided with this content. Please go to the source to verify the license and copyright information for your use."
+   }
+  },
+  null
+ ]
+}
