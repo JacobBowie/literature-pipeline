@@ -90,3 +90,38 @@ def test_public_source_has_no_hardcoded_internal_loose_ends_name():
     internal_name = p.parts[0]  # "<Project>/files/LOOSE_ENDS.md" -> "<Project>"
     src = Path(sweep.__file__).read_text(encoding="utf-8")
     assert internal_name not in src
+
+
+# ---------------------------------------------------------------- W1-D1: one line per state
+def _result(retired, report="lit_pull_queue.2026-09-30.report.csv", **kw):
+    r = {"retired": retired, "queue": "lit_pull_queue.csv", "report": report,
+         "keep_reason": "" if retired else "pmc failed", "downloaded": 3, "rows": 10,
+         "unpaywall": 2, "pmc": 1, "preprint": 0, "skip_exists": 0,
+         "classes": {"fetched": 3, "TERMINAL_CLOSED": 7}, "stages": {"preprint": "skipped"}}
+    r.update(kw)
+    return r
+
+
+def test_the_same_state_is_never_written_twice_in_a_row(tmp_path, monkeypatch):
+    """19 identical PARTIAL lines on 2026-09-29: the report name changes every run, so the
+    comparison is on the state part of the line, per project, ignoring other projects' lines."""
+    _point_config(tmp_path, monkeypatch, {"loose_ends": "LE.md", "projects": {}})
+    a = sweep.loose_end_line("P", [_result(False)], [])
+    b = sweep.loose_end_line("P", [_result(False, report="lit_pull_queue.2026-09-30.2.report.csv")], [])
+    assert a.startswith("⏸️ Lit pull PARTIAL: P/ — ") and a != b
+    assert sweep.write_loose_end("P", a)[1] == "written"
+    assert sweep.write_loose_end("Q", sweep.loose_end_line("Q", [_result(False)], []))[1] == "written"
+    assert sweep.write_loose_end("P", b) == (None, "unchanged")
+    done = sweep.loose_end_line("P", [_result(True)], [])
+    assert sweep.write_loose_end("P", done)[1] == "written"
+    assert sweep.write_loose_end("P", a)[1] == "written"      # a state change back is logged
+    assert len(sweep.resolve_loose_ends_path().read_text(encoding="utf-8").splitlines()) == 4
+
+
+def test_done_only_when_a_queue_retired_and_none_stayed():
+    done = sweep.loose_end_line("P", [_result(True)], [])
+    assert done.startswith("✅ Lit pull done: P/ — 3/10 fetched (Unpaywall 2, PMC 1, Preprint 0)")
+    assert "7 closed" in done and "preprint skipped" in done
+    assert sweep.loose_end_line("P", [_result(True), _result(False)], []).startswith("⏸️")
+    assert sweep.loose_end_line("P", [_result(True)], ["lit_pull_queue.x.csv"]).startswith("⏸️")
+    assert sweep.loose_end_line("P", [], []) is None

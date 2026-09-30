@@ -112,3 +112,27 @@ class TestPathTraversalGuard:
         result = sweep.run_pipeline(project_dir, queue, dry_run=True)
         # dry_run returns the planned paths; not None
         assert result is not None
+
+
+class TestCommentLinesAndBom:
+    """W1-D1: seeder drafts carry leading '#' lines, and a queue saved from Excel starts with a
+    byte-order mark; both used to break the sweep (the header became '# ...' or '\\ufeffdoi')."""
+
+    def test_contract_columns_match(self):
+        assert set(sweep.QUEUE_COLUMNS) == REQUIRED_COLUMNS
+
+    def test_leading_hash_lines_are_skipped(self, tmp_path, sample_row):
+        q = tmp_path / "q.csv"
+        _write_queue(q, [sample_row])
+        q.write_text("# seeded by seed_queue_from_top_candidates\n#\n" + q.read_text(encoding="utf-8"),
+                     encoding="utf-8")
+        assert sweep.first_destination(q) == "literature/"
+        fields, rows = sweep.read_queue(q)
+        assert set(fields) == REQUIRED_COLUMNS and rows[0]["doi"] == sample_row["doi"]
+
+    def test_bom_and_commented_rows(self, tmp_path, sample_row):
+        q = tmp_path / "q.csv"
+        _write_queue(q, [dict(sample_row, doi="# 10.1/skip-me"), sample_row])
+        q.write_bytes(b"\xef\xbb\xbf" + q.read_bytes())
+        _, rows = sweep.read_queue(q)
+        assert [r["doi"] for r in rows] == [sample_row["doi"]]

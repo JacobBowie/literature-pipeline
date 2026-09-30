@@ -1,0 +1,11 @@
+doi,filename,pmcid,downloaded,skipped,winning_source,attempts,error,sidecar,sidecar_status
+10.1002/andp.18561751008,1856_Unknown_GrundzugeEinerTheorieDerGase.pdf,,False,False,,,NO_PMCID,False,
+10.1002/andp.18571760302,1857_Unknown_UeberDieArtDerBewegungWelche.pdf,,False,False,,,NO_PMCID,False,
+10.1002/jps.24108,2014_Unknown_VivoPredictiveDissolutionTransportAnalysisCo2.pdf,,False,False,,,NO_PMCID,False,
+10.1006/cbmr.1998.1504,1999_Unknown_AlgebraicSolutionDeadSpaceDeterminationAccording.pdf,,False,False,,,NO_PMCID,False,
+10.1007/978-1-4612-4862-0,1976_Unknown_AvianPhysiology.pdf,,False,False,,,NO_PMCID,False,
+10.1007/978-94-007-4584-1_3,2012_Unknown_ArterialChemoreception.pdf,,False,False,,,NO_PMCID,False,
+10.1007/s00418-018-1747-9,Unknown_Unknown_MicromechanicsLungAlveoliStructureFunctionSurfactant.pdf,PMC6267411,False,False,,europepmc/HTTP_403 | ncbi-page/HTML | ncbi-citation_pdf_url/HTML,HTML,True,OK
+10.1016/j.jaci.2010.05.016,Unknown_Unknown_ForcedExpiratoryFlowBetween2575.pdf,PMC2933964,False,False,,europepmc/HTTP_403 | ncbi-page/HTML | ncbi-citation_pdf_url/HTML,HTML,False,HTTP_500
+10.1055/s-2003-39084,Unknown_Unknown_VentilatoryMetabolicResponseRebreathingExpiredAir.pdf,,False,False,,,NO_PMCID,False,
+10.1164/arrd.1985.131.5.672,Unknown_Unknown_MeasurementStaticComplianceTotalRespiratorySystem.pdf,,False,False,,,NO_PMCID,False,

@@ -69,16 +69,54 @@ def test_find_queues_skips_inactive(tmp_path, monkeypatch):
     assert keys == {"Live"}
 
 
-def test_main_exit_1_on_explicit_project_no_queue(monkeypatch):
+def test_main_exit_1_on_explicit_project_no_queue(tmp_path, monkeypatch):
     """A1 defense-in-depth: explicit --project with no queue returns 1 so the
-    orchestrator cannot read the no-op as success."""
+    orchestrator cannot read the no-op as success. (Temp registry: main() also looks for due
+    retry_later rows, so it must not read the live one.)"""
+    _setup_registry(tmp_path, monkeypatch, {"Nope": {"lib_dir": "lit"}})
     monkeypatch.setattr(sys, "argv", ["sweep.py", "--project", "Nope"])
     monkeypatch.setattr(sweep, "find_queues", lambda only_project=None: iter([]))
     assert sweep.main() == 1
 
 
-def test_main_exit_0_on_no_project_no_queue(monkeypatch):
+def test_main_exit_0_on_no_project_no_queue(tmp_path, monkeypatch):
     """A bare sweep with nothing staged is a normal idle run (exit 0)."""
+    _setup_registry(tmp_path, monkeypatch, {})
     monkeypatch.setattr(sys, "argv", ["sweep.py"])
     monkeypatch.setattr(sweep, "find_queues", lambda only_project=None: iter([]))
     assert sweep.main() == 0
+
+
+def _stage_named(root, rel, name, header="doi,title,authors,year,destination,notes"):
+    d = root / rel
+    d.mkdir(parents=True, exist_ok=True)
+    q = d / name
+    q.write_text(f"{header}\n10.1000/x,T,A,2020,lit,\n", encoding="utf-8")
+    return q
+
+
+def test_find_queues_sees_tagged_queues_of_a_subproject(tmp_path, monkeypatch):
+    """Dispatch 0.5: lit_pull_queue.<tag>.csv is a live queue too, found through the same
+    registry resolution (subproject tail included); the untagged queue comes first."""
+    root = _setup_registry(tmp_path, monkeypatch, {
+        "Parent/Child": {"parent": "Parent", "lib_dir": "Child/lit", "active": True},
+    })
+    _stage_named(root, "Parent/Child", "lit_pull_queue.zeta.csv")
+    _stage_named(root, "Parent/Child", "lit_pull_queue.alpha.csv")
+    _stage_named(root, "Parent/Child", "lit_pull_queue.csv")
+    names = [q.name for _, _, q in sweep.find_queues(only_project="Parent/Child")]
+    assert names == ["lit_pull_queue.csv", "lit_pull_queue.alpha.csv", "lit_pull_queue.zeta.csv"]
+
+
+def test_find_queues_ignores_artifacts_drafts_and_reserved_names(tmp_path, monkeypatch):
+    root = _setup_registry(tmp_path, monkeypatch, {"Top": {"lib_dir": "lit"}})
+    for name in ("lit_pull_queue.draft.csv", "lit_pull_queue.s09_fwd.draft.csv",
+                 "lit_pull_queue.retry_later.csv", "lit_pull_queue.2026-09-30.report.csv",
+                 "lit_pull_queue.rerun-2026-08-25.csv", "lit_pull_queue.4501_bodycomp_pool.csv",
+                 "lit_pull_queue.bak.csv", "lit_pull_queue.Upper.csv"):
+        _stage_named(root, "Top", name)
+    ignored = []
+    pool = _stage_named(root, "Top", "lit_pull_queue.ch15_pool.csv",
+                        header="doi,title,year,venue,authors,cited_by")
+    assert list(sweep.find_queues(only_project="Top", ignored=ignored)) == []
+    assert ignored == [(pool, "not a queue (no destination column)")]

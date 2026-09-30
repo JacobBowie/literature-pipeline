@@ -1,0 +1,3 @@
+doi,filename,pmcid,downloaded,skipped,winning_source,attempts,error,sidecar,sidecar_status
+10.1249/jsr.0b013e31825615cc,2012_Casa_ExertionalHeatStrokeNewConceptsRegarding.pdf,,False,False,,,NO_PMCID,False,
+10.4161/temp.29752,2014_Ketko_Thermal-circulatoryRatioTcrIndexEvaluateTolerance.pdf,PMC4977162,False,False,,europepmc/HTTP_403 | ncbi-page/HTML | ncbi-citation_pdf_url/HTML,HTML,True,OK
