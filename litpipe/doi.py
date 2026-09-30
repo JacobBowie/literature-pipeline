@@ -97,7 +97,7 @@ def is_placeholder(doi: str) -> bool:
     """True for a template placeholder or a truncated DOI; False for a DOI that may be real.
 
     - A run of five or more 'n' is a placeholder (`10.1145/nnnnnnn.nnnnnnn`, the ACM acmart
-      default that put 660 edges in FRED's graph; V4-N3).
+      default that put 660 edges in one project's citation graph; V4-N3).
     - A suffix with a digit is otherwise never flagged.
     - A suffix with no digit is real under a registrant of 5+ digits (`10.31234/osf.io/kbyhm`,
       `10.32614/cran.package.boot`, `10.29007/scnh`, `10.37204/bioconversion.organic.waste`),

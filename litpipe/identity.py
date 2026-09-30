@@ -15,7 +15,7 @@ placeholder. The check here asks a different question, in this order:
 3. FLAG otherwise. Never move or delete: the caller records the verdict and its evidence on the
    artifact (sidecar), not only in a run report (22 of 66 quarantines had no surviving row).
 
-`doc_kind` classifies the first page as VOR, AAM, SUPPLEMENT or UNKNOWN (VAP s06 F1: a 180-page
+`doc_kind` classifies the first page as VOR, AAM, SUPPLEMENT or UNKNOWN (consumer intake finding F1: a 180-page
 BMJ supplement passed the DOI check because it prints the article's citation). `suspect_file`
 flags files that are not a whole article (V2-N5: 2-page previews; NEW-A10: watermark-only text).
 

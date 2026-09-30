@@ -284,7 +284,7 @@ def is_suspicious_doi(doi):
     """Flag DOIs that are line-wrap TRUNCATIONS or template PLACEHOLDERS (litpipe.doi.is_placeholder).
 
     Flagged: a run of five or more 'n' ('10.1145/nnnnnnn.nnnnnnn', the ACM acmart default that
-    put 660 spurious edges in FRED's graph; V4-N3); a no-digit dotted journal code
+    put 660 spurious edges in one project's graph; V4-N3); a no-digit dotted journal code
     ('10.1016/j.amepre', '10.1371/journal.pbio'); a no-digit bare token under a 4-digit
     registrant ('10.1002/cphy', '10.1093/nar'). Kept: no-digit DOIs that are real, namely nested
     paths ('10.31234/osf.io/kbyhm'), CRAN packages ('10.32614/cran.package.boot') and letter

@@ -123,7 +123,7 @@ def test_artifact_names_read(name, parsed):
 
 
 @pytest.mark.parametrize("name", [
-    "lit_pull_queue.snapshot.4501bc_b01.unpaywall.csv",   # VAP's own snapshot names
+    "lit_pull_queue.snapshot.4501bc_b01.unpaywall.csv",   # a consumer's own snapshot names
     "lit_pull_queue.2026-09-22.processed.10.csv",         # legacy processed.N
     "lit_pull_queue.csv", "lit_pull_queue.retry_later.csv", "lit_pull_queue.ch15_b01.draft.csv",
 ])

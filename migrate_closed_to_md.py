@@ -37,10 +37,10 @@ Every persisted error string passes through litpipe.ledger.redact (I20: the Unpa
 text carries the `email=` query value).
 
 Usage:
-  python migrate_closed_to_md.py --project LIV
-  python migrate_closed_to_md.py --project LIV --date 2026-05-27          # a legacy dated run
-  python migrate_closed_to_md.py --project LIV --run-id 2026-09-30.2      # same flag, a run id
-  python migrate_closed_to_md.py --project LIV --tag retry --dry-run
+  python migrate_closed_to_md.py --project MYPROJ
+  python migrate_closed_to_md.py --project MYPROJ --date 2026-05-27          # a legacy dated run
+  python migrate_closed_to_md.py --project MYPROJ --run-id 2026-09-30.2      # same flag, a run id
+  python migrate_closed_to_md.py --project MYPROJ --tag retry --dry-run
 """
 import argparse
 import csv

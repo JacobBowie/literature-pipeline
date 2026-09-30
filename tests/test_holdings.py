@@ -81,7 +81,7 @@ def test_normalise_rejects_non_dois(raw):
 
 def test_extract_dois_stops_at_a_url_query():
     """The real Unpaywall error text puts `?email=` right after the DOI; the email is never part of
-    an extracted DOI (found against the LIV-shaped residual lines, 2026-09-30)."""
+    an extracted DOI (found against consumer residual lines, 2026-09-30)."""
     line = (FIX / "md_residuals_email.md").read_text(encoding="utf-8").splitlines()[0]
     assert "?email=" in line
     dois = holdings.extract_dois(line)
@@ -94,7 +94,7 @@ def test_extract_dois_stops_at_a_url_query():
 ])
 def test_extract_dois_one_per_real_queue_line(fixture, expected):
     """Real queue .md lines in every form the portfolio uses (link, backtick-in-link, backtick,
-    the VAP worklist form): each line yields exactly one DOI, even when it appears twice."""
+    a consumer's worklist form): each line yields exactly one DOI, even when it appears twice."""
     lines = (FIX / fixture).read_text(encoding="utf-8").splitlines()
     per_line = [holdings.extract_dois(l) for l in lines]
     assert len(per_line) == expected

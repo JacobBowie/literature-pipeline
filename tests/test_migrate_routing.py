@@ -205,7 +205,7 @@ def test_no_written_or_printed_line_carries_an_email(env, capsys, form):
 
 
 def test_ill_line_with_an_email_in_its_trace_is_redacted(env):
-    """A legacy ILL row whose `error` carries the email (the LIV residuals shape) is written clean."""
+    """A legacy ILL row whose `error` carries the email (a consumer residuals shape) is written clean."""
     bad = DNS_FORMS["pct2540"]
     rows = [{"doi": "10.1234/legacy", "title": "T", "year": "2020", "oa_status": "CLOSED",
              "error": bad, "stage_pmc": "no_pmcid", "stage_preprint": "no_match",

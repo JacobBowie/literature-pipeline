@@ -190,7 +190,7 @@ def _rows():
         HostPolicy("www.biorxiv.org", min_interval_s=5.0, note="bot-walled; only when hosts.biorxiv_pdf_allowed"),
         HostPolicy("www.medrxiv.org", min_interval_s=5.0, note="bot-walled; only when hosts.biorxiv_pdf_allowed"),
         HostPolicy("api.semanticscholar.org", min_interval_s=6.5, retry_after_cap_s=600.0,
-                   note="unkeyed 6.5 s (VAP measurement); litpipe.s2 registers 1.1 s when keyed; x-api-key"),
+                   note="unkeyed 6.5 s (measured in a consumer project); litpipe.s2 registers 1.1 s when keyed; x-api-key"),
     ]
 
 
