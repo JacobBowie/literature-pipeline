@@ -60,7 +60,9 @@ __all__ = ["candidates", "iter_candidates", "normalise", "encode_path", "resolve
 # Directory indicator 10 + registrant code, not preceded by a digit (a glued year "2010.1234/").
 _START = re.compile(r"(?<![0-9])10\.\d{4,9}/", re.IGNORECASE)
 _BODY = re.compile(r"[A-Za-z0-9._;:()/\-]")        # the Crossref suffix class
-_SICI_EXTRA = "<>"                                  # SICI DOIs (old Wiley) carry literal angle brackets
+_SICI_EXTRA = "<>"                                  # SICI DOIs carry literal angle brackets
+_SICI_ISSN_DATE = re.compile(r"\d{4}-\d{3}[\dxX]\(\d{4,8}\)")  # the SICI item head: ISSN(date)
+_REVISION_TAIL = re.compile(r"r{1,4}")               # FASEB revision suffixes: fj.201900106rrr is real
 _WRAP_WS = " \t\r\n\f\v\u00ad\u00a0\u2009\u202f"    # whitespace and a soft hyphen at a line wrap
 _VALID = re.compile(r"^10\.\d{4,9}/\S+$")
 _BAD_DASH = re.compile(r"[\u2010-\u2015\u2212]")
@@ -174,7 +176,10 @@ def _capture(text: str, start: int, end: int):
     i = end
     while i < n:
         c = text[i]
-        sici = "(sici)" in "".join(body[:8]).lower()
+        head = "".join(body[:17])
+        # SICI: Wiley's "(sici)" marker, or the bare ISSN(date) form NSCA, AMS and others registered
+        # (10.1519/1533-4287(1990)004<0047:rbrasp>2.3.co;2); 25 of 30 index SICI DOIs lack the marker
+        sici = "(sici)" in head[:8].lower() or bool(_SICI_ISSN_DATE.match(head))
         if _BODY.match(c) or (sici and c in _SICI_EXTRA):
             body.append(c)
             i += 1
@@ -217,7 +222,7 @@ def _variants(raw_doi: str, numeric_fallback: bool = True):
     s = s.lower()
     if not m and "/" in s:
         m2 = _SURNAME_GLUE_LC.search(s.split("/", 1)[1])
-        if m2:                                          # the same glue, already lower-cased
+        if m2 and not _REVISION_TAIL.fullmatch(m2.group(1)):   # the same glue, already lower-cased
             later.append(s)
             s = s[: len(s) - len(m2.group(1))]
     # Peel alphabetic tails one at a time; the fully peeled form is the most specific.

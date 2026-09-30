@@ -378,3 +378,28 @@ def test_atomic_write_does_not_retry_other_errors(tmp_path, monkeypatch):
     with pytest.raises(FileNotFoundError):
         lit_util.atomic_write_text(str(tmp_path / "x.txt"), "x")
     assert len(calls) == 1 and list(tmp_path.glob("*.tmp")) == []
+
+
+# ---------------------------------------------------------------- W2 integration (dispatcher)
+# Measured 2026-09-30 over the 230,292 DOIs in the index: normalise truncated 25 of 30 SICI DOIs
+# (those without Wiley's "(sici)" marker) at "<", and peeled FASEB's "rrr" revision suffix. Both
+# are real DOIs, one of them held; W3-C1 normalises at ingest, so either would corrupt the index.
+@pytest.mark.parametrize("doi", [
+    "10.1519/1533-4287(1990)004<0047:rbrasp>2.3.co;2",
+    "10.1175/1520-0450(1981)020<1527:nefcvp>2.0.co;2",
+    "10.1519/1533-4287(1990)004<0047:RBRASP>2.3.CO;2",
+    "10.1002/(sici)1097-0258(19970228)16:4<385::aid-sim380>3.0.co;2-3",
+])
+def test_sici_dois_keep_their_angle_bracket_part(doi):
+    assert D.normalise(doi) == doi.lower()
+    assert lit_util.extract_doi_from_text(f"doi: {doi} Received") == doi.lower()
+
+
+@pytest.mark.parametrize("doi", ["10.1096/fj.201900106rrr", "10.1096/fj.202100182rr",
+                                 "10.1096/fj.202100161r", "10.1096/fj.201900106RRR"])
+def test_faseb_revision_suffix_is_not_peeled(doi):
+    assert D.normalise(doi) == doi.lower()
+
+
+def test_lower_case_surname_glue_is_still_peeled():
+    assert D.normalise("10.1177/1941738120298293stearns") == "10.1177/1941738120298293"
