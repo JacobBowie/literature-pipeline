@@ -157,14 +157,13 @@ def test_email_is_single_sourced(modname):
     assert m.EMAIL == os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 
 
-def test_default_email_literal_appears_only_in_lit_util():
-    """The fallback mailto string is hardcoded in exactly ONE place. Any other top-level
-    .py re-introducing the literal regresses the c12 sibling sweep (14 sites -> 1)."""
-    literal = lit_util.DEFAULT_EMAIL
-    offenders = [py.name for py in REPO.glob("*.py")
-                 if f'"{literal}"' in py.read_text(encoding="utf-8")
-                 or f"'{literal}'" in py.read_text(encoding="utf-8")]
-    assert offenders == ["lit_util.py"], f"email literal hardcoded outside lit_util: {offenders}"
+def test_default_email_has_no_code_default_and_no_literal():
+    """DEC-13: no code default; the name stays importable (dispatch 0.6), and the retired
+    maintainer address is hardcoded nowhere (the c12 sweep's 14 sites stay at 0)."""
+    assert lit_util.DEFAULT_EMAIL is None
+    retired = "JacobBowie@users.noreply.github.com"
+    offenders = [py.name for py in REPO.glob("*.py") if retired in py.read_text(encoding="utf-8")]
+    assert offenders == [], f"retired email literal hardcoded: {offenders}"
 
 
 def test_atomic_write_csv_lf_and_roundtrip(tmp_path):

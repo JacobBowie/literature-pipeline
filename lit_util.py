@@ -3,24 +3,38 @@
 Centralizes the fixes for the cross-cutting failure modes found in the 2026-06-05 code audit:
   - RC4  atomic_write_*  : crash-safe writes (tmp + os.replace) so an interrupt never truncates
                            a sidecar/.ris/CSV into invalid JSON.
-  - RC1  DOI handling    : extract_doi_from_text() that does NOT truncate line-wrapped DOIs, plus
+  - RC1  DOI handling    : extract_doi_from_text() (a thin wrapper over litpipe.doi since W1-B:
+                           wrapped DOIs re-joined, glued tails peeled, placeholders dropped), plus
                            is_valid_doi()/is_suspicious_doi() gates to keep malformed DOIs
-                           (e.g. '10.1002/cphy', '10.1001/archinte') out of the candidates/DB.
+                           (e.g. '10.1002/cphy', '10.1145/nnnnnnn.nnnnnnn') out of the candidates/DB.
   - RC5  merge_sidecar() : preserve enriched fields (doi/title/year/authors/figures) when an
                            extractor re-writes a sidecar, instead of clobbering from an empty template.
 
-Pure stdlib; safe to import from any pipeline script.
+Stdlib plus the repo's own pure `litpipe.doi`; safe to import from any pipeline script.
 """
 import os, re, json, sys, tempfile, unicodedata, csv, time
 from pathlib import Path
 
+try:
+    from litpipe import doi as _doi
+except ModuleNotFoundError as _e:  # lit_util loaded by file path without its repo on sys.path
+    if _e.name != "litpipe":
+        raise
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from litpipe import doi as _doi
+
 # ---------------------------------------------------------------- shared config
-# Fallback contact mailto when LITPIPE_EMAIL is unset. Per Unpaywall/CrossRef/NCBI/
-# Europe PMC/Semantic Scholar ToS every API UA must carry a mailto; absent an override
-# the pipeline identifies as the maintainer (ris_emit.warn_if_default_email nags once).
-# Single source of truth for the string that was hardcoded across ~14 fetcher modules
-# (2026-07 Stage 3 c12); each still resolves it via os.environ.get("LITPIPE_EMAIL", DEFAULT_EMAIL).
-DEFAULT_EMAIL = "JacobBowie@users.noreply.github.com"
+# Contact identity comes from LITPIPE_EMAIL only: there is no code default (plan DEC-13,
+# 2026-09-29), because a public default sends strangers' traffic under the maintainer's name.
+# The name stays importable (dispatch 0.6); 14 modules still read
+# os.environ.get("LITPIPE_EMAIL", DEFAULT_EMAIL) until W2 routes identity through litpipe.net,
+# and W1-A2's preflight refuses to start when the variable is empty or an example.com address.
+# What each source asks for (endpoint audit 2026-09-25, refactor scope 2.2): Crossref and
+# DataCite a mailto in the User-Agent (Crossref: "Include your email address in the mailto
+# parameter or agent header", recommended for the polite pool); Unpaywall an `email=` query
+# parameter, its only credential (missing gives 422); NCBI idconv and E-utilities `tool` and
+# `email` parameters; Europe PMC nothing; Semantic Scholar an `x-api-key` header.
+DEFAULT_EMAIL = None
 
 # ---------------------------------------------------------------- console I/O hardening
 def utf8_stdout():
@@ -58,14 +72,32 @@ def companion_path(pdf, ext):
     return Path(pdf).with_suffix(ext)
 
 # ---------------------------------------------------------------- RC4: atomic writes
+# Waits between os.replace attempts (5 attempts in all). On Windows a scanner, indexer or the
+# Drive mirror can hold the target open for a moment and os.replace fails with PermissionError
+# (WinError 5); W1-D2 saw it once in six local runs of test_migrate_routing (2026-09-30).
+_REPLACE_BACKOFF = (0.05, 0.1, 0.2, 0.4)
+
+
+def _replace_with_retry(src, dst):
+    """os.replace(src, dst), retried on PermissionError only; the last attempt's error propagates."""
+    for wait in _REPLACE_BACKOFF:
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            time.sleep(wait)
+    os.replace(src, dst)
+
+
 def atomic_write_text(path, text, newline="\n"):
-    """Write text crash-safely: write a sibling tmp then os.replace (atomic on NTFS)."""
+    """Write text crash-safely: write a sibling tmp then os.replace (atomic on NTFS), retrying a
+    transient PermissionError; the tmp file never outlives the call."""
     d = os.path.dirname(path) or "."
     fd, tmp = tempfile.mkstemp(dir=d, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline=newline) as f:
             f.write(text)
-        os.replace(tmp, path)
+        _replace_with_retry(tmp, path)
     finally:
         if os.path.exists(tmp):
             try: os.remove(tmp)
@@ -88,7 +120,7 @@ def atomic_write_csv(path, rows, fieldnames, newline="\n"):
             w = csv.DictWriter(f, fieldnames=fieldnames, lineterminator=newline)
             w.writeheader()
             w.writerows(rows)
-        os.replace(tmp, path)
+        _replace_with_retry(tmp, path)
     finally:
         if os.path.exists(tmp):
             try: os.remove(tmp)
@@ -217,17 +249,17 @@ def lib_paths(key, p):
     return base, lib, data
 
 # ---------------------------------------------------------------- RC1: DOI extraction + validity
-# Start anchor for a DOI; the body is captured greedily then trimmed.
-_DOI_START = re.compile(r"10\.\d{4,9}/", re.IGNORECASE)
-_DOI_BODYCHAR = r"[A-Za-z0-9._;:()/\-]"
+# Capture, peeling, placeholders and URL encoding live in litpipe.doi (W1-B, plan section 2.3);
+# extract_doi_from_text delegates there. normalize_doi / is_valid_doi keep their semantics.
 _DOI_TRAIL = re.compile(r"[.,;:)\]}>]+$")
 _DOI_FULL = re.compile(r"^10\.\d{4,9}/\S+$", re.IGNORECASE)
-# B2: unicode dashes/minus (U+2010..U+2015, U+2212) are PDF-extraction typography artifacts that
-# never appear in a registered DOI but that NCBI idconv 400s on -- reject them at the validity gate
-# (_DOI_FULL's \S+ otherwise admits them). NOT angle brackets: legit SICI-format DOIs (old Wiley /
-# Blackwell, ~1996-2005) carry literal '<'/'>' in the suffix, so rejecting those here would silently
-# drop real papers from the citation graph + index. idconv 400s on any odd DOI are handled instead
-# by doi_to_pmcid_batch's one-at-a-time fallback, not this global gate.
+# B2: unicode dashes/minus (U+2010..U+2015, U+2212) are PDF-extraction typography artifacts; reject
+# them at the validity gate (_DOI_FULL's \S+ otherwise admits them). The DOI Handbook (4.3.1) allows
+# any graphic code point, but Crossref's recommended pattern excludes these, and the extractor
+# (litpipe.doi) maps a U+2010/U+2011 inside a PDF-extracted DOI back to '-'. The original rationale,
+# that NCBI idconv 400s a whole batch on such a DOI, was refuted on 2026-09-25 (V1-N2: U+2010 and
+# SICI DOIs got 200 with a per-record "not found"); the gate stays for index hygiene. NOT angle
+# brackets: legit SICI-format DOIs (old Wiley / Blackwell, ~1996-2005) carry literal '<'/'>'.
 _DOI_BAD_CHARS = re.compile(r"[‐-―−]")
 
 def normalize_doi(doi):
@@ -249,57 +281,44 @@ def is_valid_doi(doi):
     return not _DOI_BAD_CHARS.search(d) and bool(_DOI_FULL.match(d))
 
 def is_suspicious_doi(doi):
-    """Flag DOIs that look like line-wrap TRUNCATIONS (the RC1 '10.1002/cphy' class).
+    """Flag DOIs that are line-wrap TRUNCATIONS or template PLACEHOLDERS (litpipe.doi.is_placeholder).
 
-    Real DOI suffixes essentially always contain a digit or a '.'; the observed truncations
-    ('cphy', 'archinte') are bare lowercase journal-abbrev tokens with neither. Conservative:
-    only flags suffixes that have NO digit AND NO dot (won't false-positive normal DOIs)."""
+    Flagged: a run of five or more 'n' ('10.1145/nnnnnnn.nnnnnnn', the ACM acmart default that
+    put 660 spurious edges in FRED's graph; V4-N3); a no-digit dotted journal code
+    ('10.1016/j.amepre', '10.1371/journal.pbio'); a no-digit bare token under a 4-digit
+    registrant ('10.1002/cphy', '10.1093/nar'). Kept: no-digit DOIs that are real, namely nested
+    paths ('10.31234/osf.io/kbyhm'), CRAN packages ('10.32614/cran.package.boot') and letter
+    codes under 5-digit registrants ('10.29007/scnh'). Until W1-B the rule was "no digit AND no
+    dot", which let the placeholder and the dotted journal codes through. Malformed DOIs count
+    as suspicious too."""
     if not is_valid_doi(doi): return True
-    suffix = doi.split("/", 1)[1]
-    return not any(c.isdigit() for c in suffix) and "." not in suffix
+    return _doi.is_placeholder(doi.strip())
 
-_BODYCHAR_RE = re.compile(_DOI_BODYCHAR)
 _SUSPICIOUS_DROPPED = set()  # F2: valid-but-suspicious DOIs already reported dropped (dedupe stderr)
 
 def extract_doi_from_text(text, max_chars=None):
-    """Extract the first well-formed, non-suspicious DOI from text, re-joining line-wrapped DOIs.
+    """The first DOI in `text` (lower-cased, the most specific form), or '' when there is none.
 
-    The old reverse_citations/forward_citations regexes collapsed whitespace before matching, so a
-    DOI split across a line break ('10.1002/cphy.\\nc140066') truncated at the wrap. Here we consume
-    DOI body characters and, on hitting whitespace, re-join the wrapped continuation ONLY when the
-    last body char is DOI-internal punctuation ('.', '-', '/') -- the pattern of a mid-DOI wrap --
-    which avoids over-joining a DOI that legitimately ends at end-of-line followed by prose.
-    Returns '' if no non-suspicious DOI is found (the is_suspicious_doi gate drops truncations)."""
+    Delegates to litpipe.doi.iter_candidates (W1-B, plan section 2.3): a line-wrapped DOI is
+    re-joined ('10.1002/cphy.\\nc140066'), but not onto a line number or year
+    ('...00775.2024.\\n12'), nor onto a capitalised word ('dc08-1876.\\nIntroduction'); running
+    heads and URL tails are peeled ('.author', '.http://dx.doi.org/...', '...298293Stearns');
+    '#' fragments and invalid '%' escapes are cut; placeholders and truncations are dropped, and
+    each distinct dropped one is reported once on stderr (F2) so a rare real one is not lost
+    silently. Same signature and return type as before (a str, '' for none)."""
     if not text: return ""
     if max_chars is not None: text = text[:max_chars]
-    n = len(text)
-    for m in _DOI_START.finditer(text):
-        i = m.end(); body = []
-        while i < n:
-            c = text[i]
-            if _BODYCHAR_RE.match(c):
-                body.append(c); i += 1
-            elif c in " \t\r\n­":  # whitespace / soft-hyphen: maybe a wrapped DOI
-                if body and body[-1] in ".-/":      # mid-DOI wrap -> rejoin (keep all chars;
-                    j = i                            # DOIs aren't soft-hyphenated by typesetters)
-                    while j < n and text[j] in " \t\r\n­": j += 1
-                    if j < n and _BODYCHAR_RE.match(text[j]): i = j; continue
-                break
-            else:
-                break
-        cand = normalize_doi(m.group(0) + "".join(body))
-        if is_valid_doi(cand):
-            if is_suspicious_doi(cand):
-                # F2: a valid-but-suspicious DOI (no digit AND no dot in the suffix) is
-                # dropped as a likely line-wrap truncation. Surface each unique drop once so
-                # a rare legit single-token DOI (e.g. 10.1093/nar) is not lost silently.
-                if cand not in _SUSPICIOUS_DROPPED:
-                    _SUSPICIOUS_DROPPED.add(cand)
-                    print(f"[litpipe] dropped valid-but-suspicious DOI {cand!r} "
-                          f"(suffix has no digit and no dot)", file=sys.stderr)
-                continue
-            return cand
-    return ""
+    rejected = []
+    found = ""
+    for _pos, cand in _doi.iter_candidates(text, rejected):
+        found = cand
+        break
+    for _pos, cand, why in rejected:
+        if why == "placeholder" and cand not in _SUSPICIOUS_DROPPED:
+            _SUSPICIOUS_DROPPED.add(cand)
+            print(f"[litpipe] dropped valid-but-suspicious DOI {cand!r} "
+                  f"(a truncated journal code or a placeholder)", file=sys.stderr)
+    return found
 
 # ---------------------------------------------------------------- RIS metadata parsing
 _RIS_TAG = re.compile(r"^([A-Z][A-Z0-9])\s{2}-\s?(.*)$")
