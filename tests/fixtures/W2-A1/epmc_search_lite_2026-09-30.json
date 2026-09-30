@@ -1,0 +1,103 @@
+{
+ "version": "6.9",
+ "hitCount": 7,
+ "request": {
+  "queryString": "DOI:\"10.3390/nu8060377\" OR DOI:\"10.1016/j.resp.2021.103638\" OR DOI:\"10.1002/14651858.cd013617.pub2\" OR DOI:\"10.21037/jss-20262-05\" OR DOI:\"10.2337/db14-1771\" OR DOI:\"10.1007/s40279-015-0365-0\" OR DOI:\"10.1002/(SICI)1097-0258(19970228)16:4<385::AID-SIM380>3.0.CO;2-3\"",
+  "resultType": "lite",
+  "cursorMark": "*",
+  "pageSize": 100,
+  "sort": "",
+  "synonym": false
+ },
+ "resultList": {
+  "result": [
+   {
+    "id": "42781191",
+    "source": "MED",
+    "pmid": "42781191",
+    "doi": "10.21037/jss-20262-05",
+    "title": "AI cannot synthesise what has never been reported: the future of the spine journal.",
+    "isOpenAccess": "N",
+    "inEPMC": "N",
+    "inPMC": "N",
+    "hasPDF": "N",
+    "firstPublicationDate": "2026-09-18"
+   },
+   {
+    "id": "41810896",
+    "source": "MED",
+    "pmid": "41810896",
+    "doi": "10.1002/14651858.cd013617.pub2",
+    "title": "High-intensity interval training for reducing cardiometabolic syndrome in healthy but sedentary populations.",
+    "isOpenAccess": "N",
+    "inEPMC": "N",
+    "inPMC": "N",
+    "hasPDF": "N",
+    "firstPublicationDate": "2026-03-11"
+   },
+   {
+    "id": "33581294",
+    "source": "MED",
+    "pmid": "33581294",
+    "pmcid": "PMC7983342",
+    "doi": "10.1016/j.resp.2021.103638",
+    "title": "Dyspnea during exercise and voluntary hyperpnea in women with obesity.",
+    "isOpenAccess": "N",
+    "inEPMC": "Y",
+    "inPMC": "Y",
+    "hasPDF": "Y",
+    "firstPublicationDate": "2021-02-11"
+   },
+   {
+    "id": "27322318",
+    "source": "MED",
+    "pmid": "27322318",
+    "pmcid": "PMC4924218",
+    "doi": "10.3390/nu8060377",
+    "title": "Dietary Recommendations for Cyclists during Altitude Training.",
+    "isOpenAccess": "Y",
+    "inEPMC": "Y",
+    "inPMC": "Y",
+    "hasPDF": "Y",
+    "firstPublicationDate": "2016-06-18"
+   },
+   {
+    "id": "26068543",
+    "source": "MED",
+    "pmid": "26068543",
+    "pmcid": "PMC4587640",
+    "doi": "10.2337/db14-1771",
+    "title": "Increased Skeletal Muscle Capillarization Independently Enhances Insulin Sensitivity in Older Adults After Exercise Training and Detraining.",
+    "isOpenAccess": "N",
+    "inEPMC": "Y",
+    "inPMC": "Y",
+    "hasPDF": "Y",
+    "firstPublicationDate": "2015-06-11"
+   },
+   {
+    "id": "26243014",
+    "source": "MED",
+    "pmid": "26243014",
+    "doi": "10.1007/s40279-015-0365-0",
+    "title": "Effectiveness of High-Intensity Interval Training (HIT) and Continuous Endurance Training for VO2max Improvements: A Systematic Review and Meta-Analysis of Controlled Trials.",
+    "isOpenAccess": "N",
+    "inEPMC": "N",
+    "inPMC": "N",
+    "hasPDF": "N",
+    "firstPublicationDate": "2015-10-01"
+   },
+   {
+    "id": "9044528",
+    "source": "MED",
+    "pmid": "9044528",
+    "doi": "10.1002/(sici)1097-0258(19970228)16:4<385::aid-sim380>3.0.co;2-3",
+    "title": "The lasso method for variable selection in the Cox model.",
+    "isOpenAccess": "N",
+    "inEPMC": "N",
+    "inPMC": "N",
+    "hasPDF": "N",
+    "firstPublicationDate": "1997-02-01"
+   }
+  ]
+ }
+}

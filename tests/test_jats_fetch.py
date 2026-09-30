@@ -70,22 +70,7 @@ def test_recheck_404_is_not_available(monkeypatch, tmp_path):
     assert not sidecar.exists()  # nothing written on a miss
 
 
-def test_pmc_404_is_not_available(monkeypatch, tmp_path):
-    """Regression guard: routing did not change pmc's pre-existing 404 -> NOT_AVAILABLE."""
-    _patch_get(monkeypatch, FakeResp(404))
-    sidecar = tmp_path / "p.fulltext.json"
-    ok, status = pmc_fetch.fetch_fulltext_sidecar("PMC404", str(sidecar))
-    assert (ok, status) == (False, "NOT_AVAILABLE")
-    assert not sidecar.exists()
-
-
 # ---------- per-caller error-label FORMAT is preserved (the key design decision) ----------
-
-def test_pmc_transport_error_label_is_bare(monkeypatch, tmp_path):
-    """pmc/recheck catch bare Exception -> 'ERROR_<msg>' (no type prefix)."""
-    _patch_get(monkeypatch, exc=requests.exceptions.ConnectionError("boom"))
-    ok, status = pmc_fetch.fetch_fulltext_sidecar("PMC1", str(tmp_path / "p.json"))
-    assert ok is False and status == "ERROR_boom"
 
 
 def test_recheck_transport_error_label_is_bare(monkeypatch, tmp_path):
@@ -112,14 +97,6 @@ def test_backfill_transport_error_label_has_type(monkeypatch, tmp_path):
 JATS_OK = (b"<article><front><article-meta>"
            b"<article-title>Test Heat Title</article-title>"
            b"</article-meta></front></article>")
-
-
-def test_pmc_ok_writes_sidecar(monkeypatch, tmp_path):
-    _patch_get(monkeypatch, FakeResp(200, JATS_OK))
-    sidecar = tmp_path / "p.fulltext.json"
-    ok, status = pmc_fetch.fetch_fulltext_sidecar("PMC1", str(sidecar))
-    assert (ok, status) == (True, "OK")
-    assert json.loads(sidecar.read_text(encoding="utf-8"))["title"] == "Test Heat Title"
 
 
 def test_recheck_ok_writes_sidecar(monkeypatch, tmp_path):

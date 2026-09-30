@@ -7,13 +7,10 @@ the import-smoke + consumer tests miss because the reference is deferred to call
 drift in the status strings migrate routes on.
 """
 import lit_net
-import pmc_fetch as pmc
 import preprint_fetch as ppr
-import fetch_figures as figs
 
 SR = lit_net.StreamResult
 PDF_OK = b"%PDF-1.7\n" + b"x" * 11000        # PDF magic + >10KB, passes the size gate, not boilerplate
-JPG_OK = b"\xff\xd8\xff" + b"x" * 5000
 
 
 def _patch(monkeypatch, sr):
@@ -23,26 +20,6 @@ def _patch(monkeypatch, sr):
 # ---- unpaywall_fetch_v2.try_download -> (status, msg) ----
 
 # ---- pmc_fetch.try_download -> (ok, label, msg)  [the regressed adapter] ----
-
-def test_pmc_ok(tmp_path, monkeypatch):
-    _patch(monkeypatch, SR(200, b"%PDF", PDF_OK, len(PDF_OK), False, ""))
-    assert pmc.try_download("http://x", str(tmp_path / "a.pdf")) == (True, "OK", f"{len(PDF_OK)}B")
-
-
-def test_pmc_http_error(tmp_path, monkeypatch):
-    _patch(monkeypatch, SR(503, b"", b"", 0, False, ""))
-    assert pmc.try_download("http://x", str(tmp_path / "a.pdf")) == (False, "HTTP_503", "")
-
-
-def test_pmc_empty(tmp_path, monkeypatch):
-    _patch(monkeypatch, SR(200, b"", b"", 0, False, ""))
-    assert pmc.try_download("http://x", str(tmp_path / "a.pdf")) == (False, "EMPTY", "")
-
-
-def test_pmc_error_truncated_to_120(tmp_path, monkeypatch):
-    _patch(monkeypatch, SR(0, b"", b"", 0, False, "boom"))
-    assert pmc.try_download("http://x", str(tmp_path / "a.pdf")) == (False, "ERROR", "boom")
-
 
 # ---- preprint_fetch.fetch_pdf -> (ok, status) ----
 
@@ -63,16 +40,4 @@ def test_preprint_error(tmp_path, monkeypatch):
 
 # ---- fetch_figures.download_image -> (ok, status, size) ----
 
-def test_figs_ok(tmp_path, monkeypatch):
-    _patch(monkeypatch, SR(200, b"\xff\xd8\xff", JPG_OK, len(JPG_OK), False, ""))
-    assert figs.download_image("http://x", str(tmp_path / "a.jpg")) == (True, "OK", len(JPG_OK))
 
-
-def test_figs_not_image(tmp_path, monkeypatch):
-    _patch(monkeypatch, SR(200, b"nope", b"nope", 4, False, ""))
-    assert figs.download_image("http://x", str(tmp_path / "a.jpg")) == (False, "NOT_IMAGE", 4)
-
-
-def test_figs_too_large(tmp_path, monkeypatch):
-    _patch(monkeypatch, SR(200, b"\xff\xd8\xff", b"...", 40_000_000, True, ""))
-    assert figs.download_image("http://x", str(tmp_path / "a.jpg")) == (False, "TOO_LARGE", 40_000_000)

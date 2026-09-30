@@ -77,3 +77,14 @@ def test_mid_stream_error_returns_partial(monkeypatch):
 
 def test_max_pdf_bytes_is_80mb():
     assert lit_net.MAX_PDF_BYTES == 80_000_000
+
+
+def test_prohibited_route_returns_a_failure_without_sending(monkeypatch):
+    """W2-A1: a PMC article page or CDN blob is refused before any request."""
+    def boom(url, **kwargs):
+        raise AssertionError("sent a request to a prohibited route")
+    monkeypatch.setattr(lit_net.requests, "get", boom)
+    for url in ("https://pmc.ncbi.nlm.nih.gov/articles/PMC1/pdf/x.pdf",
+                "https://cdn.ncbi.nlm.nih.gov/pmc/blobs/a/b/fig1.jpg"):
+        res = lit_net.stream_download(url, max_bytes=1000)
+        assert res.status_code == 0 and res.error.startswith("PROHIBITED") and res.content == b""

@@ -44,9 +44,8 @@ def test_quarantine_helper_shared_across_fetchers():
     """All 3 fetchers must route mismatches through the shared unpaywall helper -- not a local
     re-implementation. (__module__, not `is`: pytest's import machinery can duplicate a module
     object across the full collection, but the function's defining module is stable.)"""
-    import pmc_fetch
-    import preprint_fetch
-    for mod in (unpw, pmc_fetch, preprint_fetch):
+    import preprint_fetch   # pmc_fetch (W2-A1) and the Unpaywall stage (W2-B) use the identity check
+    for mod in (unpw, preprint_fetch):
         qm = getattr(mod, "quarantine_mismatch", None)
         assert callable(qm), f"{mod.__name__} is missing quarantine_mismatch"
         assert qm.__module__ == "unpaywall_fetch_v2", f"{mod.__name__} uses a non-shared copy"

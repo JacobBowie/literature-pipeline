@@ -110,3 +110,20 @@ def test_kwargs_pass_through(monkeypatch):
     _patch(monkeypatch, [FakeResp(200)], rec)
     lit_net.get("http://x", params={"email": "a@b.c"}, headers={"User-Agent": "UA"}, timeout=15)
     assert rec["last_kwargs"] == {"params": {"email": "a@b.c"}, "headers": {"User-Agent": "UA"}, "timeout": 15}
+
+
+def test_prohibited_pmc_article_page_is_refused_before_sending(monkeypatch):
+    """W2-A1: the PMC article pages are never automated. get() used to route that host through a
+    urllib detour; it now returns a status-0 failure and sends nothing."""
+    rec = {"calls": 0, "sleeps": []}
+    _patch(monkeypatch, [FakeResp(200)], rec)
+    r = lit_net.get("https://pmc.ncbi.nlm.nih.gov/articles/PMC123/")
+    assert r.status_code == 0 and r.error.startswith("PROHIBITED") and rec["calls"] == 0
+    assert r.text == "" and rec["sleeps"] == []
+
+
+def test_non_prohibited_ncbi_path_still_uses_requests(monkeypatch):
+    rec = {"calls": 0, "sleeps": []}
+    _patch(monkeypatch, [FakeResp(200)], rec)
+    assert lit_net.get("https://www.ncbi.nlm.nih.gov/research/bionlp/x").status_code == 200
+    assert rec["calls"] == 1
