@@ -1,0 +1,592 @@
+[
+ {
+  "bioctype": "BioCCollection",
+  "source": "PMC",
+  "date": "20250113",
+  "key": "pmc.key",
+  "version": "1.0",
+  "infons": {},
+  "documents": [
+   {
+    "bioctype": "BioCDocument",
+    "id": "7983342",
+    "infons": {
+     "license": "author_manuscript"
+    },
+    "passages": [
+     {
+      "bioctype": "BioCPassage",
+      "offset": 0,
+      "infons": {
+       "article-id_doi": "10.1016/j.resp.2021.103638",
+       "article-id_manuscript": "NIHMS1675085",
+       "article-id_pmc": "7983342",
+       "article-id_pmid": "33581294",
+       "fpage": "103638",
+       "kwd": "Obesity shortness of breath exercise ventilatory demand",
+       "license": "\n          This file is available for text mining. It may also be used consistent with the principles of fair use under the copyright law.\n        ",
+       "lpage": "103638",
+       "name_0": "surname:Spencer;given-names:Matthew D.",
+       "name_1": "surname:Balmain;given-names:Bryce N.",
+       "name_2": "surname:Bernhardt;given-names:Vipa",
+       "name_3": "surname:Wilhite;given-names:Daniel P.",
+       "name_4": "surname:Babb;given-names:Tony G.",
+       "section_type": "TITLE",
+       "type": "front",
+       "volume": "287",
+       "year": "2022"
+      },
+      "text": "Dyspnea during exercise and voluntary hyperpnea in women with obesity",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 70,
+      "infons": {
+       "section_type": "ABSTRACT",
+       "type": "abstract"
+      },
+      "text": "Temporal responses of ratings of perceived breathlessness (RBP) during constant-load and incremental exercise, and during voluntary hyperpnea (EVH) were examined in obese women. Following 6min of constant-load (60W) cycling, 34 women rated RPB≥4 (+DOE) and 22 women rated RPB≤2 (−DOE). Both groups completed an incremental cycling test and an EVH test at 40 and 60L/min; RPB was assessed each minute ",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 1211,
+      "infons": {
+       "section_type": "INTRO",
+       "type": "title_1"
+      },
+      "text": "Introduction",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 1224,
+      "infons": {
+       "section_type": "INTRO",
+       "type": "paragraph"
+      },
+      "text": "Obesity is associated with numerous health problems and exerts limitations to breathing capacity including decreased pulmonary function and altered respiratory mechanics. These effects could provoke dyspnea on exertion (−DOE), which is a very common symptom in obesity. However, not all individuals with obesity appear to experience DOE. Indeed, we have shown that during submaximal constant-load exe",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 1745,
+      "infons": {
+       "section_type": "INTRO",
+       "type": "paragraph"
+      },
+      "text": "At present, it remains unclear as to what mechanism(s) underlie the different ratings of perceived breathlessness (RPB; an indicator of DOE) in women with obesity. We have conducted several studies investigating possible mechanisms underlying differences between women with and without DOE, including investigations into the oxygen cost of breathing, breathing mechanics and/or breathing pattern, qua",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 3480,
+      "infons": {
+       "section_type": "INTRO",
+       "type": "paragraph"
+      },
+      "text": "Therefore, the purpose of the present study was to explore the dynamic response of RBP during constant-load and incremental exercise, as well as at various levels of eucapnic voluntary hyperpnea (EVH). We assessed RPB during EVH to negate any potential confounding influence of exercise intensity on sensations of dyspnea when ventilatory demand was elevated. We retrospectively evaluated subjects’ R",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 4136,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "title_1"
+      },
+      "text": "Methods",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 4144,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "paragraph"
+      },
+      "text": "The data presented in this article were collected as part of a larger study describing the effects of weight loss on pulmonary function and breathing mechanics during exercise in women with obesity. However, the current article addresses a different question, and we repeat only the methods and data (i.e., subject characteristics, peak exercise data, and dyspnea ratings during exercise and EVH) ess",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 4589,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "title_2"
+      },
+      "text": "Participants:",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 4603,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "paragraph"
+      },
+      "text": "In total, 78 women with obesity (body mass index [BMI] ≥30 and ≤45) were retrospectively examined. Participants were eligible to participate if they did not have a history of smoking, asthma, cardiovascular disease, sleep disorders, or musculoskeletal abnormalities that would preclude exercise. Prior to all testing, the purpose and protocols of all testing procedures were disclosed in detail and w",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 5194,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "title_2"
+      },
+      "text": "Study design:",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 5208,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "paragraph"
+      },
+      "text": "Participants visited the laboratory on three separate occasions. On the first visit, participants underwent initial screening, standard anthropometric and body composition measures, and pulmonary function testing (data not shown). On the second visit, participants completed submaximal constant-load and maximal incremental cycling tests, and on the third visit participants completed EVH testing.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 5606,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "title_2"
+      },
+      "text": "Body composition and pulmonary function:",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 11310,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "title_1"
+      },
+      "text": "Results",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 11318,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "title_2"
+      },
+      "text": "Participant characteristics:",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 11347,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "paragraph"
+      },
+      "text": "Following the submaximal constant-load cycling test, two sub-groups were identified: +DOE was comprised of 34 women (i.e., 44% of total sample) and −DOE was comprised of 22 women (i.e., 30% of total sample). Participant characteristics are displayed in Table 1. No differences in age and body composition measurements were observed between +DOE and −DOE groups (all p > 0.05); however, peak  (p = 0.0",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 11962,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "title_2"
+      },
+      "text": "Relationships between breathlessness and ventilatory demand during submaximal constant- load cycling:",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 12064,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "paragraph"
+      },
+      "text": " and RPB responses at baseline and minutes 2, 4 and 6 of the submaximal constant-load cycling test are shown in Figure 1. Although  was similar (p = 0.71) between groups at baseline, RPB was higher (p = 0.01) in the +DOE group. Both  and RPB progressively increased in +DOE and −DOE during exercise (both p < 0.01), yet both  (group-time interaction, p < 0.01) and RPB (group-time interaction, p < 0.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 13855,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "title_2"
+      },
+      "text": "Relationships between breathlessness, relative exercise intensity, and ventilatory demand during maximal incremental cycling:",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 13981,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "paragraph"
+      },
+      "text": "The change in RPB as a function of change in HR reserve and change in  throughout incremental exercise are shown in Figure 3. When changes in RPB were plotted as a function of HR reserve and fit with an exponential function (average R2 = 0.93 and 0.96 for +DOE and −DOE, respectively), the +DOE group had a significantly greater y-intercept (a = 0.97 ± 0.75 vs 0.27 ± 0.25, p < 0.01) and significantl",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 16138,
+      "infons": {
+       "section_type": "DISCUSS",
+       "type": "title_1"
+      },
+      "text": "Discussion",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 16149,
+      "infons": {
+       "section_type": "DISCUSS",
+       "type": "paragraph"
+      },
+      "text": "The novel findings from this study are as follows: i) in women with obesity, RPB increases linearly with increasing , regardless of whether this is in response to exercise or EVH. This linear relationship was observed in both groups; however, +DOE subjects tended to be characterized by a greater y-intercept, suggesting a heightened perception of breathlessness for a given physiological stimulus; i",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 17317,
+      "infons": {
+       "section_type": "DISCUSS",
+       "type": "paragraph"
+      },
+      "text": "It has long been known that an abrupt increase in WR results in an exponential increase in  and pulmonary gas exchange. In addition to the expected progressive increases in  during submaximal constant-load exercise, we demonstrated a progressive increase in RPB. Thus, depending on the timing of the RPB assessment, it is possible to observe a range of RPB scores within an individual, even if the ex",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 18944,
+      "infons": {
+       "section_type": "DISCUSS",
+       "type": "paragraph"
+      },
+      "text": "Whereas the mean slope and y-intercept from the linear regression between RPB and  during submaximal constant-load exercise failed to reach statistical significance between groups, an important observation is the significant between-group difference in baseline RPB, despite similar  values. Taken together, these data suggest that while RPB changes are in linear proportion to changes in  in all ind",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 25140,
+      "infons": {
+       "section_type": "CONCL",
+       "type": "title_1"
+      },
+      "text": "Conclusion",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 25151,
+      "infons": {
+       "section_type": "CONCL",
+       "type": "paragraph"
+      },
+      "text": "The present study has demonstrated that changes in RPB induced by either exercise or EVH are in linear proportion to changes in  in obese women with and without DOE. Whereas the sensitivity of these changes appears similar between groups for the most part, the perception elicited for a given ventilatory demand seems to differ. Although the precise mechanism(s) underlying differences in perception ",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 26168,
+      "infons": {
+       "section_type": "CONCL",
+       "type": "footnote"
+      },
+      "text": "This is a PDF file of an unedited manuscript that has been accepted for publication. As a service to our customers we are providing this early version of the manuscript. The manuscript will undergo copyediting, typesetting, and review of the resulting proof before it is published in its final form. Please note that during the production process errors may be discovered which could affect the conte",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 26633,
+      "infons": {
+       "section_type": "CONCL",
+       "type": "footnote"
+      },
+      "text": "Disclosures: Drs. Spencer, Balmain, Bernhardt, Wilhite and Babb have no conflicts of interest to disclose.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 26740,
+      "infons": {
+       "section_type": "REF",
+       "type": "title"
+      },
+      "text": "References",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 26751,
+      "infons": {
+       "fpage": "225",
+       "lpage": "236",
+       "name_0": "surname:Alpert;given-names:MA",
+       "section_type": "REF",
+       "source": "American Journal of Medical Science",
+       "type": "ref",
+       "volume": "321",
+       "year": "2001"
+      },
+      "text": "Obesity Cardiomyopathy: Pathophysiology and Evolution of the Clinical Syndrome",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 26830,
+      "infons": {
+       "fpage": "99",
+       "name_0": "surname:Ayinapudi;given-names:K",
+       "name_1": "surname:Singh;given-names:T",
+       "name_2": "surname:Motwani;given-names:A",
+       "name_3": "surname:Le Jemtel;given-names:TH",
+       "name_4": "surname:Oparil;given-names:S",
+       "pub-id_pmid": "30291516",
+       "section_type": "REF",
+       "source": "Curr Hypertens Rep",
+       "type": "ref",
+       "volume": "20",
+       "year": "2018"
+      },
+      "text": "Obesity and Pulmonary Hypertension",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 26865,
+      "infons": {
+       "fpage": "189",
+       "lpage": "201",
+       "name_0": "surname:Azagury;given-names:DE",
+       "name_1": "surname:Lautz;given-names:DB",
+       "pub-id_pmid": "21569972",
+       "section_type": "REF",
+       "source": "Gastrointestinal Endoscopy Clinics of North America",
+       "type": "ref",
+       "volume": "21",
+       "year": "2011"
+      },
+      "text": "Obesity overview: epidemiology, health and financial impact, and guidelines for qualification for surgical therapy",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 28737,
+      "infons": {
+       "file": "nihms-1675085-f0001.jpg",
+       "id": "F1",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "Group mean (±SD)  (top panel) and RPB (middle panel) responses at rest and during submaximal constant-load 60 W cycling in −DOE and +DOE individuals. Individual (pooled) RPB as a function of changing  (bottom panel) during submaximal constant-load 60 W cycling with linear regression models superimposed. Regression lines were calculated from the average y-intercept and slope estimates from the regr",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 29313,
+      "infons": {
+       "file": "nihms-1675085-f0002.jpg",
+       "id": "F2",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "The change in  (in L/sec) for a given change in estimated ventilatory drive (VT/ti) in −DOE and +DOE individuals during submaximal constant-load exercise.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 29470,
+      "infons": {
+       "file": "nihms-1675085-f0003.jpg",
+       "id": "F3",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "Changes in RPB in +DOE and −DOE during incremental cycling exercise as a function of heart rate reserve (HRR; top) for (A) representative individuals (exponential model superimposed), and (B) group means (± SD); changes in RPB in +DOE and −DOE during maximal incremental cycling exercise as a function of  for (C) group means (± SD) and (D) pooled individual data (linear regression models superimpos",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 30744,
+      "infons": {
+       "file": "T1.xml",
+       "id": "T1",
+       "section_type": "TABLE",
+       "type": "table_caption"
+      },
+      "text": "Participant characteristics.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 30773,
+      "infons": {
+       "file": "T1.xml",
+       "id": "T1",
+       "section_type": "TABLE",
+       "type": "table"
+      },
+      "text": "\t+DOE\tRPB=3\t−DOE\t \tn\t34\t22\t22\t \tAge (yr)\t34±7\t34±7\t32±7\t \tHeight (cm)\t162.6±6.1\t165.2±6.3\t163.8±7.1\t \tBody Mass (kg)\t95.3±13.3\t93.7±12.1\t98.5±13.6\t \tWaist-to-Hip ratio\t0.87±0.08\t0.86±0.07\t0.90±0.09\t \tBMI (kg/m2)\t36.1±4.8\t34.3±3.9\t36.7±4.4\t \tFat mass (kg)\t45±9\t42±9\t45±10\t \tLean body mass (kg)\t48±5\t52±6\t54±6\t \tPeak WR (W)\t129±20\t-\t147±21*\t \tPeak  (L/min)\t80.06±16.33\t-\t88.66±12.17*\t \t (L/min)\t1.70±0.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 31267,
+      "infons": {
+       "file": "T1.xml",
+       "id": "T1",
+       "section_type": "TABLE",
+       "type": "table_footnote"
+      },
+      "text": "Data are presented as mean ± SD. +DOE denotes obese women with dyspnea on exertion (RPB ≥ 4); −DOE denotes obese women with only mild dyspnea on exertion (RPB ≤ 2).",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 31439,
+      "infons": {
+       "file": "T1.xml",
+       "id": "T1",
+       "section_type": "TABLE",
+       "type": "table_footnote"
+      },
+      "text": "Significantly different from +DOE, p < 0.05.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 31484,
+      "infons": {
+       "section_type": "REF",
+       "type": "title_caption"
+      },
+      "text": "Highlights",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 31495,
+      "infons": {
+       "section_type": "REF",
+       "type": "paragraph"
+      },
+      "text": "Changes in RPB during exercise or EVH are in linear proportion to changes in .",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 31574,
+      "infons": {
+       "section_type": "REF",
+       "type": "paragraph"
+      },
+      "text": "RPB at a given  is elevated in obese women with vs. without dyspnea on exertion.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 31655,
+      "infons": {
+       "section_type": "REF",
+       "type": "paragraph"
+      },
+      "text": "Obese women with dyspnea on exertion experience increased perception for a given .",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     }
+    ],
+    "annotations": [],
+    "relations": []
+   }
+  ]
+ }
+]

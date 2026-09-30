@@ -1,0 +1,512 @@
+[
+ {
+  "bioctype": "BioCCollection",
+  "source": "PMC",
+  "date": "20260218",
+  "key": "pmc.key",
+  "version": "1.0",
+  "infons": {},
+  "documents": [
+   {
+    "bioctype": "BioCDocument",
+    "id": "PMC11592912",
+    "infons": {
+     "license": "CC BY"
+    },
+    "passages": [
+     {
+      "bioctype": "BioCPassage",
+      "offset": 0,
+      "infons": {
+       "article-id_doi": "10.3390/e26110970",
+       "article-id_pmc": "PMC11592912",
+       "article-id_pmid": "39593914",
+       "article-id_publisher-id": "entropy-26-00970",
+       "elocation-id": "970",
+       "issue": "11",
+       "kwd": "HIV human immunodeficiency virus information theory correlation and variance complexity medicare medicaid child health insurance program age period cohort regression survival analysis clinical demography",
+       "license": "Licensee MDPI, Basel, Switzerland. This article is an open access article distributed under the terms and conditions of the Creative Commons Attribution (CC BY) license (https://creativecommons.org/licenses/by/4.0/).",
+       "name_0": "surname:Williams;given-names:Nick",
+       "name_1": "surname:de Felice;given-names:Giulio",
+       "name_2": "surname:Pernice;given-names:Riccardo",
+       "name_3": "surname:Antonacci;given-names:Yuri",
+       "section_type": "TITLE",
+       "type": "front",
+       "volume": "26",
+       "year": "2024"
+      },
+      "text": "Complexity and Variation in Infectious Disease Birth Cohorts: Findings from HIV+ Medicare and Medicaid Beneficiaries, 1999–2020",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 130,
+      "infons": {
+       "section_type": "ABSTRACT",
+       "type": "abstract"
+      },
+      "text": "The impact of uncertainty in information systems is difficult to assess, especially when drawing conclusions from human observation records. In this study, we investigate survival variation in a population experiencing infectious disease as a proxy to investigate uncertainty problems. Using Centers ",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 1529,
+      "infons": {
+       "section_type": "INTRO",
+       "type": "title_1"
+      },
+      "text": "1. Introduction",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 1545,
+      "infons": {
+       "section_type": "INTRO",
+       "type": "paragraph"
+      },
+      "text": "This study attempts to detect anomalies using information theory concepts in at-scale life course data for people living with HIV in the United States. People living with HIV are very different from each other for multiple under-observed and non-trivial reasons that likely impact any attempt at eval",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 11306,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "title_1"
+      },
+      "text": "2. Materials and Methods",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 11331,
+      "infons": {
+       "section_type": "METHODS",
+       "type": "paragraph"
+      },
+      "text": "Study data were sourced from the Chronic Conditions Warehouse, Virtual Research Data Center; a 100% sample of Medicare and Medicaid research-identifiable file records for the study years 1999–2020 were considered. Records were eligible for the study if they were attributable to an individual. Do not",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 14884,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "title_1"
+      },
+      "text": "3. Results",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 14895,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "paragraph"
+      },
+      "text": "The study analyses are meant to detect anomalies within age, period and birth cohort dynamics when evaluating APC as a proxy for TRN physics among HIV+ cases and HIV+ decedents in the United States who are known to CMS. Of particular interest are anomalies that inform interpretation of survival time",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 15634,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "title_2"
+      },
+      "text": "3.1. CMS Data Considered in This Study",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 20828,
+      "infons": {
+       "file": "entropy-26-00970-g002.jpg",
+       "id": "entropy-26-00970-f002",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "Tile plot of CMS HIV+ cases and deaths by number of years old at observation (YOAO).",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 20913,
+      "infons": {
+       "file": "entropy-26-00970-g003.jpg",
+       "id": "entropy-26-00970-f003",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "Inflow candidates, outflow (death) and overflow candidate case volumes by program and across study years by number of years old at observation (YOAO).",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 22821,
+      "infons": {
+       "section_type": "RESULTS",
+       "type": "title_3"
+      },
+      "text": "3.3.1. Inflow Candidates or Cases Entering the Study",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 34564,
+      "infons": {
+       "section_type": "DISCUSS",
+       "type": "title_1"
+      },
+      "text": "4. Discussion",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 34578,
+      "infons": {
+       "section_type": "DISCUSS",
+       "type": "paragraph"
+      },
+      "text": "While treatment changes (Highly Active Anti-Retroviral Therapy) may be at the top of one’s mind in segmenting outcome eras, birth cohort effects may be more important. This is perhaps due to under-observed local effects such as AIDS deaths peaking in the US in 1995–1996, making study cases eligible ",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 39409,
+      "infons": {
+       "section_type": "CONCL",
+       "type": "title_1"
+      },
+      "text": "5. Conclusions",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 39424,
+      "infons": {
+       "section_type": "CONCL",
+       "type": "paragraph"
+      },
+      "text": "On some level you only die once; and, until you are dead, we do not really know if you lived longer than a similar person in a different era, let alone why you did or did not. Prior observation may inform survival expectations; however, this review of 1.5 million HIV+ cases from the United States fi",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 40359,
+      "infons": {
+       "section_type": "CONCL",
+       "type": "footnote"
+      },
+      "text": "Disclaimer/Publisher’s Note: The statements, opinions and data contained in all publications are solely those of the individual author(s) and contributor(s) and not of MDPI and/or the editor(s). MDPI and/or the editor(s) disclaim responsibility for any injury to people or property resulting from any",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 40731,
+      "infons": {
+       "section_type": "CONCL",
+       "type": "title"
+      },
+      "text": "Institutional Review Board Statement",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 41627,
+      "infons": {
+       "section_type": "SUPPL",
+       "type": "title"
+      },
+      "text": "Data Availability Statement",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 41655,
+      "infons": {
+       "section_type": "SUPPL",
+       "type": "paragraph"
+      },
+      "text": "The study dataset is available upon request to the corresponding author at . For identifiable or encounter-level CMS data, requests should be made through  (accessed on 3 November 2024).",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 41842,
+      "infons": {
+       "section_type": "COMP_INT",
+       "type": "title"
+      },
+      "text": "Conflicts of Interest",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 41864,
+      "infons": {
+       "section_type": "COMP_INT",
+       "type": "paragraph"
+      },
+      "text": "The author declares no conflicts of interest. The funders had no role in the design of the study; in the collection, analyses, or interpretation of data; in the writing of the manuscript; or in the decision to publish the results.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 42095,
+      "infons": {
+       "section_type": "REF",
+       "type": "title"
+      },
+      "text": "References",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 42106,
+      "infons": {
+       "elocation-id": "1291",
+       "name_0": "surname:Cai;given-names:Y.",
+       "name_1": "surname:Zhang;given-names:J.",
+       "name_2": "surname:Liang;given-names:J.",
+       "name_3": "surname:Xiao;given-names:M.",
+       "name_4": "surname:Zhang;given-names:G.",
+       "name_5": "surname:Jing;given-names:Z.",
+       "name_6": "surname:Lv;given-names:L.",
+       "name_7": "surname:Nan;given-names:K.",
+       "name_8": "surname:Dang;given-names:X.",
+       "pub-id_doi": "10.3390/jcm12041291",
+       "pub-id_pmid": "36835827",
+       "section_type": "REF",
+       "source": "J. Clin. Med.",
+       "type": "ref",
+       "volume": "12",
+       "year": "2023"
+      },
+      "text": "The Burden of Rheumatoid Arthritis: Findings from the 2019 Global Burden of Diseases Study and Forecasts for 2030 by Bayesian Age-Period-Cohort Analysis",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 46684,
+      "infons": {
+       "file": "entropy-26-00970-g001.jpg",
+       "id": "entropy-26-00970-f001",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "CMS case volumes over time by death with mortality rates and mortality relative rate (OR) by HIV status.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 46789,
+      "infons": {
+       "file": "entropy-26-00970-g004d.jpg",
+       "id": "entropy-26-00970-f004",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "(a) Inflow among CMS HIV+ cases, YOAO in period. (b) Inflow among CMS HIV+ cases, YOAO in cohort. (c) Inflow among CMS HIV+ cases, cohort per period. (d) Inflow among CMS HIV+ cases, period in YOAO. (e) Inflow among CMS HIV+ cases, cohort in YOAO. (f) Inflow among CMS HIV+ cases, period in cohort.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 47088,
+      "infons": {
+       "file": "entropy-26-00970-g005c.jpg",
+       "id": "entropy-26-00970-f005",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "(a) Overflow in CMS HIV+ cases, YOAO in period. (b) Overflow in CMS HIV+ cases, YOAO in cohort. (c) Overflow in CMS HIV+ cases, cohort in period. (d) Overflow in CMS HIV+ cases, period in YOAO. (e) Overflow in CMS HIV+ cases, cohort in YOAO. (f) Overflow in CMS HIV+ cases, period in cohort.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 47380,
+      "infons": {
+       "file": "entropy-26-00970-g006c.jpg",
+       "id": "entropy-26-00970-f006",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "(a) Outflow (Deaths) among CMS HIV+ cases, YOAO in period. (b) Outflow (Deaths) among CMS HIV+ cases, YOAO in cohort. (c) Outflow (Deaths) among CMS HIV+ cases, cohort in period. (d) Outflow (Deaths) among CMS HIV+ cases, period in YOAO. (e) Outflow (Deaths) among CMS HIV+ cases, cohort in YOAO. (f)",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 47738,
+      "infons": {
+       "file": "entropy-26-00970-g007d.jpg",
+       "id": "entropy-26-00970-f007",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "(a) CMS HIV+ cases, YOAO in period. (b) CMS HIV+ cases, YOAO in cohort. (c) CMS HIV+ cases, cohort in period. (d) CMS HIV+ cases, period in YOAO. (e) CMS HIV+ cases, cohort in YOAO. (f) CMS HIV+ cases, period in cohort.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 47958,
+      "infons": {
+       "file": "entropy-26-00970-g008.jpg",
+       "id": "entropy-26-00970-f008",
+       "section_type": "FIG",
+       "type": "fig_caption"
+      },
+      "text": "Age, period and cohort estimates from Poisson linear models for Medicare, Medicaid and CMS HIV+ decedent cases.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 48070,
+      "infons": {
+       "file": "entropy-26-00970-t001.xml",
+       "id": "entropy-26-00970-t001",
+       "section_type": "TABLE",
+       "type": "table_caption"
+      },
+      "text": "HIV+ distinct individual-case attribution by diagnostic code utilization.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 48144,
+      "infons": {
+       "file": "entropy-26-00970-t001.xml",
+       "id": "entropy-26-00970-t001",
+       "section_type": "TABLE",
+       "type": "table"
+      },
+      "text": "Study Year\tMedicaid 042\tMedicaid B20\tMedicaid Z21\tMedicare 042\tMedicare B20\tMedicare Z21\t \t1999\t142,664\t-\t-\t56,090\t-\t-\t \t2000\t150,651\t-\t-\t61,622\t-\t-\t \t2001\t159,848\t-\t-\t66,041\t-\t-\t \t2002\t166,384\t-\t-\t72,565\t-\t-\t \t2003\t174,245\t-\t-\t79,110\t-\t-\t \t2004\t178,291\t-\t-\t77,319\t-\t-\t \t2005\t180,045\t-\t-\t75,755\t-\t-\t ",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 48984,
+      "infons": {
+       "file": "entropy-26-00970-t002.xml",
+       "id": "entropy-26-00970-t002",
+       "section_type": "TABLE",
+       "type": "table_caption"
+      },
+      "text": "Distinct cases, deaths and observation years.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 49030,
+      "infons": {
+       "file": "entropy-26-00970-t002.xml",
+       "id": "entropy-26-00970-t002",
+       "section_type": "TABLE",
+       "type": "table"
+      },
+      "text": "1999 Through 2020\tMedicare\tMedicaid\tMedicare and Medicaid (CMS)\t \tHIV− Life Courses\t109,925,470\t207,544,824\t283,688,152\t \tHIV+ Life Courses\t580,702\t1,446,290\t1,543,041\t \tHIV+ Rate\t0.53%\t0.70%\t0.54%\t \tHIV− Deaths\t45,547,376\t13,596,200\t48,598,568\t \tHIV− Mortality Rate\t41.43%\t6.55%\t17.13%\t \tHIV+ Deaths",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 49799,
+      "infons": {
+       "file": "entropy-26-00970-t003.xml",
+       "id": "entropy-26-00970-t003",
+       "section_type": "TABLE",
+       "type": "table_caption"
+      },
+      "text": "HIV+ life courses observed with deaths for the CMS group.",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 49857,
+      "infons": {
+       "file": "entropy-26-00970-t003.xml",
+       "id": "entropy-26-00970-t003",
+       "section_type": "TABLE",
+       "type": "table"
+      },
+      "text": "Study Year\tHIV+ CMS Cases\tHIV+ CMS Deaths\tMortality Rate\t \t1999\t633,663\t9555\t1.51%\t \t2000\t653,120\t11,286\t1.73%\t \t2001\t674,510\t12,689\t1.88%\t \t2002\t709,227\t13,752\t1.94%\t \t2003\t731,761\t14,566\t1.99%\t \t2004\t746,915\t14,773\t1.98%\t \t2005\t755,021\t15,508\t2.05%\t \t2006\t757,359\t15,717\t2.08%\t \t2007\t753,680\t14,822",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     }
+    ],
+    "annotations": [],
+    "relations": []
+   }
+  ]
+ }
+]

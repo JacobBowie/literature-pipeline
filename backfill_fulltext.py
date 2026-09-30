@@ -1,66 +1,68 @@
 """Backfill .fulltext.json sidecars for an existing PDF library.
 
-Walks a directory of PDFs, looks up DOI→PMCID for each, and writes the
-JATS-derived full-text JSON next to each PDF where Europe PMC has it.
+Walks a directory of PDFs, looks up DOI→PMCID for each, and writes the full-text JSON next to
+each PDF: Europe PMC's JATS for open-access articles, the BioC text for author manuscripts that
+Europe PMC does not serve (both through litpipe.net; jats_to_text.fetch_fulltext).
 
 Inputs:
   --lib-dir        Directory of PDFs to process.
   --doi-source     CSV with doi+filename columns (or filename column starting with year_author).
-                   For getpaid: data/prior_art/discovered/unpaywall_fetch_report_v2.csv
-                                (contains DOI for every paper that v2 saw)
-                   For papers not in any CSV, see --pmcid-fallback.
+                   For example the Unpaywall stage report (it carries the DOI of every paper
+                   that stage saw). For papers not in any CSV, see --pmcid-fallback.
   --pmcid-fallback Optional JSON map {filename: PMCID}. Used when no DOI lookup succeeds.
   --report         Where to write the per-file report CSV (default: <lib-dir>/_fulltext_backfill_report.csv).
   --dry-run        Show plan without fetching.
 
 Usage:
-  # getpaid backfill
-  python tools/backfill_fulltext.py \\
-      --lib-dir references/literature \\
-      --doi-source data/prior_art/discovered/unpaywall_fetch_report_v2.csv \\
-      --doi-source data/prior_art/discovered/pmc_fetch_report.csv
+  # DOIs from the stage reports
+  python backfill_fulltext.py \\
+      --lib-dir <project>/references/literature \\
+      --doi-source <project>/unpaywall_fetch_report_v2.csv \\
+      --doi-source <project>/pmc_fetch_report.csv
 
-  # Physiological_Data backfill (provide pmcid map directly)
-  python tools/backfill_fulltext.py \\
-      --lib-dir ../Physiological_Data/docs/literature \\
-      --pmcid-fallback c:/tmp/physdata_pmcid_map.json
+  # a PMCID map instead
+  python backfill_fulltext.py \\
+      --lib-dir <project>/docs/literature \\
+      --pmcid-fallback <scratch>/pmcid_map.json
 
 The script is read-only with respect to PDFs — it only writes sidecars next to them.
 """
-import os, sys, csv, json, time, argparse
+import os, sys, csv, json, argparse
 from xml.etree import ElementTree as ET
-import requests
 
 import lit_util
-import lit_net  # B1/c8: shared GET retry + doi_to_pmcid_batch
+import lit_net  # B1/c8: doi_to_pmcid_batch (the DOI -> PMCID route and its identity are lit_net's)
 lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from jats_to_text import parse_jats, fetch_jats_xml  # c13: shared JATS GET
-
-EMAIL    = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
-API_UA   = f"GETPAID-backfill/1.0 (mailto:{EMAIL})"
+from jats_to_text import fetch_fulltext  # c13: the shared JATS (then BioC) fetch + parse
+from fetch_figures import merge_figures
 
 
 def fetch_sidecar(pmcid, sidecar_path):
-    """Returns (ok, status)."""
+    """Fetch the article's full text (Europe PMC JATS; BioC for an author manuscript Europe PMC does
+    not hold, N-B4), parse it and write the sidecar. Returns (ok, status): "OK", "NOT_AVAILABLE" (in
+    neither source), or the fetch's failure status ("TRANSPORT: ...", "HTTP_<code>", ...) or
+    "ERROR_<type>:<msg>" for an unparseable document. A network failure never raises."""
     try:
-        content, status = fetch_jats_xml(pmcid, API_UA)  # c13: 404 -> NOT_AVAILABLE, etc.
-        if content is None:
+        parsed, status, _source = fetch_fulltext(pmcid)
+        if parsed is None:
             return False, status
-        parsed = parse_jats(content)
-        # RC5: --refresh re-fetches over an existing sidecar; the fresh JATS parse has
-        # no fetched figure image_path/image_url and may lack a doi/authors the prior
-        # write carried. merge_sidecar keeps those enriched fields when re-fetching.
+        # RC5: --refresh re-fetches over an existing sidecar; the fresh parse has no fetched figure
+        # image_path/image_url/licence and may lack a doi/authors the prior write carried.
+        # merge_sidecar keeps those enriched fields; merge_figures carries the per-figure image
+        # fields over (merge_sidecar keeps an old figures list only when the new one is empty).
         if os.path.exists(sidecar_path):
             try:
                 with open(sidecar_path, encoding="utf-8") as f:
                     old = json.load(f)
             except (OSError, ValueError):
                 old = None
+            if isinstance(old, dict):
+                parsed["figures"] = merge_figures(old.get("figures"), parsed.get("figures"))
             parsed = lit_util.merge_sidecar(old, parsed)
         lit_util.atomic_write_json(sidecar_path, parsed)  # RC4: crash-safe
         return True, "OK"
-    except (requests.RequestException, OSError, ET.ParseError, ValueError) as e:
+    except (OSError, ET.ParseError, ValueError) as e:
         return False, f"ERROR_{type(e).__name__}:{str(e)[:60]}"
 
 
@@ -152,7 +154,7 @@ def main():
 
     # Batch DOI -> PMCID
     print(f"\nLooking up {len(set(needs_doi_lookup))} unique DOIs in PMC...")
-    doi2pmcid = (lit_net.doi_to_pmcid_batch(sorted(set(needs_doi_lookup)), ua=API_UA, email=EMAIL)
+    doi2pmcid = (lit_net.doi_to_pmcid_batch(sorted(set(needs_doi_lookup)))
                  if needs_doi_lookup else {})
     # also fold in fallback by_doi
     for d, pmc in fb["by_doi"].items():
@@ -187,13 +189,12 @@ def main():
             print(f"  DL   {pmcid:<12} -> {fn[:65]} sidecar")
         elif st == "NOT_AVAILABLE":
             n_na += 1
-            print(f"  --   {pmcid:<12} -> {fn[:65]} (no JATS in PMC, gated)")
+            print(f"  --   {pmcid:<12} -> {fn[:65]} (not in Europe PMC's OA full text or PMC's BioC collections)")
         else:
             n_fail += 1
             print(f"  FAIL {pmcid:<12} -> {fn[:65]} ({st})")
         rows.append({"filename":fn,"doi":doi,"pmcid":pmcid,
                       "sidecar":ok,"status":st,"source":src})
-        time.sleep(0.4)
 
     report = args.report or os.path.join(lib, "_fulltext_backfill_report.csv")
     lit_util.atomic_write_csv(report, rows,
@@ -204,7 +205,7 @@ def main():
     print(f"  PDFs in library:        {total}")
     print(f"  Sidecars already there: {n_skip}")
     print(f"  Sidecars NEW:           {n_dl}")
-    print(f"  Sidecars unavailable:   {n_na} (PMC-gated or non-PMC)")
+    print(f"  Sidecars unavailable:   {n_na} (not in Europe PMC OA full text or BioC)")
     print(f"  No PMCID found:         {n_no_pmc}")
     print(f"  Errors:                 {n_fail}")
     print(f"\nReport: {report}")

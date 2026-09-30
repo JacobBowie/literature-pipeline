@@ -2,13 +2,15 @@
 canonical RIS-only library at Projects/_references/citations/.
 
 Per-file flow:
-  1. Parse .ris / .enw / .nbib → extract DOI (or PMID for nbib) + fallback metadata
+  1. Parse .ris / .enw / .nbib → extract DOI (or PMID for nbib: PMID → DOI through E-utilities
+     esummary; a failed lookup is counted, never read as "no DOI") + fallback metadata
   2. CrossRef lookup:
        - DOI present     → /works/{doi}
        - DOI absent      → /works?query.title=...&query.author=... (Scholar files)
   3. If no confident CrossRef match → use the source file's own metadata
   4. Build canonical .ris and write to <out-dir>/<year>_<Lastname>_<Slug>.ris
-  5. Dedupe by DOI (case-insensitive); first wins, dupes logged
+  5. Dedupe by DOI (case-insensitive); first wins, dupes logged. A distinct paper whose canonical
+     stem is already taken (this run or on disk) gets `<stem>_<6-hex hash>.ris`, never a skip
 
 Source files in --source-dir are NEVER moved or deleted. After verifying the
 inbox, the user can manually clear Downloads.
@@ -26,7 +28,7 @@ Usage:
   # Limit to first N files for testing
   python harvest_citations.py --limit 5
 """
-import os, sys, re, csv, time, argparse
+import os, sys, re, csv, time, argparse, hashlib
 from pathlib import Path
 
 import lit_util
@@ -35,17 +37,17 @@ lit_util.utf8_stdout()
 # Local module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ris_emit as R
-import requests
+from litpipe import net
+from litpipe.outcomes import Kind, Outcome
 
-EMAIL  = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
-UA     = f"GETPAID-harvest/1.0 (mailto:{EMAIL})"
-# 2026-09-01: this module carried its own copy of the retired idconv URL and its own
-# requests call, so it missed the c8 consolidation and kept hitting a dead endpoint.
-# Reuse lit_net's constant + stdlib-urllib transport (that host 403s requests). The
-# direction here is pmid -> doi, so doi_to_pmcid_batch does not apply; the transport does.
-import lit_net
-from litpipe.outcomes import Kind, Outcome, from_legacy
-IDCONV = lit_net.IDCONV
+# PMID -> DOI through E-utilities esummary (db=pubmed): the DOI is the `articleids` entry with
+# idtype "doi" (V1 P6: all 5 PubMed-only PMIDs carried it; re-probed 2026-09-30). idconv, used before,
+# "will only return related IDs if the article is in PubMed Central" (N-B6), and its host refuses this
+# pipeline since 2026-09-30. litpipe.net adds the NCBI tool/email identity and paces the host.
+ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+# ris_emit raises this for a failed (not an empty) metadata lookup once it types its failures
+# (REG-I46); an empty tuple catches nothing until then.
+_META_UNAVAILABLE = tuple(e for e in (getattr(R, "MetadataUnavailable", None),) if e)
 
 DEFAULT_SOURCE = os.path.expanduser("~/Downloads")
 DEFAULT_OUT    = str(lit_util.PROJECTS_ROOT / "_references" / "citations")
@@ -97,7 +99,7 @@ def parse_enw(path):
 
 
 def parse_nbib(path):
-    """PubMed nbib format. PMID needed for ID-converter fallback."""
+    """PubMed nbib format. The PMID feeds the esummary PMID -> DOI fallback (pmid_to_doi)."""
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             text = f.read()
@@ -139,29 +141,47 @@ def parse_nbib(path):
             "lastname": lastname, "authors_raw": authors_raw}
 
 
+def _doi_from_summary(doc):
+    """The DOI of one esummary document: its `articleids` doi, else a `doi:` elocationid."""
+    for a in doc.get("articleids") or []:
+        if (a.get("idtype") or "").lower() == "doi" and (a.get("value") or "").strip():
+            return a["value"].strip()
+    m = re.search(r"doi:\s*(10\.\S+)", doc.get("elocationid") or "", re.IGNORECASE)
+    return m.group(1) if m else ""
+
+
 def pmid_to_doi(pmid: str) -> Outcome:
-    """PMID -> DOI via idconv. OK carries the lower-cased DOI as payload; NO_MATCH means idconv
-    answered and has no DOI for it. Any other kind is a failed lookup the caller counts: it used
-    to be swallowed into "" and look exactly like "no DOI" (REG-I22)."""
+    """PMID -> DOI via E-utilities esummary (db=pubmed). OK carries the lower-cased DOI as payload;
+    NO_MATCH means PubMed answered and has no DOI for the PMID (or no such PMID). Any other kind is
+    a failed lookup the caller counts (TRANSPORT, REFUSED, OUTAGE, DEFERRED, ERROR): a failure is
+    never an empty DOI (REG-I46)."""
+    pmid = (pmid or "").strip()
     if not pmid:
         return Outcome(Kind.SKIPPED, detail="no pmid")
-    params = {"tool": "GETPAID", "email": EMAIL, "ids": pmid,
-              "idtype": "pmid", "format": "json"}
-    r = lit_net._idconv_get(IDCONV, params, UA, timeout=15)
-    if r.status_code == 0:
-        return Outcome(Kind.TRANSPORT, host="pmc.ncbi.nlm.nih.gov", detail=r.error, attempts=1)
-    if r.status_code != 200:
-        return Outcome(from_legacy(f"HTTP_{r.status_code}"), status=r.status_code,
-                       host="pmc.ncbi.nlm.nih.gov", attempts=1)
+    if not pmid.isdigit():
+        return Outcome(Kind.NO_MATCH, detail=f"not a PMID: {pmid!r}")
+    o = net.get(ESUMMARY, params={"db": "pubmed", "id": pmid, "retmode": "json"},
+                timeout=(10, 15), purpose="pmid_to_doi", validate=net.expect_json)
+    if not o.ok:
+        return Outcome(o.kind, status=o.status, host=o.host, detail=o.detail, attempts=o.attempts,
+                       elapsed_ms=o.elapsed_ms, retry_after=o.retry_after)
+    base = dict(status=o.status, host=o.host, attempts=o.attempts, elapsed_ms=o.elapsed_ms)
     try:
-        records = r.json().get("records") or []
-    except (ValueError, AttributeError) as e:
-        return Outcome(Kind.ERROR, status=200, host="pmc.ncbi.nlm.nih.gov",
-                       detail=f"non-JSON idconv body: {e}", attempts=1)
-    for rec in records:
-        if rec.get("doi"):
-            return Outcome(Kind.OK, status=200, attempts=1, payload=rec["doi"].lower())
-    return Outcome(Kind.NO_MATCH, status=200, attempts=1)
+        body = o.payload.json()
+    except ValueError as e:
+        return Outcome(Kind.ERROR, detail=f"esummary body is not JSON: {e}", **base)
+    res = body.get("result") if isinstance(body, dict) else None
+    if not isinstance(res, dict):
+        err = body.get("error") if isinstance(body, dict) else type(body).__name__
+        return Outcome(Kind.ERROR, detail=f"esummary body without a result: {err}", **base)
+    doc = res.get(pmid)
+    if not isinstance(doc, dict) or not doc or doc.get("error"):
+        why = doc.get("error") if isinstance(doc, dict) and doc.get("error") else "no document"
+        return Outcome(Kind.NO_MATCH, detail=f"PubMed: {why}", **base)
+    doi = _doi_from_summary(doc)
+    if not doi:
+        return Outcome(Kind.NO_MATCH, detail="PubMed record carries no DOI", **base)
+    return Outcome(Kind.OK, payload=doi.lower(), **base)
 
 
 def parse_any(path):
@@ -199,6 +219,53 @@ def fallback_meta_from_file(parsed: dict) -> dict:
         "url":      f"https://doi.org/{parsed['doi']}" if parsed.get("doi") else "",
         "type":     "journal-article",
     }
+
+
+def _crossref(fn, args, stats, what):
+    """A ris_emit Crossref lookup whose typed failure (MetadataUnavailable, REG-I46) is counted and
+    reported instead of ending the harvest; the row then falls back to the file's own metadata."""
+    try:
+        return fn(*args)
+    except _META_UNAVAILABLE as e:
+        stats["metadata_lookup_failed"] += 1
+        print(f"  [crossref] {what}: lookup failed: {e}", file=sys.stderr)
+        return None
+
+
+# ---------- output names: one file per paper ----------
+# canonical_stem is year + first-author surname + the first six title words, so two distinct papers
+# can share it (a paper and its follow-up by the same author in one year). The second used to be
+# EXISTS_SKIP (or, with --overwrite, written over the first). A stem already taken by another paper,
+# in this run or on disk, gets a short hash of the paper's DOI (else its title).
+
+def _identity(meta):
+    return ((meta.get("doi") or "").strip().lower(), R.normalize_title(meta.get("title") or ""))
+
+
+def _same_paper(a, b):
+    """DOIs decide when both have one; otherwise the full normalised titles (both blank: same)."""
+    if a[0] and b[0]:
+        return a[0] == b[0]
+    return a[1] == b[1]
+
+
+def _ris_identity(path):
+    try:
+        m = lit_util.parse_ris(str(path))
+    except OSError:
+        return None
+    return ((m.get("doi") or "").strip().lower(), R.normalize_title(m.get("title") or ""))
+
+
+def _choose_name(stem, ident, emitted, outdir):
+    name = f"{stem}.ris"
+    holder = emitted.get(name.casefold())
+    if holder is None and (Path(outdir) / name).exists():
+        holder = _ris_identity(Path(outdir) / name)     # written by an earlier run
+    if holder is None or _same_paper(holder, ident):
+        return name
+    tag = hashlib.sha1((ident[0] or ident[1]).encode("utf-8")).hexdigest()[:6]
+    return f"{stem}_{tag}.ris"
 
 
 def main():
@@ -239,8 +306,10 @@ def main():
 
     rows = []
     seen_doi = {}        # doi -> first canonical filename
+    emitted = {}         # out_name.casefold() -> (doi, title) of the paper this run gave it
     stats = {"crossref_doi": 0, "crossref_search": 0, "fallback": 0,
-             "no_metadata": 0, "dup_skip": 0, "wrote": 0, "pmid_lookup_failed": 0}
+             "no_metadata": 0, "dup_skip": 0, "wrote": 0, "pmid_lookup_failed": 0,
+             "metadata_lookup_failed": 0, "stem_collision": 0}
 
     for i, p in enumerate(files, 1):
         fmt, parsed = parse_any(p)
@@ -266,15 +335,16 @@ def main():
 
         meta = None; source_kind = ""
         if doi:
-            msg = R.crossref_by_doi(doi)
+            msg = _crossref(R.crossref_by_doi, (doi,), stats, f"doi {doi}")
             if msg:
                 meta = R.crossref_meta(msg); source_kind = "crossref-doi"
                 stats["crossref_doi"] += 1
             time.sleep(args.sleep)
 
         if not meta and not args.no_search and parsed.get("title"):
-            msg = R.crossref_by_title(parsed["title"], parsed.get("lastname",""),
-                                       parsed.get("year",""))
+            msg = _crossref(R.crossref_by_title,
+                            (parsed["title"], parsed.get("lastname",""), parsed.get("year","")),
+                            stats, f"title of {p.name}")
             if msg:
                 meta = R.crossref_meta(msg); source_kind = "crossref-search"
                 stats["crossref_search"] += 1
@@ -293,10 +363,6 @@ def main():
             print(f"  [{i}/{len(files)}] {p.name:<40} → NO_METADATA")
             continue
 
-        stem = R.canonical_stem(meta.get("year"), meta.get("lastname"), meta.get("title"))
-        out_name = f"{stem}.ris"
-        out_path = outdir / out_name
-
         # Dedup
         d_key = (meta.get("doi") or "").lower()
         if d_key and d_key in seen_doi:
@@ -306,6 +372,14 @@ def main():
                          "year": meta.get("year","")})
             print(f"  [{i}/{len(files)}] {p.name:<40} → DUP_SKIP (doi seen: {seen_doi[d_key]})")
             continue
+
+        stem = R.canonical_stem(meta.get("year"), meta.get("lastname"), meta.get("title"))
+        ident = _identity(meta)
+        out_name = _choose_name(stem, ident, emitted, outdir)
+        if out_name != f"{stem}.ris":
+            stats["stem_collision"] += 1
+        emitted[out_name.casefold()] = ident
+        out_path = outdir / out_name
         if d_key: seen_doi[d_key] = out_name
 
         ris_text = R.build_ris(meta)

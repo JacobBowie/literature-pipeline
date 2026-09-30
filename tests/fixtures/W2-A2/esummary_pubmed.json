@@ -1,0 +1,96 @@
+{
+ "header": {
+  "type": "esummary",
+  "version": "0.3"
+ },
+ "result": {
+  "uids": [
+   "35393042",
+   "35851222",
+   "39593914"
+  ],
+  "35393042": {
+   "uid": "35393042",
+   "pubdate": "2022 Apr",
+   "source": "J Therm Biol",
+   "title": "Correspondence between thermal biology and locomotor performance in a liolaemid lizard from the southeastern coastal Pampas of Argentina.",
+   "articleids": [
+    {
+     "idtype": "pubmed",
+     "idtypen": 1,
+     "value": "35393042"
+    },
+    {
+     "idtype": "doi",
+     "idtypen": 3,
+     "value": "10.1016/j.jtherbio.2021.103173"
+    },
+    {
+     "idtype": "pii",
+     "idtypen": 4,
+     "value": "S0306-4565(21)00341-7"
+    }
+   ],
+   "elocationid": "doi: 10.1016/j.jtherbio.2021.103173",
+   "fulljournalname": "Journal of thermal biology",
+   "sortfirstauthor": "Dematteis A"
+  },
+  "35851222": {
+   "uid": "35851222",
+   "pubdate": "2021 Dec 31",
+   "source": "Folia Med (Plovdiv)",
+   "title": "Melatonin and Epilepsy.",
+   "articleids": [
+    {
+     "idtype": "pubmed",
+     "idtypen": 1,
+     "value": "35851222"
+    },
+    {
+     "idtype": "doi",
+     "idtypen": 3,
+     "value": "10.3897/folmed.63.e58637"
+    }
+   ],
+   "elocationid": "doi: 10.3897/folmed.63.e58637",
+   "fulljournalname": "Folia medica",
+   "sortfirstauthor": "Vasileva Z"
+  },
+  "39593914": {
+   "uid": "39593914",
+   "pubdate": "2024 Nov 12",
+   "source": "Entropy (Basel)",
+   "title": "Complexity and Variation in Infectious Disease Birth Cohorts: Findings from HIV+ Medicare and Medicaid Beneficiaries, 1999-2020.",
+   "articleids": [
+    {
+     "idtype": "pubmed",
+     "idtypen": 1,
+     "value": "39593914"
+    },
+    {
+     "idtype": "pmc",
+     "idtypen": 8,
+     "value": "PMC11592912"
+    },
+    {
+     "idtype": "pmcid",
+     "idtypen": 5,
+     "value": "pmc-id: PMC11592912;"
+    },
+    {
+     "idtype": "doi",
+     "idtypen": 3,
+     "value": "10.3390/e26110970"
+    },
+    {
+     "idtype": "pii",
+     "idtypen": 4,
+     "value": "e26110970"
+    }
+   ],
+   "elocationid": "doi: 10.3390/e26110970",
+   "fulljournalname": "Entropy (Basel, Switzerland)",
+   "sortfirstauthor": "Williams N"
+  }
+ }
+}
