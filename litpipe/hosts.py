@@ -155,6 +155,9 @@ def _rows():
                    note="polite pool (limits per email address since 2026-07-21, per IP before): 10/s singleton, 3/s list, concurrency 3 (paced to 3/s, concurrency 1); stop at >=10% errors"),
         HostPolicy("api.datacite.org", min_interval_s=0.5, note="1000 / 5 min per IP; no rate headers"),
         HostPolicy("doi.org", min_interval_s=1.0, redirect_allow=_DOI_CN_TARGETS,
+                   # a content-negotiation 406 means THIS DOI's agency cannot serve the format: per-DOI
+                   # NOT_AVAILABLE, never a refusal of doi.org for the run (W2-E1 forward)
+                   refuse_host_statuses=frozenset({429}), status_kinds={406: Kind.NOT_AVAILABLE},
                    note="RA lookup and content negotiation; follows the https RA allow-list only"),
         HostPolicy("api.unpaywall.org", min_interval_s=1.0, identity="email_param", daily_budget=100_000,
                    status_kinds={422: Kind.CONFIG, 410: Kind.CONFIG},

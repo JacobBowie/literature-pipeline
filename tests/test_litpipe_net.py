@@ -689,3 +689,15 @@ def test_importing_litpipe_net_needs_no_state_module(tmp_path):
                        text=True, timeout=60, env={**os.environ, "PYTHONUTF8": "1"})
     assert r.returncode == 0, r.stderr
     assert r.stdout.strip() == "False"
+
+
+def test_doi_org_406_is_per_doi_not_a_host_refusal(net_env, mock_server):
+    """W2 integration: a content-negotiation 406 means one DOI's agency cannot serve the format.
+    With the default row it refused doi.org for the run, switching CN off for every later DOI."""
+    clone("doi.org")
+    s = mock_server().script("/10.1/a", Reply(406)).script("/10.1/b", Reply(200, body=b"{}"))
+    o = net.request("GET", s.url("/10.1/a"))
+    assert o.kind is Kind.NOT_AVAILABLE and o.status == 406
+    assert A not in net_env.state.refused
+    o2 = net.request("GET", s.url("/10.1/b"))
+    assert o2.kind is Kind.OK and len(s.hits_for("/10.1/b")) == 1
