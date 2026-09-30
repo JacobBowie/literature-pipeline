@@ -758,3 +758,28 @@ def test_state_redaction_is_the_ledger_implementation():
     s = "https://x.test/v2/10.1/a?email=jane.doe%40uni.edu&api_key=k1"
     assert state._redact(s) == ledger.redact(s)
     assert not hasattr(state, "_fallback_redact")
+
+
+# ---------------------------------------------------------------- W2 integration (dispatcher)
+def test_many_processes_opening_a_brand_new_state_db_all_succeed(tmp_path):
+    """W2-D1 found a first-use race: PRAGMA journal_mode=WAL does not wait on the busy handler,
+    so two processes creating the state DB together died with 'database is locked'. Twelve
+    children released at one instant must all open it and see the schema exactly once."""
+    db = tmp_path / "fresh" / "litpipe_state.sqlite"
+    db.parent.mkdir()
+    start = time.time() + 2.0
+    code = """
+        t0 = float(sys.argv[3])
+        while time.time() < t0:
+            time.sleep(0.001)
+        assert state.is_refused("example.org") is False
+        state.kv_set("race", str(state.os.getpid()), 1)
+        print("ok")
+    """
+    procs = [child(code, db, start) for _ in range(12)]
+    results = [(p.wait(timeout=90), p.stderr.read()) for p in procs]
+    for rc, err in results:
+        assert rc == 0, err
+    assert db_row(db, "PRAGMA journal_mode")[0] == "wal"
+    assert db_row(db, "PRAGMA user_version")[0] == state.SCHEMA_VERSION
+    assert db_row(db, "SELECT COUNT(*) FROM kv WHERE ns = 'race'")[0] == 12

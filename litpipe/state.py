@@ -291,13 +291,31 @@ def _connect():
     return con
 
 
+def _wal_mode(con):
+    """PRAGMA journal_mode=WAL, retried while another process holds the brand-new file: the
+    pragma does not wait on the busy handler, so two processes opening a fresh state DB at once
+    got an immediate 'database is locked' (W2-D1, 2 of 12 children)."""
+    deadline = _time() + BUSY_TIMEOUT_S
+    while True:
+        try:
+            return con.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() or _time() >= deadline:
+                raise
+            _sleep(0.05)
+
+
 def _init(con, p):
-    mode = con.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+    mode = _wal_mode(con)
     if str(mode).lower() != "wal":
         raise RuntimeError(f"litpipe state at {p} could not enter WAL mode (got {mode!r}); "
                            "the state file must be on a local disk (set state_dir in projects.json)")
     con.execute("BEGIN IMMEDIATE")
     try:
+        # re-read under the write lock: a process that lost the race finds the schema written
+        if con.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION:
+            con.execute("COMMIT")
+            return
         for stmt in _SCHEMA:
             con.execute(stmt)
         con.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
