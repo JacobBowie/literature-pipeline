@@ -9,6 +9,8 @@ dependencies = [
     "pymupdf>=1.24,<2",  # imported as `fitz`
     "pdfplumber>=0.11,<1",
     "pandas>=2.2,<3",
+    "pytesseract>=0.3.13",
+    "pillow>=12.3.0",
 ]
 
 [dependency-groups]
