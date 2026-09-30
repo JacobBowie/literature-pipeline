@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # '**' matches every branch, slashed names included (refactor/runner); '*' would not.
+    branches: ['**']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -27,10 +28,16 @@ jobs:
       - name: Sync dependencies (Python ${{ matrix.python-version }})
         run: uv sync --locked --python ${{ matrix.python-version }}
 
-      - name: Compile-check every script
+      - name: Compile-check every script and package module
         shell: bash
         run: |
-          find . -maxdepth 1 -name '*.py' -print0 | xargs -0 uv run python -m py_compile
+          set -euo pipefail
+          {
+            find . -maxdepth 1 -name '*.py' -print0
+            for d in litpipe backfills; do
+              if [ -d "$d" ]; then find "$d" -name '*.py' -print0; fi
+            done
+          } | xargs -0 uv run python -m py_compile
 
       - name: Smoke-test --help on every CLI
         shell: bash
