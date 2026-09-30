@@ -39,7 +39,13 @@ import requests
 
 EMAIL  = os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 UA     = f"GETPAID-harvest/1.0 (mailto:{EMAIL})"
-IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
+# 2026-09-01: this module carried its own copy of the retired idconv URL and its own
+# requests call, so it missed the c8 consolidation and kept hitting a dead endpoint.
+# Reuse lit_net's constant + stdlib-urllib transport (that host 403s requests). The
+# direction here is pmid -> doi, so doi_to_pmcid_batch does not apply; the transport does.
+import lit_net
+from litpipe.outcomes import Kind, Outcome, from_legacy
+IDCONV = lit_net.IDCONV
 
 DEFAULT_SOURCE = os.path.expanduser("~/Downloads")
 DEFAULT_OUT    = str(lit_util.PROJECTS_ROOT / "_references" / "citations")
@@ -133,18 +139,29 @@ def parse_nbib(path):
             "lastname": lastname, "authors_raw": authors_raw}
 
 
-def pmid_to_doi(pmid: str) -> str:
-    if not pmid: return ""
+def pmid_to_doi(pmid: str) -> Outcome:
+    """PMID -> DOI via idconv. OK carries the lower-cased DOI as payload; NO_MATCH means idconv
+    answered and has no DOI for it. Any other kind is a failed lookup the caller counts: it used
+    to be swallowed into "" and look exactly like "no DOI" (REG-I22)."""
+    if not pmid:
+        return Outcome(Kind.SKIPPED, detail="no pmid")
     params = {"tool": "GETPAID", "email": EMAIL, "ids": pmid,
               "idtype": "pmid", "format": "json"}
+    r = lit_net._idconv_get(IDCONV, params, UA, timeout=15)
+    if r.status_code == 0:
+        return Outcome(Kind.TRANSPORT, host="pmc.ncbi.nlm.nih.gov", detail=r.error, attempts=1)
+    if r.status_code != 200:
+        return Outcome(from_legacy(f"HTTP_{r.status_code}"), status=r.status_code,
+                       host="pmc.ncbi.nlm.nih.gov", attempts=1)
     try:
-        r = requests.get(IDCONV, params=params, headers={"User-Agent": UA}, timeout=15)
-        if r.status_code != 200: return ""
-        for rec in (r.json().get("records") or []):
-            if rec.get("doi"): return rec["doi"].lower()
-    except Exception:
-        pass
-    return ""
+        records = r.json().get("records") or []
+    except (ValueError, AttributeError) as e:
+        return Outcome(Kind.ERROR, status=200, host="pmc.ncbi.nlm.nih.gov",
+                       detail=f"non-JSON idconv body: {e}", attempts=1)
+    for rec in records:
+        if rec.get("doi"):
+            return Outcome(Kind.OK, status=200, attempts=1, payload=rec["doi"].lower())
+    return Outcome(Kind.NO_MATCH, status=200, attempts=1)
 
 
 def parse_any(path):
@@ -223,7 +240,7 @@ def main():
     rows = []
     seen_doi = {}        # doi -> first canonical filename
     stats = {"crossref_doi": 0, "crossref_search": 0, "fallback": 0,
-             "no_metadata": 0, "dup_skip": 0, "wrote": 0}
+             "no_metadata": 0, "dup_skip": 0, "wrote": 0, "pmid_lookup_failed": 0}
 
     for i, p in enumerate(files, 1):
         fmt, parsed = parse_any(p)
@@ -237,8 +254,14 @@ def main():
         doi = parsed.get("doi", "")
         # PMID → DOI fallback for nbib files w/o LID-doi
         if not doi and fmt == "nbib" and parsed.get("pmid"):
-            doi = pmid_to_doi(parsed["pmid"])
-            if doi: parsed["doi"] = doi
+            res = pmid_to_doi(parsed["pmid"])
+            if res.ok:
+                doi = parsed["doi"] = res.payload
+            elif res.kind is not Kind.NO_MATCH:
+                # A failed lookup is not "no DOI": count it and say so (REG-I22).
+                stats["pmid_lookup_failed"] += 1
+                print(f"  [pmid_to_doi] pmid {parsed['pmid']}: {res.kind} "
+                      f"{res.status or ''} {res.detail}".rstrip(), file=sys.stderr)
             time.sleep(args.sleep)
 
         meta = None; source_kind = ""

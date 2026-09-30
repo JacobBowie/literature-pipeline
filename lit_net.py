@@ -47,6 +47,67 @@ def _retry_after_seconds(resp, fallback):
     return fallback
 
 
+class _UrllibResponse:
+    """requests-Response subset used by get()'s callers: status_code, text, content, json(),
+    headers (case-insensitive .get, like requests'). status_code 0 means no response at all
+    (DNS, timeout, connection failure) and `error` carries the reason."""
+    __slots__ = ("status_code", "content", "headers", "error")
+
+    def __init__(self, status_code, content, headers=None, error=""):
+        self.status_code = status_code
+        self.content = content
+        self.headers = headers if headers is not None else {}
+        self.error = error
+
+    @property
+    def text(self):
+        return self.content.decode("utf-8", "replace")
+
+    def json(self):
+        return _json.loads(self.text)
+
+
+def _urllib_get_once(url, headers, timeout):
+    """One urllib GET. Never raises for HTTP status or transport failure (REG-I22): URLError
+    (DNS, refused), TimeoutError, connection resets and http.client errors such as IncompleteRead
+    all come back as status 0 with the error text, which every caller's `!= 200` branch already
+    treats as a failure."""
+    req = _urlrequest.Request(url, headers=dict(headers or {}))
+    try:
+        with _urlrequest.urlopen(req, timeout=timeout) as fh:
+            return _UrllibResponse(fh.status, fh.read(), fh.headers)
+    except _urlerror.HTTPError as e:
+        try:
+            body = e.read() if e.fp else b""
+        except (OSError, _httpclient.HTTPException):
+            body = b""
+        return _UrllibResponse(e.code, body, e.headers)
+    except (OSError, _httpclient.HTTPException) as e:  # URLError and TimeoutError are OSErrors
+        return _UrllibResponse(0, b"", None, f"{type(e).__name__}: {e}")
+
+
+def _urllib_get(url, *, params=None, headers=None, timeout=30, retries=DEFAULT_RETRIES,
+                backoff=DEFAULT_BACKOFF, retry_statuses=RETRY_STATUSES, **_ignored):
+    """get()'s transport twin for URLLIB_ONLY_HOSTS, with get()'s retry loop (V1-N5): transport
+    failures and `retry_statuses` are retried with the same backoff, honouring Retry-After. It
+    never raises; after the last attempt it returns that attempt's response (status 0 for a
+    transport failure)."""
+    if params:
+        url = url + ("&" if "?" in url else "?") + _urlencode(params)
+    resp = None
+    for attempt in range(max(1, retries)):
+        resp = _urllib_get_once(url, headers, timeout)
+        if attempt < retries - 1:
+            if resp.status_code == 0:
+                time.sleep(backoff * (2 ** attempt))
+                continue
+            if resp.status_code in retry_statuses:
+                time.sleep(_retry_after_seconds(resp, backoff * (2 ** attempt)))
+                continue
+        return resp
+    return resp
+
+
 def get(url, *, retries=DEFAULT_RETRIES, backoff=DEFAULT_BACKOFF,
         retry_statuses=RETRY_STATUSES, **kwargs):
     """GET `url` with bounded retry on transient statuses.
@@ -54,8 +115,15 @@ def get(url, *, retries=DEFAULT_RETRIES, backoff=DEFAULT_BACKOFF,
     `kwargs` pass straight through to requests.get (params, headers, timeout, ...). Returns the
     final requests.Response (a persistent 5xx/429 comes back as that response so the caller can
     tell it apart from a genuine 404); raises the last requests exception only if EVERY attempt
-    hit a network/transport error.
+    hit a network/transport error. Exception: URLLIB_ONLY_HOSTS never raise; an all-transport-
+    failure run returns a status-0 response whose `.error` says why.
     """
+    if _urllib_only_host(url):
+        # 2026-09-01: same host block as stream_download. fetch_figures hit this and coded a
+        # ">30KB means real page" size heuristic around the 403 interstitial rather than
+        # diagnosing it. Route through urllib so callers get the real page.
+        return _urllib_get(url, retries=retries, backoff=backoff,
+                           retry_statuses=retry_statuses, **kwargs)
     resp = None
     for attempt in range(retries):
         try:
@@ -72,7 +140,55 @@ def get(url, *, retries=DEFAULT_RETRIES, backoff=DEFAULT_BACKOFF,
     return resp
 
 
+import http.client as _httpclient
+import json as _json
+import urllib.request as _urlrequest
+import urllib.error as _urlerror
+from urllib.parse import urlencode as _urlencode, urlparse as _urlparse
+
 StreamResult = namedtuple("StreamResult", "status_code first_chunk content total truncated error")
+
+
+# Hosts that reject the requests/urllib3 client but serve stdlib urllib (see stream_download).
+URLLIB_ONLY_HOSTS = ("pmc.ncbi.nlm.nih.gov",)
+
+
+def _urllib_only_host(url):
+    try:
+        return _urlparse(url).hostname in URLLIB_ONLY_HOSTS
+    except Exception:
+        return False
+
+
+def _urllib_stream(url, *, max_bytes, timeout=30, chunk_size=8192, headers=None):
+    """stream_download's transport twin for URLLIB_ONLY_HOSTS. Same StreamResult contract:
+    never raises for HTTP/size/transport issues."""
+    req = _urlrequest.Request(url, headers=dict(headers or {}))
+    try:
+        fh = _urlrequest.urlopen(req, timeout=timeout)
+    except _urlerror.HTTPError as e:
+        return StreamResult(e.code, b"", b"", 0, False, "")
+    except (OSError, _httpclient.HTTPException) as e:  # URLError, TimeoutError, resets
+        return StreamResult(0, b"", b"", 0, False, str(e))
+    first, chunks, total, truncated = b"", [], 0, False
+    try:
+        with fh:
+            if fh.status != 200:
+                return StreamResult(fh.status, b"", b"", 0, False, "")
+            while True:
+                c = fh.read(chunk_size)
+                if not c:
+                    break
+                if not first:
+                    first = c
+                chunks.append(c)
+                total += len(c)
+                if total > max_bytes:
+                    truncated = True
+                    break
+    except (OSError, _httpclient.HTTPException) as e:  # IncompleteRead is not an OSError
+        return StreamResult(200, first, b"".join(chunks), total, truncated, str(e))
+    return StreamResult(200, first, b"".join(chunks), total, truncated, "")
 
 
 def stream_download(url, *, max_bytes, timeout=30, chunk_size=8192, headers=None, **kwargs):
@@ -90,6 +206,13 @@ def stream_download(url, *, max_bytes, timeout=30, chunk_size=8192, headers=None
     file write, and status-string formatting, so per-adapter report contracts stay byte-identical.
     `headers` and any extra kwargs pass straight to requests.get.
     """
+    if _urllib_only_host(url):
+        # 2026-09-01: pmc.ncbi.nlm.nih.gov 403s requests/urllib3 at a level below headers while
+        # serving stdlib urllib normally. This killed pmc_fetch's NCBI citation_pdf_url fallback
+        # (reported as the unexplained "ncbi-page/HTML" -- it was a 403 error page being parsed as
+        # HTML) and fetch_figures. Same block as IDCONV; fixed once here rather than per call site.
+        return _urllib_stream(url, max_bytes=max_bytes, timeout=timeout,
+                              chunk_size=chunk_size, headers=headers)
     try:
         r = requests.get(url, headers=headers, timeout=timeout, stream=True,
                          allow_redirects=True, **kwargs)
@@ -117,7 +240,46 @@ def stream_download(url, *, max_bytes, timeout=30, chunk_size=8192, headers=None
     return StreamResult(r.status_code, first, b"".join(chunks), total, truncated, "")
 
 
-IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
+# 2026-09-01: NCBI retired the www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/ path. It now 302s to
+# the address below, and that host returns HTTP 403 to requests/urllib3 while returning 200 to
+# stdlib urllib for a byte-identical URL, UA and header set (verified back-to-back in one process;
+# UA, Accept, Accept-Encoding and Connection were each ruled out, so the block is below the header
+# layer). The whole PMC stage was silently dead: every row came back NO_PMCID. Point at the real
+# endpoint and fetch it with urllib. See _idconv_get.
+IDCONV = "https://pmc.ncbi.nlm.nih.gov/tools/idconv/api/v1/articles/"
+
+
+class _IdconvResponse:
+    """Minimal requests-Response shim so doi_to_pmcid_batch's status/json logic is unchanged.
+    status_code 0 means no response (DNS, timeout, reset); `error` says why."""
+    __slots__ = ("status_code", "text", "error")
+
+    def __init__(self, status_code, text, error=""):
+        self.status_code = status_code
+        self.text = text
+        self.error = error
+
+    def json(self):
+        return _json.loads(self.text)
+
+
+def _idconv_get(url, params, ua, timeout=30):
+    """GET idconv via stdlib urllib. Returns an _IdconvResponse; never raises for HTTP status or
+    transport failure (REG-I22). No retry here: since 2026-09-30 the host answers 429 to a second
+    request within seconds, and pacing belongs to the host policy (W2-A1), not a blind retry."""
+    full = url + ("&" if "?" in url else "?") + _urlencode(params)
+    req = _urlrequest.Request(full, headers={"User-Agent": ua})
+    try:
+        with _urlrequest.urlopen(req, timeout=timeout) as fh:
+            return _IdconvResponse(fh.status, fh.read().decode("utf-8", "replace"))
+    except _urlerror.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", "replace") if e.fp else ""
+        except (OSError, _httpclient.HTTPException):
+            body = ""
+        return _IdconvResponse(e.code, body)
+    except (OSError, _httpclient.HTTPException) as e:  # URLError and TimeoutError are OSErrors
+        return _IdconvResponse(0, "", f"{type(e).__name__}: {e}")
 
 
 def doi_to_pmcid_batch(dois, *, ua, email, tool="GETPAID", batch_size=100):
@@ -141,8 +303,8 @@ def doi_to_pmcid_batch(dois, *, ua, email, tool="GETPAID", batch_size=100):
         params = {"tool": tool, "email": email, "ids": ",".join(chunk),
                   "idtype": "doi", "format": "json"}
         try:
-            r = get(IDCONV, headers={"User-Agent": ua}, params=params, timeout=30)
-        except requests.exceptions.RequestException as e:
+            r = _idconv_get(IDCONV, params, ua, timeout=30)
+        except (OSError, _urlerror.URLError) as e:
             print(f"  [idconv batch {i}] error: {e}", file=sys.stderr)
             continue
         if r.status_code == 400 and len(chunk) > 1:
@@ -152,7 +314,9 @@ def doi_to_pmcid_batch(dois, *, ua, email, tool="GETPAID", batch_size=100):
                 out.update(doi_to_pmcid_batch([one], ua=ua, email=email, tool=tool, batch_size=1))
             continue
         if r.status_code != 200:
-            print(f"  [idconv batch {i}] HTTP {r.status_code}; chunk skipped", file=sys.stderr)
+            why = f"transport error: {r.error}" if r.status_code == 0 else f"HTTP {r.status_code}"
+            print(f"  [idconv batch {i}] {why}; chunk of {len(chunk)} skipped (its rows will read "
+                  f"as NO_PMCID)", file=sys.stderr)
             time.sleep(0.4)
             continue
         try:

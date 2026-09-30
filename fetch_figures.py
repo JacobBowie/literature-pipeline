@@ -59,7 +59,8 @@ def fetch_pmc_html(pmcid, timeout=20):
         if len(r.content) < 30_000:
             return None
         return r.text
-    except requests.RequestException:
+    except (requests.RequestException, OSError):
+        # OSError covers URLError / TimeoutError from the urllib route this host takes (REG-I22).
         return None
 
 
