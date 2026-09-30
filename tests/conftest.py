@@ -30,6 +30,16 @@ def _litpipe_net_isolation(tmp_path_factory, monkeypatch):
         return
     monkeypatch.setattr(ledger, "LEDGER_DIR", tmp_path_factory.mktemp("ledger"))
     monkeypatch.setattr(net, "STATE", netmock.FakeState(netmock.FakeClock()))
+    # No live network (dispatch 0.2), with or without net_env: a transport asked for any host but
+    # the loopback mocks fails the test instead of sending. Tests that stub a transport replace
+    # these entries and never reach the guard.
+    for name, fn in list(net._TRANSPORTS.items()):
+        def guarded(method, url, *a, _fn=fn, **k):
+            host = urlsplit(url).hostname
+            if host not in OFFLINE_HOSTS:
+                raise AssertionError(f"live network attempted: {method} {host}")
+            return _fn(method, url, *a, **k)
+        monkeypatch.setitem(net._TRANSPORTS, name, guarded)
     yield
 
 

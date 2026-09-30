@@ -496,7 +496,9 @@ def request(method, url, *, params=None, json=None, headers=None, timeout=(10, 3
                 call.method = method
             ctype = "application/json" if body is not None else None
             hdrs = _hop_headers(headers, act.target_policy, act.target_policy.host == origin_host, ctype)
-            url, pol, wait_s = act.target, act.target_policy, 0.0
+            url, pol, wait_s = act.target, act.target_policy, act.wait
+            if wait_s:
+                CLOCK.sleep(wait_s)
             continue
         payload = None
         if raw.status:
@@ -545,13 +547,22 @@ def _decide(raw, pol, url, retries, transport_fails, st, cfg, max_bytes, validat
         return _final(Kind.REFUSED, f"HTTP 403 ({n} of {pol.refuse_after_consecutive_403} consecutive)")
     _count_403(st, pol.host, reset=True)
 
+    ra = retry_after_seconds(raw.headers.get("Retry-After"))
     if status in REDIRECT_STATUSES and raw.headers.get("Location"):
         if hops >= MAX_REDIRECTS:
             return _Act("redirect_blocked", kind=Kind.ERROR, note="too many redirects",
                         detail=f"HTTP {status}: more than {MAX_REDIRECTS} redirects")
-        return _redirect(raw, pol, url, st, cfg)
+        # RFC 9110 10.2.3: on a 3xx, Retry-After is the minimum wait before the redirected request.
+        if ra is not None and ra > pol.retry_after_cap_s:
+            st.defer(pol.host, CLOCK.time() + ra)
+            return _Act("deferred", kind=Kind.DEFERRED, retry_after=ra,
+                        detail=f"HTTP {status} Retry-After {ra:.0f} s exceeds the inline cap "
+                               f"{pol.retry_after_cap_s:.0f} s; host {pol.host} deferred")
+        act = _redirect(raw, pol, url, st, cfg)
+        if act.decision == "redirect" and ra:
+            act.wait = ra
+        return act
 
-    ra = retry_after_seconds(raw.headers.get("Retry-After"))
     if status in rp.statuses:
         if ra is not None and ra > pol.retry_after_cap_s:
             st.defer(pol.host, CLOCK.time() + ra)

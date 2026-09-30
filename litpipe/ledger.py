@@ -7,15 +7,17 @@ through redact() at write time, whatever the caller put there, so no URL, header
 exception text can carry the email or a key into the file. Appends take a cross-process file lock
 (the s2probe pattern) so the runner and an interactive CLI never interleave half-lines.
 
-redact(text) strips:
-  * `email=`, `api_key=`, `apikey=`, `api-key=`, `access_token=` values (also with `%3D` / `%253D`
-    separators, as they appear inside an encoded nested URL);
-  * `mailto:` values (also `mailto%3A`);
+redact(text) strips, at any percent-encoding depth (%3D, %253D, %25253D, ... as they appear in a
+URL nested inside a URL):
+  * `email=<value>` and `mailto:<value>` replaced WHOLE, key included, by [EMAIL-REDACTED] /
+    [MAILTO-REDACTED], so no persisted string ever contains `email=` or `mailto:` (W4-B's canary is a
+    plain grep for them);
+  * `api_key`, `apikey`, `api-key`, `access_token` values, as query params or JSON/dict keys;
   * `x-api-key`, `Authorization`, `Proxy-Authorization` values in header or dict text;
   * the configured email (LITPIPE_EMAIL, and lit_util.DEFAULT_EMAIL while it exists) in plain,
-    `%40`, `%2540` and `+`/quote forms, case-insensitively;
-  * any other email address in plain, `%40` or `%2540` form (a changed LITPIPE_EMAIL mid-run, an
-    echoed address in a Location header).
+    quoted, doubly and trebly quoted, `+`-as-space forms, case-insensitively;
+  * any other email address, local part included (a changed LITPIPE_EMAIL mid-run, an echoed
+    address in a Location header).
 Everything that persists a string from an exception or a URL passes it through redact
 (`litpipe.outcomes.legacy_outcome` details included).
 
@@ -44,19 +46,25 @@ LOCK_WAIT_S = 5.0
 
 _HEADER_RE = re.compile(
     r"(?i)\b(x-api-key|proxy-authorization|authorization)(\s*[\"']?\s*[:=]\s*[\"']?\s*)([^\"'\r\n,}]+)")
+# %XX at any encoding depth: %3D, %253D, %25253D ... (a URL nested in a URL nested in a URL).
+_ENC = r"%(?:25)*"
 _PARAM_RE = re.compile(
-    r"(?i)(?<![A-Za-z0-9_])((?:api_key|apikey|api-key|access_token)(?:=|%3D|%253D))"
-    r"((?:(?!%26|%2526)[^&#\s\"'<>,;)])*)")
+    r"(?i)(?<![A-Za-z0-9_])((?:api_key|apikey|api-key|access_token)"
+    r"(?:[\"']?\s*[:=]\s*[\"']?|" + _ENC + r"3D))"
+    r"((?:(?!" + _ENC + r"26)[^&#\s\"'<>,;)])*)")
 # Email-bearing tokens are replaced WHOLE, key included, so no persisted string ever contains
 # `email=` or `mailto:`: any that appears in a report is an unredacted leak, which keeps the
-# canary a plain grep (W4-B). Keys keep `api_key=REDACTED` (no address in them).
+# canary a plain grep (W4-B). Keys keep `api_key=REDACTED` (no address in them). No lookbehind:
+# `contact_email=` and `%26email%3D` must lose their `email=` too.
 _EMAIL_PARAM_RE = re.compile(
-    r"(?i)(?<![A-Za-z0-9_])e-?mail(?:=|%3D|%253D)(?:(?!%26|%2526)[^&#\s\"'<>,;)])*")
+    r"(?i)e-?mail(?:=|" + _ENC + r"3D)(?:(?!" + _ENC + r"26)[^&#\s\"'<>,;)])*")
 EMAIL_TOKEN = "[EMAIL-REDACTED]"
 MAILTO_TOKEN = "[MAILTO-REDACTED]"
-_MAILTO_RE = re.compile(r"(?i)(mailto(?::|%3A|%253A))((?:(?!%26|%2526)[^\s)>\"'&,;])+)")
+_MAILTO_RE = re.compile(
+    r"(?i)(mailto(?::|" + _ENC + r"3A)\s*)((?:(?!" + _ENC + r"26)[^\s)>\"'&,;])+)")
 _ADDRESS_RE = re.compile(
-    r"(?i)[A-Za-z0-9._+-]+(?:%2B[A-Za-z0-9._+-]*)*(?:@|%40|%2540)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]+")
+    r"(?i)[A-Za-z0-9._+-]+(?:" + _ENC + r"2B[A-Za-z0-9._+-]*)*(?:@|" + _ENC + r"40)"
+    r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]+")
 
 _warned = False
 
@@ -95,9 +103,13 @@ def _configured_emails():
 
 
 def _literal_forms(email):
-    once = quote(email, safe="")
-    forms = {email, once, quote(once, safe=""), quote_plus(email), quote_plus(once),
-             email.replace("@", "%40"), email.replace("@", "%2540")}
+    forms = {email, email.replace("+", " "), quote_plus(email)}   # '+' form-decoded to a space
+    cur = email
+    for _ in range(4):                                             # %40, %2540, %252540, ...
+        cur = quote(cur, safe="")
+        forms |= {cur, quote_plus(cur)}
+    for enc in ("%40", "%2540", "%252540"):
+        forms.add(email.replace("@", enc))
     return sorted(forms, key=len, reverse=True)
 
 

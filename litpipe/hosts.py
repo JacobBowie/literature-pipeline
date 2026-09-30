@@ -24,8 +24,10 @@ Two rows depend on projects.json `hosts` switches (config.hosts(), default off):
 from __future__ import annotations
 
 import dataclasses
+import posixpath
+import re
 from dataclasses import dataclass, field
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from litpipe import config
 from litpipe.outcomes import Kind
@@ -236,10 +238,25 @@ def rows() -> dict[str, HostPolicy]:
 
 
 def host_of(url_or_host) -> str:
+    """Lower-case host name without a trailing dot (an absolute FQDN is the same host;
+    litpipe.state._norm_host strips it too)."""
     s = (url_or_host or "").strip()
     if "://" in s:
-        return (urlsplit(s).hostname or "").lower()
-    return s.split("/", 1)[0].split(":", 1)[0].lower()
+        return (urlsplit(s).hostname or "").lower().rstrip(".")
+    return s.split("/", 1)[0].split(":", 1)[0].lower().rstrip(".")
+
+
+def _norm_path(path) -> str:
+    """The path as it reaches the server: %-escapes decoded, repeated slashes collapsed, dot
+    segments removed (requests/urllib3 normalise dot segments and unreserved escapes before
+    sending; servers do the rest), a trailing slash kept."""
+    p = re.sub(r"/{2,}", "/", unquote(path or "/"))
+    n = posixpath.normpath(p)
+    if n in (".", ""):
+        n = "/"
+    if p.endswith("/") and not n.endswith("/"):
+        n += "/"
+    return n if n.startswith("/") else "/" + n
 
 
 def policy(url_or_host) -> HostPolicy:
@@ -259,11 +276,12 @@ def prohibited(url, cfg=None) -> ProhibitedRule | None:
     """The first never-automated rule matching `url`, or None. Switch-gated rules read
     config.hosts(cfg) (projects.json `hosts`; both switches default off)."""
     parts = urlsplit(url)
-    h = (parts.hostname or "").lower()
-    path = parts.path or "/"
+    h = host_of(url)
+    path = _norm_path(parts.path)
     switches = None
     for rule in PROHIBITED:
-        if h != rule.host or not path.startswith(rule.path_prefix):
+        if h != rule.host or not (path.startswith(rule.path_prefix)
+                                  or path == rule.path_prefix.rstrip("/")):
             continue
         if rule.unless_switch:
             if switches is None:
