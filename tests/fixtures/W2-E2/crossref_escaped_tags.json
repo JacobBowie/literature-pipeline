@@ -1,0 +1,15 @@
+{
+ "source": "api.crossref.org /works/{doi}, live 2026-10-05 (W2-E2 probe); message trimmed to DOI, title and abstract; response headers kept: {\"content-type\": \"application/json\", \"x-rate-limit-limit\": \"10\", \"x-rate-limit-interval\": \"1s\", \"x-concurrency-limit\": \"3\", \"x-api-pool\": \"polite-single\"}",
+ "status": 200,
+ "body": {
+  "status": "ok",
+  "message-type": "work",
+  "message": {
+   "DOI": "10.1159/000500510",
+   "title": [
+    "Quick Recovery of Renal Alterations and Inflammatory Activation after a Marathon"
+   ],
+   "abstract": "<jats:p>&lt;b&gt;&lt;i&gt;Purpose:&lt;/i&gt;&lt;/b&gt; We evaluated the incidence of acute kidney injury in a cohort of marathon participants. &lt;b&gt;&lt;i&gt;Methods:&lt;/i&gt;&lt;/b&gt; We conducted a prospective observational study focused on evaluating the incidence of kidney damage after a marathon, and its evolution in the first 48 h after the marathon in 88 runners who completed the Valencia Marathon. &lt;b&gt;&lt;i&gt;Results:&lt;/i&gt;&lt;/b&gt; From the 88 participants, 42 (48.28%) presented with acute kidney injury, mainly grade 1 (95.20%). Microscopic haematuria was observed in 29 runners (33%). Levels of interleukin 6, leukocytes, and neutrophils were markedly increased at the marathon’s finish line. &lt;b&gt;&lt;i&gt;Conclusions:&lt;/i&gt;&lt;/b&gt; Our results confirmed that there are slight transient changes in glomerular filtration rate and inflammatory activation after a marathon.</jats:p>"
+  }
+ }
+}

@@ -1,0 +1,15 @@
+{
+ "_fixture": "Synthetic PDF-less sidecar whose identity verdict is FLAG (the PMC stage records the queue DOI of a file judged to be another work): a review item, not a holding; no .ris may be written for it.",
+ "pmcid": "PMC0000003",
+ "doi": "10.1234/textonly.0003",
+ "title": "A paper the file is not",
+ "year": "2020",
+ "journal": "Journal of Applied Testing",
+ "authors": ["Smith Jane"],
+ "abstract": "Not this paper.",
+ "text": "# Some other paper\n\nBody text of another work.",
+ "has_pdf": false,
+ "identity": "FLAG",
+ "identity_score": 0.31,
+ "identity_evidence": {"reason": "title mismatch"}
+}

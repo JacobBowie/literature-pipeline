@@ -1,0 +1,15 @@
+{
+ "source": "api.crossref.org /works/{doi}, live 2026-10-05 (W2-E2 probe); message trimmed to DOI, title and abstract; response headers kept: {\"content-type\": \"application/json\", \"x-rate-limit-limit\": \"10\", \"x-rate-limit-interval\": \"1s\", \"x-concurrency-limit\": \"3\", \"x-api-pool\": \"polite-single\"}",
+ "status": 200,
+ "body": {
+  "status": "ok",
+  "message-type": "work",
+  "message": {
+   "DOI": "10.5937/pramed2104013s",
+   "title": [
+    "The effects of exertional heat stress on some complex cognitive functions"
+   ],
+   "abstract": "<jats:p>&amp;lt;jats:p&amp;gt;Introduction/Aim: Heat stress represents the important problem in military services. This study investigates the effects of exertional heat stress on complex cognitive functions. Methods: 40 male soldiers performed exertional heat stress test, of which 10 performed the test of the same intensity in cool environment. Cognitive functions were mesured by computerized battery CANTAB, before and immediately after exertional heat stress test. Results: Exertional heat stress led to impairment of some cognitive functions in unacclimatized group: decrease of accuracy in MTS test (from 92,6&amp;plusmn;4,2% towards 84,5&amp;plusmn;6,9%, p&amp;amp;lt;0,05) and PSRs (from 85,0&amp;plusmn;8,0% towards 77,0&amp;plusmn;9,6%, p&amp;amp;lt;0,05), while similar decreases were recorded in MTS test in passively acclimatized group (from 92,2&amp;plusmn;5,5% towards 87,7&amp;plusmn;5,6%, p&amp;amp;lt;0,05) i.e. in PSRs test in actively acclimatized group (from 83,3&amp;plusmn;6,3% towards 69,4&amp;plusmn;5,1%, p&amp;amp;lt;0,05). The reaction time was not affected in any group whatsoever. Discussion and conclusion: Exertional heat stress leads to mild impairment of complex cognitive functions, particularly in domain of accuracy. Physical strain itself, however, does not affect cognitive functions. Relatively resistance to heat stress in zoung soldiers may be contributed to their high aerobic level.&amp;lt;/jats:p&amp;gt;</jats:p>"
+  }
+ }
+}

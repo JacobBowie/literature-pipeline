@@ -1,0 +1,15 @@
+{
+ "source": "api.crossref.org /works/{doi}, live 2026-10-05 (W2-E2 probe); message trimmed to DOI, title and abstract; response headers kept: {\"content-type\": \"application/json\", \"x-rate-limit-limit\": \"10\", \"x-rate-limit-interval\": \"1s\", \"x-concurrency-limit\": \"3\", \"x-api-pool\": \"polite-single\"}",
+ "status": 200,
+ "body": {
+  "status": "ok",
+  "message-type": "work",
+  "message": {
+   "DOI": "10.1242/jeb.242543",
+   "title": [
+    "Effects of 12 weeks of resistance training on rat gut microbiota composition"
+   ],
+   "abstract": "<jats:title>ABSTRACT</jats:title>\n               <jats:p>In addition to its health benefits, exercise training has been noted as a modulator of the gut microbiota. However, the effects of resistance training (RT) on gut microbiota composition remain unknown. Wistar rats underwent 12 weeks of RT. Body mass, glucose tolerance, visceral body fat, triglyceride concentration and food consumption were evaluated. The gut microbiota was analyzed by 16S rRNA gene sequencing. Rats that underwent RT showed lower body mass (P=0.0005), lower fat content (P=0.02) and better glucose kinetics (P=0.047) when compared with the control. Improvements in the diversity and composition of the gut microbiota were identified in the RT group. The relative abundance of Pseudomonas, Serratia and Comamonas decreased significantly after 12 weeks of RT (P&amp;lt;0.001). These results suggest that RT has the potential to enhance the diversity of the gut microbiota and improve its biological functions.</jats:p>"
+  }
+ }
+}

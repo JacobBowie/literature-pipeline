@@ -142,12 +142,21 @@ def test_pipeline_check_stage4b_passes_empty_lib(tmp_path):
 # Every fetcher module that binds a module-level EMAIL fallback; jats_to_text is excluded
 # (its mailto is inline in _smoke_test, not a module constant).
 _EMAIL_MODULES = [
-    "audit_filenames", "backfill_ris", "enrich_abstracts",
+    "audit_filenames",
     "enrich_recommendations", "fill_missing_dois", "forward_citations", "preprint_fetch",
     # left in W2a: pmc_fetch (W2-A1), backfill_fulltext, harvest_citations, recheck_pmc (W2-A2),
-    # unpaywall_fetch_v2 (W2-B) and ris_emit (W2-E1): they bind no EMAIL; litpipe.net injects identity (pinned by
-    # test_w2e1_net.py, test_unpaywall_stage_has_no_email_constant). Modules drop out of this list as W2 rewires them onto litpipe.net.
+    # unpaywall_fetch_v2 (W2-B) and ris_emit (W2-E1); in W2b: backfill_ris, enrich_abstracts (W2-E2).
+    # They bind no EMAIL; litpipe.net injects identity (DEC-13; pinned below and by test_w2e1_net.py,
+    # test_unpaywall_stage_has_no_email_constant). Modules move to _REWIRED as W2/W3 rewire them onto litpipe.net.
 ]
+_REWIRED = ["backfill_ris", "enrich_abstracts"]
+
+
+@pytest.mark.parametrize("modname", _REWIRED)
+def test_rewired_module_binds_no_email_constant(modname):
+    """DEC-13: a module on litpipe.net keeps no EMAIL / UA of its own (no `mailto:None` to leak)."""
+    m = importlib.import_module(modname)
+    assert not hasattr(m, "EMAIL") and not hasattr(m, "UA")
 
 
 @pytest.mark.parametrize("modname", _EMAIL_MODULES)

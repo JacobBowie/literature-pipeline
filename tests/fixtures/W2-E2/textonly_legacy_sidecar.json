@@ -1,0 +1,19 @@
+{
+ "_fixture": "Synthetic text-only sidecar in the pre-W2-A1 shape: the key set of 729 of the 1,271 PDF-less sidecars found in the registered libraries on 2026-10-05 (no has_pdf, no volume/issue/pages, no identity). It is still a text-only holding (litpipe.holdings: no PDF, non-empty text).",
+ "pmcid": "PMC0000002",
+ "pmid": "00000002",
+ "doi": "10.1234/textonly.0002",
+ "title": "Sweat sodium losses during prolonged exercise",
+ "subtitle": "",
+ "year": "2014",
+ "journal": "Testing Physiology Reports",
+ "authors": ["Field Ira", "Brook Yael"],
+ "abstract": "Sweat sodium varies widely between athletes.",
+ "sections": [{"title": "Methods", "text": "Patches were applied."}],
+ "figures": [],
+ "tables": [],
+ "formulas": [],
+ "n_formulas": 0,
+ "formula_failures": {},
+ "text": "# Sweat sodium losses during prolonged exercise\n\n## Abstract\n\nSweat sodium varies widely between athletes."
+}
