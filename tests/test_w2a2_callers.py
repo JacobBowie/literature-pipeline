@@ -41,11 +41,14 @@ def stub_by_host(monkeypatch, table):
 def record_idconv(monkeypatch, mapping):
     calls = []
 
+    from litpipe.outcomes import Kind, Outcome
+
     def fake(dois, *a, **k):
         calls.append((list(dois), a, k))
-        return {d: mapping[d] for d in dois if d in mapping}
+        return {d: (Outcome(Kind.OK, payload=lit_net.PmcidHit(d, mapping[d], source="idconv")) if d in mapping
+                    else Outcome(Kind.NO_MATCH, payload=lit_net.PmcidHit(d))) for d in dois}
 
-    monkeypatch.setattr(lit_net, "doi_to_pmcid_batch", fake)
+    monkeypatch.setattr(lit_net, "doi_to_pmcid", fake)
     return calls
 
 

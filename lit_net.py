@@ -54,6 +54,7 @@ import time
 from collections import Counter, namedtuple
 from dataclasses import dataclass
 from urllib.parse import urlencode as _urlencode
+from urllib.parse import urljoin as _urljoin
 
 import requests
 
@@ -123,6 +124,21 @@ def prohibited_reason(url):
     return f"PROHIBITED: {rule.host}{rule.path_prefix} ({rule.reason}); nothing sent"
 
 
+class _ProhibitedHop(Exception):
+    """A redirect whose target is a prohibited route (raised from a requests response hook, before
+    requests sends the hop; deliberately not a RequestException)."""
+
+
+def _redirect_guard(r, *args, **kwargs):
+    """requests response hook: requests follows redirects itself, so the first-URL check alone lets
+    a 30x carry the call onto a PMC article page. Runs on every response, before the next hop."""
+    if r.is_redirect:
+        why = prohibited_reason(_urljoin(r.url, r.headers.get("Location", "")))
+        if why:
+            raise _ProhibitedHop(f"redirect: {why}")
+    return r
+
+
 def get(url, *, retries=DEFAULT_RETRIES, backoff=DEFAULT_BACKOFF,
         retry_statuses=RETRY_STATUSES, **kwargs):
     """GET `url` with bounded retry on transient statuses.
@@ -140,7 +156,10 @@ def get(url, *, retries=DEFAULT_RETRIES, backoff=DEFAULT_BACKOFF,
     resp = None
     for attempt in range(retries):
         try:
-            resp = requests.get(url, **kwargs)
+            resp = requests.get(url, hooks={"response": _redirect_guard}, **kwargs)
+        except _ProhibitedHop as e:
+            print(f"  [lit_net] {e}", file=sys.stderr)
+            return _NoResponse(str(e).replace("redirect: ", "", 1))
         except requests.exceptions.RequestException:
             if attempt == retries - 1:
                 raise
@@ -175,7 +194,10 @@ def stream_download(url, *, max_bytes, timeout=30, chunk_size=8192, headers=None
         return StreamResult(0, b"", b"", 0, False, why)
     try:
         r = requests.get(url, headers=headers, timeout=timeout, stream=True,
-                         allow_redirects=True, **kwargs)
+                         allow_redirects=True, hooks={"response": _redirect_guard}, **kwargs)
+    except _ProhibitedHop as e:
+        print(f"  [lit_net] {e}", file=sys.stderr)
+        return StreamResult(0, b"", b"", 0, False, str(e).replace("redirect: ", "", 1))
     except requests.exceptions.RequestException as e:
         return StreamResult(0, b"", b"", 0, False, str(e))
     if r.status_code != 200:
@@ -553,6 +575,22 @@ def doi_to_pmcid(dois, *, state=None, cfg=None, idconv_batch=IDCONV_BATCH, today
     for k in pending:
         ch.finish(k)
     return {k: ch.done[k] for k in keys}
+
+
+def lookup_status(o: Outcome | None) -> str:
+    """The legacy report token for a DOI -> PMCID Outcome that is not OK, chosen so that
+    litpipe.outcomes.from_legacy gives o.kind: a lookup no service could answer is never NO_PMCID."""
+    if o is None or o.kind is Kind.NO_MATCH:
+        return "NO_PMCID"
+    if o.kind is Kind.EMBARGOED:
+        return "EMBARGOED until " + ((o.payload.release_date if o.payload else None) or "unknown")
+    if o.kind is Kind.TRANSPORT:
+        return f"TRANSPORT: {o.detail}"[:200]
+    if o.kind is Kind.DEFERRED:
+        return "DEFERRED"
+    if o.status and o.kind in (Kind.REFUSED, Kind.OUTAGE):
+        return f"HTTP_{o.status}"
+    return f"{o.kind}: {o.detail}"[:200]
 
 
 def doi_to_pmcid_batch(dois, *, ua=None, email=None, tool=None, batch_size=IDCONV_BATCH):

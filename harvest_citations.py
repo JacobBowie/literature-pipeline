@@ -309,7 +309,7 @@ def main():
     emitted = {}         # out_name.casefold() -> (doi, title) of the paper this run gave it
     stats = {"crossref_doi": 0, "crossref_search": 0, "fallback": 0,
              "no_metadata": 0, "dup_skip": 0, "wrote": 0, "pmid_lookup_failed": 0,
-             "metadata_lookup_failed": 0, "stem_collision": 0}
+             "metadata_lookup_failed": 0, "stem_collision": 0, "kept_curated": 0}
 
     for i, p in enumerate(files, 1):
         fmt, parsed = parse_any(p)
@@ -388,10 +388,13 @@ def main():
             # Don't overwrite by default
             if out_path.exists() and not args.overwrite:
                 status = "EXISTS_SKIP"
-            else:
-                R.write_ris(str(out_path), ris_text, overwrite=True)
+            elif R.write_ris(str(out_path), ris_text, overwrite=True):
                 wrote = True; stats["wrote"] += 1
                 status = "WROTE"
+            else:
+                # DEC-29: an edited or unrecorded file is kept as curated (ris_emit says why on stderr)
+                stats["kept_curated"] += 1
+                status = "KEPT_CURATED"
         else:
             status = f"DRY:{source_kind}"
 

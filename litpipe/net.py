@@ -37,6 +37,7 @@ time, sleep) and RANDOM are module attributes tests replace; tests/netmock.py ha
 """
 from __future__ import annotations
 
+import dataclasses
 import http.client
 import json as _json
 import os
@@ -428,11 +429,20 @@ def _check_url(url):
         raise ValueError(f"litpipe.net: not an http(s) URL: {ledger.redact(url)!r}")
 
 
+def _with_retry_statuses(pol, retry_statuses):
+    if retry_statuses is None:
+        return pol
+    return dataclasses.replace(pol, retry=dataclasses.replace(pol.retry, statuses=frozenset(retry_statuses)))
+
+
 def request(method, url, *, params=None, json=None, headers=None, timeout=(10, 30), stream=False,
-            max_bytes=None, validate=None, purpose="", state=None, cfg=None) -> Outcome:
+            max_bytes=None, validate=None, purpose="", state=None, cfg=None, retry_statuses=None) -> Outcome:
     """One logical HTTP call under the host policy. See the module docstring for the order.
     `json` is sent as an application/json body. `stream=True` without max_bytes caps the body at
-    DEFAULT_STREAM_CAP. `state` and `cfg` (a loaded projects.json dict) are injectable."""
+    DEFAULT_STREAM_CAP. `state` and `cfg` (a loaded projects.json dict) are injectable.
+    `retry_statuses` replaces the host row's retry statuses for this call only (every hop), e.g.
+    Europe PMC fullTextXML, whose 500 is an answer ("not in the OA subset"), not an outage; the
+    shared host row is never modified."""
     method = method.upper()
     cfg = config.load(cfg)
     st = _state(state)
@@ -443,7 +453,7 @@ def request(method, url, *, params=None, json=None, headers=None, timeout=(10, 3
 
     url = _merge_query(url, params)
     _check_url(url)
-    pol = hosts.policy(url)
+    pol = _with_retry_statuses(hosts.policy(url), retry_statuses)
     rule = hosts.prohibited(url, cfg)
     if rule is not None:
         call.log(pol, url, "prohibited", note=f"{rule.host}{rule.path_prefix}: {rule.reason}")
@@ -496,7 +506,7 @@ def request(method, url, *, params=None, json=None, headers=None, timeout=(10, 3
                 call.method = method
             ctype = "application/json" if body is not None else None
             hdrs = _hop_headers(headers, act.target_policy, act.target_policy.host == origin_host, ctype)
-            url, pol, wait_s = act.target, act.target_policy, act.wait
+            url, pol, wait_s = act.target, _with_retry_statuses(act.target_policy, retry_statuses), act.wait
             if wait_s:
                 CLOCK.sleep(wait_s)
             continue

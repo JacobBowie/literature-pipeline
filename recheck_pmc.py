@@ -117,22 +117,23 @@ def main():
         return
 
     print(f"Batch-looking up {len(set(fn_to_doi.values()))} unique DOIs...")
-    doi2pmc = lit_net.doi_to_pmcid_batch(list(set(fn_to_doi.values())))
+    lookups = lit_net.doi_to_pmcid(list(set(fn_to_doi.values())))
+    doi2pmc = {d: o.payload.pmcid for d, o in lookups.items() if o.ok and o.payload.pmcid}
     print(f"  {len(doi2pmc)}/{len(set(fn_to_doi.values()))} have PMCIDs\n")
-
-    if not doi2pmc:
-        print("No PMCIDs found for any extracted DOI. Done.")
-        return
 
     rows = []
     n_fetched = n_fail = n_no_pmc = 0
     for fn, doi in fn_to_doi.items():
-        pmcid = doi2pmc.get(doi)
+        pmcid = doi2pmc.get(doi.strip().lower())
         rec = {"filename": fn, "doi": doi, "pmcid": pmcid or "",
                 "sidecar": False, "status": ""}
         if not pmcid:
-            n_no_pmc += 1
-            rec["status"] = "NO_PMCID"
+            # a lookup no service could answer (refused, down) is not "no PMCID" (W2-A1)
+            rec["status"] = lit_net.lookup_status(lookups.get(doi.strip().lower()))
+            if rec["status"] == "NO_PMCID":
+                n_no_pmc += 1
+            else:
+                n_fail += 1
             rows.append(rec)
             continue
         sidecar_path = os.path.join(lib, fn[:-4] + ".fulltext.json")

@@ -522,6 +522,8 @@ def test_already_exists_is_decided_before_any_request(world, tmp_path):
     lib = tmp_path / "lib"
     lib.mkdir()
     (lib / "Author_0_2020_paper0.pdf").write_bytes(b"%PDF-1.4 held")
+    # REG-I11: held only when something says it is THIS paper (a file with no DOI is not)
+    (lib / "Author_0_2020_paper0.ris").write_text(f"TY  - JOUR\nDO  - {OA_DOI}\nER  - \n", encoding="utf-8")
     _, rows, _ = run_stage(tmp_path, [OA_DOI])
     assert rows[OA_DOI]["skipped"] == "True" and rows[OA_DOI]["winning_source"] == "ALREADY_EXISTS"
     assert world.hits == []

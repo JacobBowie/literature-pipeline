@@ -59,7 +59,7 @@ import lit_util
 import ris_emit as _R
 # RC2: the collision-safe destination and the on-disk DOI reader stay shared with the Unpaywall
 # stage; T5a: so does the boilerplate fingerprint. The quarantine helpers are not imported (W2-A1).
-from unpaywall_fetch_v2 import _doi_of_existing, is_known_boilerplate, resolve_dest
+from unpaywall_fetch_v2 import existing_holds, is_known_boilerplate, resolve_dest
 from litpipe import doi as _doi
 from litpipe import identity as _identity
 from litpipe import net
@@ -389,6 +389,22 @@ class _Row:
         return rec
 
 
+def _holds(dest, doi, title) -> bool:
+    """REG-I11: the file at `dest` is THIS paper. A file whose identity verdict is FLAG (this stage
+    records it in the .fulltext.json; the Unpaywall stage in .identity.json) is never the paper,
+    whatever DOI its sidecar names; otherwise unpaywall_fetch_v2.existing_holds decides ("same"
+    only: a file with no DOI and no title match is "unknown", not held)."""
+    for ext in (".identity.json", ".fulltext.json"):
+        try:
+            with open(lit_util.companion_path(dest, ext), encoding="utf-8") as f:
+                rec = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if isinstance(rec, dict) and rec.get("identity") == "FLAG":
+            return False
+    return existing_holds(dest, doi, title) == "same"
+
+
 def _write_pdf(dest, body):
     tmp = dest + ".part"
     with open(tmp, "wb") as f:
@@ -660,9 +676,9 @@ def run(*, base_dir=None, report_in=None, lib_dir=None, report_out=None, dry_run
             fn = re.sub(r"[^A-Za-z0-9._-]+", "_", doi).strip("_") + ".pdf"
         row = _Row(r, fn)
         dest = os.path.join(lib_dir, fn)
-        # RC2: skip only when the on-disk file is THIS doi (or carries no DOI to contradict it)
-        if fn in ctx.existing and ((not _doi_of_existing(dest))
-                                   or _doi_of_existing(dest) == lit_util.normalize_doi(doi)):
+        # RC2 / REG-I11: skip only when the on-disk file is THIS paper (a file with no readable
+        # DOI is not; a FLAGged file is not)
+        if fn in ctx.existing and _holds(dest, doi, row.title):
             row.rec["skipped"] = True
             row.rec["winning_source"] = "ALREADY_EXISTS"
             row.rec["outcome"], row.rec["route"] = str(Kind.OK), ROUTE_FS

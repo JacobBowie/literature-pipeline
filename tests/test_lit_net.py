@@ -109,7 +109,9 @@ def test_kwargs_pass_through(monkeypatch):
     rec = {"calls": 0, "sleeps": []}
     _patch(monkeypatch, [FakeResp(200)], rec)
     lit_net.get("http://x", params={"email": "a@b.c"}, headers={"User-Agent": "UA"}, timeout=15)
-    assert rec["last_kwargs"] == {"params": {"email": "a@b.c"}, "headers": {"User-Agent": "UA"}, "timeout": 15}
+    kw = dict(rec["last_kwargs"])
+    assert kw.pop("hooks") == {"response": lit_net._redirect_guard}       # V-A7: every hop is checked
+    assert kw == {"params": {"email": "a@b.c"}, "headers": {"User-Agent": "UA"}, "timeout": 15}
 
 
 def test_prohibited_pmc_article_page_is_refused_before_sending(monkeypatch):

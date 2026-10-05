@@ -32,7 +32,7 @@ Limitations:
 - Tables are flattened to space-joined cell text. Structure is lost.
 - Inline citations and cross-refs are stripped.
 """
-import contextlib, dataclasses, json, os, re, sys, threading
+import json, os, re, sys
 from xml.etree import ElementTree as ET
 
 from litpipe import hosts, net
@@ -590,27 +590,13 @@ EPMC_JATS_XML = "https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTe
 # Europe PMC reference guide 6.9.0 (doc 1.51), getFullTextXML: "The full text XML is available only
 # for the full-text OA subset of the Europe PMC database." Since 2026-09-16 an article outside that
 # set answers 500 with a JSON body, deterministically (V1 P3: 10/10 unchanged after 31.9 min); it
-# answered 404 before. Both mean NOT_AVAILABLE, and the 500 is never retried.
-_POLICY_LOCK = threading.Lock()
+# answered 404 before. Both mean NOT_AVAILABLE, and the 500 is never retried: the call passes its own
+# retry statuses to litpipe.net (the www.ebi.ac.uk row keeps retrying 500 for the REST search).
 
 
-@contextlib.contextmanager
-def _no_retry_on(host, statuses):
-    """For the duration of one call, the host's row with `statuses` removed from its retry set.
-    litpipe.net retries 500 and 429 host-wide; fullTextXML's 500 is an answer, and a BioC 429 must
-    not be retried into a longer ban. Interim until litpipe.hosts carries the rule itself (forwarded);
-    a no-op once it does."""
-    with _POLICY_LOCK:
-        prev = hosts.rows().get(host)
-        if prev is None or not (prev.retry.statuses & frozenset(statuses)):
-            yield
-            return
-        hosts.register(dataclasses.replace(
-            prev, retry=dataclasses.replace(prev.retry, statuses=prev.retry.statuses - frozenset(statuses))))
-        try:
-            yield
-        finally:
-            hosts.register(prev)
+def _retry_without(url, statuses):
+    """The host row's retry statuses minus `statuses`, for one litpipe.net call."""
+    return hosts.policy(url).retry.statuses - frozenset(statuses)
 
 
 def _failure_status(o) -> str:
@@ -631,8 +617,8 @@ def fetch_jats_outcome(pmcid, timeout=30) -> Outcome:
     other failure keeps litpipe.net's kind (TRANSPORT, REFUSED, OUTAGE, DEFERRED, ERROR)."""
     url = EPMC_JATS_XML.format(pmcid=pmcid)
     host = hosts.host_of(url)
-    with _no_retry_on(host, {500}):
-        o = net.get(url, timeout=(10, timeout), purpose="fullTextXML", validate=_expect_xml)
+    o = net.get(url, timeout=(10, timeout), purpose="fullTextXML", validate=_expect_xml,
+                retry_statuses=_retry_without(url, {500}))
     if o.ok:
         return Outcome(Kind.OK, status=o.status, host=host, attempts=o.attempts,
                        elapsed_ms=o.elapsed_ms, payload=o.payload.content)
@@ -684,8 +670,7 @@ def fetch_bioc_outcome(pmcid, encoding="unicode", timeout=30) -> Outcome:
     run: this host answered 429 to a third request 0.65 s after the second on 2026-09-30)."""
     url = BIOC_JSON.format(pmcid=pmcid, encoding=encoding)
     host = hosts.host_of(url)
-    with _no_retry_on(host, {429}):
-        o = net.get(url, timeout=(10, timeout), purpose="bioc")
+    o = net.get(url, timeout=(10, timeout), purpose="bioc", retry_statuses=_retry_without(url, {429}))
     if not o.ok:
         return o
     p = o.payload

@@ -154,8 +154,8 @@ def main():
 
     # Batch DOI -> PMCID
     print(f"\nLooking up {len(set(needs_doi_lookup))} unique DOIs in PMC...")
-    doi2pmcid = (lit_net.doi_to_pmcid_batch(sorted(set(needs_doi_lookup)))
-                 if needs_doi_lookup else {})
+    lookups = lit_net.doi_to_pmcid(sorted(set(needs_doi_lookup))) if needs_doi_lookup else {}
+    doi2pmcid = {d: o.payload.pmcid for d, o in lookups.items() if o.ok and o.payload.pmcid}
     # also fold in fallback by_doi
     for d, pmc in fb["by_doi"].items():
         doi2pmcid.setdefault(d, pmc)
@@ -172,10 +172,15 @@ def main():
         if not pmcid and doi:
             pmcid = doi2pmcid.get(doi, "")
         if not pmcid:
-            n_no_pmc += 1
+            # a lookup no service could answer (refused, down) is not "no PMCID" (W2-A1)
+            st = lit_net.lookup_status(lookups.get((doi or "").strip().lower()))
+            if st == "NO_PMCID":
+                n_no_pmc += 1
+            else:
+                n_fail += 1
             rows.append({"filename":fn,"doi":doi,"pmcid":"",
-                          "sidecar":False,"status":"NO_PMCID","source":src})
-            print(f"  --   {fn[:80]} (no PMCID)")
+                          "sidecar":False,"status":st,"source":src})
+            print(f"  --   {fn[:80]} ({'no PMCID' if st == 'NO_PMCID' else st[:60]})")
             continue
         sidecar_path = os.path.join(lib, fn[:-4] + ".fulltext.json")
         if args.dry_run:
