@@ -149,7 +149,7 @@ _EMAIL_MODULES = [
     # They bind no EMAIL; litpipe.net injects identity (DEC-13; pinned below and by test_w2e1_net.py,
     # test_unpaywall_stage_has_no_email_constant). Modules move to _REWIRED as W2/W3 rewire them onto litpipe.net.
 ]
-_REWIRED = ["backfill_ris", "enrich_abstracts", "forward_citations", "preprint_fetch"]
+_REWIRED = ["backfill_ris", "enrich_abstracts", "forward_citations", "preprint_fetch", "import_downloads"]
 
 
 @pytest.mark.parametrize("modname", _REWIRED)

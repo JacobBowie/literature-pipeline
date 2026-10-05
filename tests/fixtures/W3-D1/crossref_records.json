@@ -1,0 +1,89 @@
+{
+  "_provenance": "Crossref /works messages, trimmed to the fields ris_emit.crossref_meta reads, with personal names replaced by neutral ones. group_first_author and sup_markup_title are live answers of 2026-10-05 (notes/2026-09-29_update_evidence/W3-D1/live_probe_crossref.json); the others are shaped like Crossref records from the DOIs and titles a consumer's import reports recorded. boilerplate_copyright_notice and copyright_law_paper are the two records a title search on cover-sheet text matched and filed as papers.",
+  "group_first_author": {
+    "DOI": "10.1161/CIR.0000000000001356",
+    "type": "journal-article",
+    "title": ["2025 AHA/ACC/AANP/AAPA/ABC/ACCP/ACPM/AGS/AMA/ASPC/NMA/PCNA/SGIM Guideline for the Prevention, Detection, Evaluation and Management of High Blood Pressure in Adults: A Report of the American College of Cardiology/American Heart Association Joint Committee on Clinical Practice Guidelines"],
+    "subtitle": [],
+    "container-title": ["Circulation"],
+    "volume": "152", "issue": "11",
+    "published-print": {"date-parts": [[2025, 9, 16]]},
+    "author": [
+      {"name": "Writing Committee Members*", "sequence": "first", "affiliation": []},
+      {"given": "Dana W.", "family": "Rowan", "sequence": "additional", "affiliation": []},
+      {"given": "Kit C.", "family": "Ashby", "sequence": "additional", "affiliation": []}
+    ]
+  },
+  "sup_markup_title": {
+    "DOI": "10.1055/s-2003-39085",
+    "type": "journal-article",
+    "title": ["<sup>31</sup>P-MRS Characterization of Sprint and Endurance Trained Athletes"],
+    "subtitle": [],
+    "container-title": ["International Journal of Sports Medicine"],
+    "volume": "24", "issue": "3", "page": "183-189",
+    "published-print": {"date-parts": [[2003, 4]]},
+    "author": [
+      {"given": "L.", "family": "Holm", "sequence": "first", "affiliation": []},
+      {"given": "B.", "family": "Varga", "sequence": "additional", "affiliation": []}
+    ]
+  },
+  "boilerplate_copyright_notice": {
+    "DOI": "10.23919/EUSIPCO55093.2022.9909645",
+    "type": "proceedings-article",
+    "title": ["Copyright ©2022 by European Association for Signal Processing (EURASIP) All rights reserved"],
+    "container-title": ["2022 30th European Signal Processing Conference (EUSIPCO)"],
+    "published-print": {"date-parts": [[2022, 8, 29]]},
+    "author": []
+  },
+  "copyright_law_paper": {
+    "DOI": "10.2139/ssrn.1987280",
+    "type": "posted-content",
+    "title": ["Public or Protected by Copyright: How Federal Copyright Law and State Public Record Law Intersect"],
+    "published": {"date-parts": [[2012]]},
+    "author": [{"given": "Robin", "family": "Lark", "sequence": "first", "affiliation": []}]
+  },
+  "shuttle_run": {
+    "DOI": "10.1080/02640418808729800",
+    "type": "journal-article",
+    "title": ["The multistage 20 metre shuttle run test for aerobic fitness"],
+    "container-title": ["Journal of Sports Sciences"],
+    "volume": "6", "issue": "2", "page": "93-101",
+    "published-print": {"date-parts": [[1988, 6]]},
+    "author": [{"given": "A.", "family": "Mercer", "sequence": "first", "affiliation": []},
+               {"given": "B.", "family": "Nolan", "sequence": "additional", "affiliation": []}]
+  },
+  "stroke_volume": {
+    "DOI": "10.1136/bjsm.2004.013037",
+    "type": "journal-article",
+    "title": ["A review of the stroke volume response to upright exercise in healthy subjects"],
+    "container-title": ["British Journal of Sports Medicine"],
+    "volume": "39", "issue": "4", "page": "190-195",
+    "published-print": {"date-parts": [[2005, 4]]},
+    "author": [{"given": "C.", "family": "Penrose", "sequence": "first", "affiliation": []}]
+  },
+  "autonomic": {
+    "DOI": "10.1002/cphy.c140022",
+    "type": "journal-article",
+    "title": ["Autonomic Adjustments to Exercise in Humans"],
+    "container-title": ["Comprehensive Physiology"],
+    "volume": "5", "issue": "2", "page": "475-512",
+    "published-print": {"date-parts": [[2015, 4]]},
+    "author": [{"given": "J. P.", "family": "Quill", "sequence": "first", "affiliation": []}]
+  },
+  "correction_notice": {
+    "DOI": "10.1016/s2213-8587(25)00001-2",
+    "type": "journal-article",
+    "title": ["Correction to Lancet Diabetes Endocrinol 2025; 13: 221-62"],
+    "container-title": ["The Lancet Diabetes & Endocrinology"],
+    "published-print": {"date-parts": [[2025, 3]]},
+    "author": []
+  },
+  "corrected_article": {
+    "DOI": "10.1016/s2213-8587(24)00316-4",
+    "type": "journal-article",
+    "title": ["Definition and diagnostic criteria of clinical obesity"],
+    "container-title": ["The Lancet Diabetes & Endocrinology"],
+    "published-print": {"date-parts": [[2025, 3]]},
+    "author": [{"given": "F.", "family": "Ruiz", "sequence": "first", "affiliation": []}]
+  }
+}

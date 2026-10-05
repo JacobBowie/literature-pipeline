@@ -14,6 +14,7 @@ MODULES = [
     "backfill_ris",
     "build_pdf_library",
     "enrich_abstracts",
+    "import_downloads",
     "enrich_recommendations",
     "extract_pdf_fulltext",
     "extract_tables",

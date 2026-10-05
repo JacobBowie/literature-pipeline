@@ -1,0 +1,7 @@
+case,source,old_action,doi,old_new_name,old_first_au,defect
+boilerplate_cover_search,ebsco_fulltext.pdf,WOULD_MOVE,10.23919/eusipco55093.2022.9909645,2022_Unknown_Copyright2022ByEuropeanAssociationFor.pdf,,a title search on cover text matched a copyright-notice record
+boilerplate_ill_search,ill_request.pdf,WOULD_MOVE,10.2139/ssrn.1987280,2012_Lark_PublicOrProtectedByCopyrightHow.pdf,Lark,a title search on an ILL Title 17 notice matched a paper about copyright law
+same_doi_twice_a,stroke_volume_review.pdf,WOULD_MOVE,10.1136/bjsm.2004.013037,2005_Penrose_AReviewOfTheStrokeVolume.pdf,Penrose,the same DOI planned twice in one run
+same_doi_twice_b,stroke_volume_review_v2.pdf,WOULD_MOVE,10.1136/bjsm.2004.013037,2005_Penrose_AReviewOfTheStrokeVolume.pdf,Penrose,the same DOI planned twice in one run
+unknown_author,practice_guideline.pdf,MOVED,10.1161/cir.0000000000001356,2025_Unknown_2025AHAACCAANPAAPAABCACCPACPMAGSAMAASPCNMAPCNASGIMGuidelineForThePrevention.pdf,,the first author is a group with no family name
+markup_in_name,sprint_mrs.pdf,MOVED,10.1055/s-2003-39085,2003_Holm_Sup31supPMRSCharacterizationOfSprintAndEndurance.pdf,Holm,a <sup> tag in the title reached the filename
