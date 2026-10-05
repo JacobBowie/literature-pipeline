@@ -48,3 +48,31 @@ def test_display_field_cleans_markup_entities_and_spacing():
 
 def test_display_field_is_exported():
     assert "display_field" in text.__all__
+
+
+# ---------------------------------------------------------------- abstract_field (W2-E2 forward 2)
+@pytest.mark.parametrize("raw,want", [
+    ("&lt;b&gt;&lt;i&gt;Purpose:&lt;/i&gt;&lt;/b&gt; To test.", "Purpose: To test."),
+    ("&amp;lt;jats:p&amp;gt;Aim p&amp;amp;lt;0,05&amp;lt;/jats:p&amp;gt;", "Aim p<0,05"),
+    ("ABSTRACT In addition, heat.", "In addition, heat."),
+    ("<jats:title>Abstract</jats:title><jats:p>Body text.</jats:p>", "Body text."),
+    ("AbstractBackground: x", "Background: x"),
+    ("Abstract", ""),
+])
+def test_abstract_field_strips_escaped_markup_and_the_heading(raw, want):
+    assert text.abstract_field(raw) == want
+    assert text.abstract_field(want) == want                     # idempotent
+
+
+@pytest.mark.parametrize("s", ["Abstracts of the annual meeting", "ABSTRACTION of signals", "VO\u2082max in m\u00b2"])
+def test_abstract_field_keeps_text_that_is_not_a_heading(s):
+    assert text.abstract_field(s) == s
+
+
+def test_ris_writer_abstract_uses_abstract_field():
+    """The .ris AB line is cleaned like the DB abstract (it carried `<b><i>Purpose:` and the heading)."""
+    msg = {"DOI": "10.1000/x1", "title": ["A title"], "type": "journal-article",
+           "abstract": "<jats:title>Abstract</jats:title><jats:p>&lt;b&gt;Purpose:&lt;/b&gt; To test.</jats:p>"}
+    meta = ris_emit.crossref_meta(msg)
+    assert meta["abstract"] == "Purpose: To test."
+    assert "AB  - Purpose: To test." in ris_emit.build_ris(meta)

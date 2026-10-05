@@ -349,7 +349,7 @@ def crossref_meta(msg: dict) -> dict:
         "issue":    _display(msg.get("issue")),
         "page":     _display(msg.get("page")),
         "issn":     _first(issn) if isinstance(issn, list) else str(issn or ""),
-        "abstract": _display(msg.get("abstract")),
+        "abstract": _text.abstract_field(msg.get("abstract")),
         "url":      _doi_url(d) if d else "",
         "type":     msg.get("type") or "journal-article",
     }
@@ -460,7 +460,7 @@ def datacite_meta(attrs: dict) -> dict:
     abstract = ""
     for d in attrs.get("descriptions") or []:
         if isinstance(d, dict) and (d.get("descriptionType") or "").lower() == "abstract":
-            abstract = _display(d.get("description"))
+            abstract = _text.abstract_field(d.get("description"))
             break
     container = attrs.get("container") if isinstance(attrs.get("container"), dict) else {}
     rtg = (attrs.get("types") or {}).get("resourceTypeGeneral") or ""
@@ -575,7 +575,7 @@ def csl_meta(csl: dict) -> dict:
         "issue": _display(csl.get("issue") or csl.get("number")),     # JaLC sends the issue as `number`
         "page": _display(csl.get("page")),
         "issn": _first(csl.get("ISSN")),
-        "abstract": _display(csl.get("abstract")),
+        "abstract": _text.abstract_field(csl.get("abstract")),
         "url": _doi_url(d) if d else "",
         "type": _CSL_TYPE.get(csl.get("type") or "article-journal", "journal-article"),
     }

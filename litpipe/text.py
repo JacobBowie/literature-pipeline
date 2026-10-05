@@ -44,7 +44,8 @@ import unicodedata
 # that keeps both cleaners on one definition. pdf_text_clean imports only `re` (no cycle).
 from pdf_text_clean import LIGATURES
 
-__all__ = ["strip_tags", "unescape", "clean_field", "display_field", "normalise_title", "ISOGRK1"]
+__all__ = ["strip_tags", "unescape", "clean_field", "display_field", "abstract_field", "normalise_title",
+           "ISOGRK1"]
 
 # isogrk1 (W3C isogrk1.ent, 2007 entity set, current in the 2023 Recommendation).
 ISOGRK1 = {
@@ -141,6 +142,37 @@ def display_field(s):
     s = unescape(strip_tags(str(s)))
     s = unicodedata.normalize("NFC", s).translate(_DISPLAY_MAP)
     return " ".join(s.split())
+
+
+# A leading "Abstract" heading (W2-E2 census 2026-10-05: all inspected rows of 33,174 starting with
+# "abstract" were a heading): the whole word, any case, then punctuation, space or the end; or a
+# case-sensitive glued form (`AbstractBackground`, `ABSTRACTCigarette`). Never "Abstracts of" or
+# "ABSTRACTION".
+_HEADING_WORD = re.compile(r"^\s*abstract(?:\s*[:.–—-]\s*|\s+|\s*$)", re.IGNORECASE)
+_HEADING_GLUED = re.compile(r"^\s*(?:Abstract(?=[A-Z])|ABSTRACT(?=[A-Z][a-z]|[A-Z]\s))")
+
+
+def abstract_field(raw):
+    """Plain-text abstract from a Crossref JATS `abstract`, a DataCite description, a CSL abstract or
+    a stored abstract: display_field taken again until it stops changing (at most three more rounds),
+    so markup that decoding revealed is stripped and deeper escaping is decoded, then one leading
+    "Abstract" heading dropped. '' when nothing but a heading is left. Idempotent.
+
+    The extra rounds are for escaped markup, which display_field alone (tags first, then two decoding
+    passes) leaves as text: a publisher deposits `&lt;b&gt;&lt;i&gt;Purpose:&lt;/i&gt;&lt;/b&gt;`
+    (display_field gives `<b><i>Purpose:</i></b>`), and one deposit (live 2026-10-05) wraps its whole
+    abstract in `&amp;lt;jats:p&amp;gt;` with `p&amp;amp;lt;0,05` inside. Moved here from
+    enrich_abstracts.clean_abstract (W2-E2) so the .ris writer's AB lines get the same cleaning."""
+    s = display_field(raw)
+    for _ in range(3):
+        t = display_field(s)
+        if t == s:
+            break
+        s = t
+    m = _HEADING_WORD.match(s) or _HEADING_GLUED.match(s)
+    if m:
+        s = s[m.end():].strip()
+    return s
 
 
 def normalise_title(s):

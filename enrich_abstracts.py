@@ -45,7 +45,6 @@ Usage:
   python enrich_abstracts.py --db <temp.duckdb>     # another DB (default: <db_dir>/portfolio.duckdb)
 """
 import argparse
-import re
 import sys
 import time
 
@@ -83,31 +82,11 @@ def default_db() -> str:
 # ("Abstract Background", "ABSTRACT: While", "Abstract"; never "Abstracts of" or "Abstraction"), or
 # the word glued to the next one, case-sensitive ("AbstractBackground", "ABSTRACTCigarette",
 # "ABSTRACTA systematic": 13 stored rows; never "ABSTRACTION").
-_HEADING_WORD = re.compile(r"^\s*abstract(?:\s*[:.\u2013\u2014-]\s*|\s+|\s*$)", re.IGNORECASE)
-_HEADING_GLUED = re.compile(r"^\s*(?:Abstract(?=[A-Z])|ABSTRACT(?=[A-Z][a-z]|[A-Z]\s))")
-
-
 def clean_abstract(raw) -> str:
-    """Plain-text abstract from a Crossref JATS `abstract` (or any stored abstract string): the
-    display form (litpipe.text.display_field) taken again until it stops changing (at most three
-    more rounds), so markup that decoding revealed is stripped and deeper escaping is decoded, then
-    one leading "Abstract" heading dropped. '' when nothing but a heading is left.
-
-    The extra rounds are for escaped markup, which display_field alone (tags first, then two
-    decoding passes) leaves as text: Karger deposits `&lt;b&gt;&lt;i&gt;Purpose:&lt;/i&gt;&lt;/b&gt;`
-    (display_field gives `<b><i>Purpose:</i></b>`), and one deposit (live 2026-10-05) wraps its
-    whole abstract in `&amp;lt;jats:p&amp;gt;` with `p&amp;amp;lt;0,05` inside (it gives
-    `<jats:p>` and `p&lt;0,05`)."""
-    s = _text.display_field(raw)
-    for _ in range(3):
-        t = _text.display_field(s)
-        if t == s:
-            break
-        s = t
-    m = _HEADING_WORD.match(s) or _HEADING_GLUED.match(s)
-    if m:
-        s = s[m.end():].strip()
-    return s
+    """Plain-text abstract (litpipe.text.abstract_field: display form to a fixpoint for escaped
+    markup, then one leading "Abstract" heading dropped). Kept as this module's name for callers
+    and the W5-B repair of stored rows; the .ris writer uses the same function."""
+    return _text.abstract_field(raw)
 
 
 # ------------------------------------------------------------------------------ Crossref

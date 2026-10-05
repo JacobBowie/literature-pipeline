@@ -128,9 +128,19 @@ def test_double_encoded():
 
 
 def test_strip_before_decode_keeps_literal_text():
+    """Display fields (titles, containers, names: litpipe.text.display_field) strip tags BEFORE
+    decoding, so escaped literal text survives (2026-09-17 intake, P1). Abstracts are different
+    (dispatcher ruling 2026-10-05): they use litpipe.text.abstract_field, which takes the display form
+    to a fixpoint, because live Crossref deposits escape their real markup (W2-E2 census: 534 stored
+    abstracts carried escaped tags such as `&lt;b&gt;&lt;i&gt;Purpose:`, all escaped markup, none
+    literal text). An abstract about literal tags (this synthetic case) loses them."""
+    from litpipe import text as T
+    assert T.display_field(TRAP["abstract"]) == "The tag <jats:italic> is literal."
+    titled = R.crossref_meta(dict(TRAP, title=["The tag &lt;jats:italic&gt; is literal"]))
+    assert titled["title"] == "The tag <jats:italic> is literal"
     m = R.crossref_meta(TRAP)
-    assert "<jats:italic>" in m["abstract"]
-    assert "AB  - The tag <jats:italic> is literal." in R.build_ris(m)
+    assert m["abstract"] == "The tag is literal."
+    assert "AB  - The tag is literal." in R.build_ris(m)
 
 
 def test_build_ris_is_clean():
