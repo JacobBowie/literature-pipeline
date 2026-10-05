@@ -577,6 +577,11 @@ def biorxiv_details(server, doi, *, state=None, cfg=None):
     return Outcome(Kind.OK, status=o.status, host=o.host, attempts=o.attempts, payload=latest)
 
 
+def _no_posts(o):
+    """/details' answer for a DOI that server does not hold: an empty collection, "no posts found"."""
+    return o.kind is Kind.OUTAGE and "no posts found" in (o.detail or "").lower()
+
+
 # ---------------------------------------------------------------- OSF
 def osf_title_search(title, *, state=None, cfg=None, n=5):
     """api.osf.io/v2/preprints/?filter[title]=<prefix> -> Outcome (payload: list of Candidate)."""
@@ -1112,6 +1117,14 @@ def acquire(ctx, row, c):
                 meta, c.server = o.payload, s
                 break
         if meta is None:
+            # "no posts found" from every server tried, for a DOI Europe PMC did not place on a
+            # server: the wrong-server answer (W2-C probe B2), so not an openRxiv preprint (a CSHL
+            # Press journal article): NO_MATCH, not an OUTAGE retried on every run
+            answers = [o for r, o in row.steps if r.endswith("_details")][-len(servers):]
+            if not c.server_known and answers and all(_no_posts(o) for o in answers):
+                return _Got("fail", f"{servers[0]}_details", Outcome(
+                    Kind.NO_MATCH, status=first.status, host=first.host, attempts=first.attempts,
+                    detail=f"api.biorxiv.org /details: no posts found on {', '.join(servers)}"))
             return _Got("fail", f"{servers[0]}_details", first)
         version = str(meta.get("version") or "1")
         c.landing_url = _doi_url(c.doi)

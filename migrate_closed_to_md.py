@@ -1026,6 +1026,15 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
                   f"{r['doi']}; not routed", file=sys.stderr)
 
     bad = [r for r in rows if has_config_signal(r) or r["residual_class"] == CONFIG]
+    bad_chains = {r.get("tag") for r in bad}
+    if bad and len(bad_chains) < len(by_chain):
+        print(f"[ERR] {project} sweep {run_id}: {len(bad)} row(s) carry a CONFIG outcome; chain(s) "
+              f"{sorted(t or '(untagged)' for t in bad_chains)} not routed, the others are",
+              file=sys.stderr)
+        by_chain = {t: rs for t, rs in by_chain.items() if t not in bad_chains}
+        rows = [r for rs in by_chain.values() for r in rs]
+        res["status"] = "config"
+        bad = []
     if bad:
         print(f"[ERR] {project} sweep {run_id}: {len(bad)} row(s) carry a CONFIG outcome "
               f"(first: {redact(bad[0]['reason'] or _reason(bad[0]['signals']))}); the run aborts and "

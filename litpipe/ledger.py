@@ -62,6 +62,13 @@ EMAIL_TOKEN = "[EMAIL-REDACTED]"
 MAILTO_TOKEN = "[MAILTO-REDACTED]"
 _MAILTO_RE = re.compile(
     r"(?i)(mailto(?::|" + _ENC + r"3A)\s*)((?:(?!" + _ENC + r"26)[^\s)>\"'&,;])+)")
+# Signed, expiring download links (the OSF blob hop to storage.googleapis.com; S3 presigned
+# URLs): the signature and credential values work as a bearer token until they expire. No
+# lookbehind, so `%26Signature%3D` (a link nested in a link) loses its value too.
+_SIGNED_RE = re.compile(
+    r"(?i)((?:x-goog-signature|x-goog-credential|x-amz-signature|x-amz-credential|x-amz-security-token"
+    r"|awsaccesskeyid|signature)(?:=|" + _ENC + r"3D))"
+    r"((?:(?!" + _ENC + r"26)[^&#\s\"'<>,;)])*)")
 _ADDRESS_RE = re.compile(
     r"(?i)[A-Za-z0-9._+-]+(?:" + _ENC + r"2B[A-Za-z0-9._+-]*)*(?:@|" + _ENC + r"40)"
     r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]+")
@@ -123,6 +130,7 @@ def redact(text):
     s = text if isinstance(text, str) else str(text)
     s = _HEADER_RE.sub(lambda m: m.group(1) + m.group(2) + PLACEHOLDER, s)
     s = _PARAM_RE.sub(lambda m: m.group(1) + PLACEHOLDER, s)
+    s = _SIGNED_RE.sub(lambda m: m.group(1) + PLACEHOLDER, s)
     s = _EMAIL_PARAM_RE.sub(EMAIL_TOKEN, s)
     s = _MAILTO_RE.sub(MAILTO_TOKEN, s)
     for name in ("S2_API_KEY", "OPENALEX_API_KEY"):        # preflight.KEY_ENVS

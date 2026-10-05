@@ -1020,7 +1020,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
                    "--triage", str(residual_csv),
                    "--lib-dir", str(lib_dir),
                    "--report", str(report_ppr)]
-            if key:
+            if key and (registry is None or key in registry):
                 cmd += ["--project", key]   # the stage selects its servers from the project's sources
             r3 = _run_stage(cmd)
             status["preprint"] = _stage_status(r3, report_ppr)
@@ -1283,6 +1283,8 @@ def _preprint_excluded(key, cfg):
     10.48550/ DOI (DEC-09: arXiv rows reach arXiv whatever the sources), and is skipped when
     there are none. Raises litpipe.config.ConfigError on an invalid `sources` list."""
     from litpipe import config as lp_config
+    if key not in ((cfg or {}).get("projects") or {}):
+        return True   # an unregistered --project dir (find_queues' backward-compatible path)
     return not (lp_config.sources(key, cfg=cfg) & PREPRINT_SOURCES)
 
 
@@ -1436,12 +1438,15 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
         if results:
             cmd = migrate_command(key, run_id, artifact_dir, skip_preprint or excluded)
             proj_out["migrate"] = cmd
-            if config_abort:
+            if config_abort and not any(r.get("retired") for r in results):
                 # CONFIG aborts the run: nothing is routed (a stage that exited 2 may have left
                 # no CONFIG row for migrate to see)
                 print("  migrate not run: CONFIG aborts the run; the queue stays for a re-sweep "
                       "once the configuration is fixed")
             elif migrate:
+                # a CONFIG abort after a queue of this run retired: route the run now (a later
+                # run has another run id); the CONFIG queue's rows are PENDING (route none) and
+                # migrate refuses any chain that carries a CONFIG row
                 print(f"  -> migrate: {shlex.join(cmd)}")
                 rm = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
                                     errors="replace", env=_stage_env())
