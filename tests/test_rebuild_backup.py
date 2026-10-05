@@ -9,6 +9,7 @@ A3 -- the abstract-count pre-flight closes its read-only handle in a finally; ev
 import sys
 
 import duckdb
+import pytest
 
 import index_portfolio as I
 
@@ -87,3 +88,86 @@ def test_rebuild_does_not_clobber_richer_bak(tmp_path, monkeypatch):
     cbak.close()
     assert n_abs == 1                                         # pre-crash abstract preserved
     assert db.exists()                                        # a fresh DB was still rebuilt in place
+
+
+# ---------------------------------------------------------------- W3-C1: history tables survive
+W3E_DDL = (
+    "CREATE TABLE recent_feed (seed_doi VARCHAR, recommended_doi VARCHAR, pool VARCHAR, rank INTEGER, "
+    "first_seen_at TIMESTAMPTZ, last_seen_at TIMESTAMPTZ, PRIMARY KEY (seed_doi, recommended_doi, pool))",
+    "CREATE TABLE rec_attempts (seed_doi VARCHAR PRIMARY KEY, outcome VARCHAR, status VARCHAR, "
+    "attempted_at TIMESTAMPTZ)",
+    "CREATE TABLE s2_enrichment (doi VARCHAR PRIMARY KEY, oa_url VARCHAR, citation_count INTEGER, "
+    "reference_count INTEGER, abstract_elided BOOLEAN, fetched_at TIMESTAMPTZ)",
+)
+
+
+def test_rebuild_carries_history_tables_from_the_bak(tmp_path, monkeypatch):
+    """--rebuild keeps abstract_attempts (W2-E2) and recent_feed / rec_attempts / s2_enrichment
+    (W3-E), keys included, from the .bak; the abstracts themselves are still discarded."""
+    import enrich_abstracts
+    db = tmp_path / "portfolio.duckdb"
+    c = duckdb.connect(str(db))
+    c.execute(I.SCHEMA)
+    c.execute(enrich_abstracts.ATTEMPTS_DDL)
+    for ddl in W3E_DDL:
+        c.execute(ddl)
+    c.execute("INSERT INTO paper_metadata (doi, abstract) VALUES ('10.5555/a.0001', 'an abstract')")
+    c.execute("INSERT INTO abstract_attempts VALUES ('10.5555/a.0001', 'NO_MATCH', '404', '', "
+              "TIMESTAMP '2026-09-01')")
+    c.execute("INSERT INTO recent_feed VALUES ('10.5555/s.0001', '10.5555/r.0001', 'recent', 1, "
+              "TIMESTAMPTZ '2026-09-01 00:00:00+00', TIMESTAMPTZ '2026-09-02 00:00:00+00')")
+    c.execute("INSERT INTO rec_attempts VALUES ('10.5555/s.0001', 'OK', '200', "
+              "TIMESTAMPTZ '2026-09-01 00:00:00+00')")
+    c.execute("INSERT INTO s2_enrichment VALUES ('10.5555/a.0001', '', 3, 4, false, "
+              "TIMESTAMPTZ '2026-09-01 00:00:00+00')")
+    c.close()
+
+    monkeypatch.setattr(I, "load_config", lambda: {})
+    assert I.main(["--db", str(db), "--rebuild"]) == 0
+    cn = duckdb.connect(str(db))
+    try:
+        assert cn.execute("SELECT doi, outcome, status FROM abstract_attempts").fetchall() == [
+            ("10.5555/a.0001", "NO_MATCH", "404")]
+        assert cn.execute("SELECT seed_doi, recommended_doi, rank FROM recent_feed").fetchall() == [
+            ("10.5555/s.0001", "10.5555/r.0001", 1)]
+        assert cn.execute("SELECT COUNT(*) FROM rec_attempts").fetchone()[0] == 1
+        assert cn.execute("SELECT citation_count FROM s2_enrichment").fetchone()[0] == 3
+        assert cn.execute("SELECT COUNT(*) FROM paper_metadata").fetchone()[0] == 0   # abstracts discarded
+        with pytest.raises(duckdb.ConstraintException):                               # the key came along
+            cn.execute("INSERT INTO abstract_attempts (doi) VALUES ('10.5555/a.0001')")
+    finally:
+        cn.close()
+    assert (tmp_path / "portfolio.duckdb.bak").exists()                               # .bak unchanged
+
+
+def test_rebuild_creates_no_history_table_the_bak_lacks(tmp_path, monkeypatch):
+    db = tmp_path / "portfolio.duckdb"
+    c = duckdb.connect(str(db))
+    c.execute(I.SCHEMA)
+    c.close()
+    monkeypatch.setattr(I, "load_config", lambda: {})
+    assert I.main(["--db", str(db), "--rebuild"]) == 0
+    cn = duckdb.connect(str(db), read_only=True)
+    tables = {r[0] for r in cn.execute("SHOW TABLES").fetchall()}
+    cn.close()
+    assert not tables & set(I.CARRY_OVER_TABLES)
+    assert {"index_runs", "scoped_candidates", "scoped_cites"} <= tables
+
+
+def test_rebuild_with_an_unreadable_bak_is_degraded(tmp_path, monkeypatch, capsys):
+    """The .bak kept from a crashed rebuild cannot be attached: the rebuild still runs, and exits 2
+    with the reason, rather than dropping the history tables silently."""
+    db = tmp_path / "portfolio.duckdb"
+    bak = tmp_path / "portfolio.duckdb.bak"
+    c = duckdb.connect(str(db))
+    c.execute(I.SCHEMA)
+    c.close()
+    monkeypatch.setattr(I, "load_config", lambda: {})
+
+    def broken(con, path):
+        raise duckdb.IOException(f"simulated: cannot open {path.name}")
+    monkeypatch.setattr(I, "carry_over", broken)
+    assert I.main(["--db", str(db), "--rebuild"]) == 2
+    out = capsys.readouterr().out
+    assert "could not carry history tables" in out and out.rstrip().splitlines()[-1].startswith(I.SUMMARY_MARKER)
+    assert bak.exists() and db.exists()

@@ -1,0 +1,42 @@
+{
+  "_comment": "W3-C1: a one-library fixture for the public citation-network build's two queries (fetch_extension and compute_extension_families: cites joined on seed DOI lists, forward and backward). No text-only holdings; every DOI already in normalised form. public_build_expected.json holds what the pre-W3-C1 index (ce0479b) returned on it.",
+  "project": "research_pub",
+  "lib_dir": "literature",
+  "files": {
+    "2001_Alpha_SeedOne.pdf": "%PDF-1.4 stub",
+    "2001_Alpha_SeedOne.ris": "TY  - JOUR\nAU  - Alpha, Ann\nPY  - 2001\nTI  - Seed one\nJO  - Journal A\nDO  - 10.5555/seed.0001\nER  - \n",
+    "2004_Beta_SeedTwo.pdf": "%PDF-1.4 stub",
+    "2004_Beta_SeedTwo.ris": "TY  - JOUR\nAU  - Beta, Bo\nPY  - 2004\nTI  - Seed two\nJO  - Journal B\nDO  - 10.5555/seed.0002\nER  - \n",
+    "2009_Gamma_SeedThree.pdf": "%PDF-1.4 stub",
+    "2009_Gamma_SeedThree.ris": "TY  - JOUR\nAU  - Gamma, Cy\nPY  - 2009\nTI  - Seed three\nJO  - Journal C\nDO  - 10.5555/seed.0003\nER  - \n",
+    "2012_Delta_SeedFour.pdf": "%PDF-1.4 stub",
+    "2012_Delta_SeedFour.ris": "TY  - JOUR\nAU  - Delta, Di\nPY  - 2012\nTI  - Seed four\nJO  - Journal D\nDO  - 10.5555/seed.0004\nER  - \n",
+    "2015_Eps_NoDoi.pdf": "%PDF-1.4 stub"
+  },
+  "forward_csv": [
+    ["seed_pdf", "seed_doi", "citing_paper_id", "citing_doi", "citing_title", "citing_year", "citing_authors", "citing_venue", "citing_cited_by", "citing_abstract"],
+    ["2001_Alpha_SeedOne.pdf", "10.5555/seed.0001", "p1", "10.6666/cite.0101", "Citer one", "2010", "A; B", "V1", "40", ""],
+    ["2001_Alpha_SeedOne.pdf", "10.5555/seed.0001", "p2", "10.6666/cite.0102", "Citer two", "2011", "C", "V2", "12", ""],
+    ["2001_Alpha_SeedOne.pdf", "10.5555/seed.0001", "p3", "10.5555/seed.0002", "Seed two", "2004", "Beta", "Journal B", "300", ""],
+    ["2004_Beta_SeedTwo.pdf", "10.5555/seed.0002", "p1", "10.6666/cite.0101", "Citer one", "2010", "A; B", "V1", "40", ""],
+    ["2004_Beta_SeedTwo.pdf", "10.5555/seed.0002", "p4", "10.6666/cite.0103", "Citer three", "", "D", "V3", "", ""],
+    ["2004_Beta_SeedTwo.pdf", "10.5555/seed.0002", "p5", "10.6666/cite.0104", "Citer four", "2019", "E", "V4", "7", ""],
+    ["2009_Gamma_SeedThree.pdf", "10.5555/seed.0003", "p6", "10.6666/cite.0105", "Citer five", "2020", "F", "V5", "3", ""],
+    ["2009_Gamma_SeedThree.pdf", "10.5555/seed.0003", "p1", "10.6666/cite.0101", "Citer one", "2010", "A; B", "V1", "40", ""],
+    ["2012_Delta_SeedFour.pdf", "10.5555/seed.0004", "p7", "10.6666/cite.0106", "Citer six", "2021", "G", "V6", "1", ""]
+  ],
+  "reverse_csv": [
+    ["seed", "first_author", "year", "title_snippet", "doi", "raw"],
+    ["2001_Alpha_SeedOne.pdf", "Ref", "1990", "Reference one", "10.7777/ref.0201", "raw"],
+    ["2001_Alpha_SeedOne.pdf", "Ref", "1991", "Reference two", "10.7777/ref.0202", "raw"],
+    ["2004_Beta_SeedTwo.pdf", "Ref", "1990", "Reference one", "10.7777/ref.0201", "raw"],
+    ["2004_Beta_SeedTwo.pdf", "Alpha", "2001", "Seed one", "10.5555/seed.0001", "raw"],
+    ["2004_Beta_SeedTwo.pdf", "Ref", "", "Reference three", "10.7777/ref.0203", "raw"],
+    ["2009_Gamma_SeedThree.pdf", "Ref", "1999", "Reference four", "10.7777/ref.0204", "raw"],
+    ["2009_Gamma_SeedThree.pdf", "Ref", "1990", "Reference one", "10.7777/ref.0201", "raw"],
+    ["2015_Eps_NoDoi.pdf", "Ref", "1980", "Reference five", "10.7777/ref.0205", "raw"]
+  ],
+  "seeds": ["10.5555/seed.0001", "10.5555/seed.0002", "manual:book-chapter"],
+  "families": {"10.5555/seed.0001": "family_a", "10.5555/seed.0002": "family_b", "10.5555/seed.0003": "family_a"},
+  "top_k": 50
+}

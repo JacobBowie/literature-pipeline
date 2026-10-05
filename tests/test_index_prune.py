@@ -150,3 +150,24 @@ def test_forward_bulk_insert_many_rows(tmp_path):
     assert con.execute("SELECT COUNT(*) FROM candidates WHERE source_project='T'").fetchone()[0] == 50
     assert con.execute("SELECT COUNT(*) FROM cites WHERE source_project='T'").fetchone()[0] == 50
     assert con.execute("SELECT COUNT(*) FROM paper_metadata").fetchone()[0] == 50
+
+
+def test_gc_spares_recent_feed_and_scoped_rows(tmp_path):
+    """W3-C1: --gc also spares DOIs referenced by recent_feed (W3-E) and the scoped_* tables, each
+    only when the table exists."""
+    con = _con(tmp_path)
+    now = datetime.datetime.now().isoformat(timespec="seconds")
+    con.execute("INSERT INTO paper_metadata (doi, refreshed_at) VALUES ('10.0000/orphan.1', ?)", [now])
+    assert I.gc_orphan_metadata(con) == 1                  # no recent_feed table yet: no error
+    pinned = ("feed.seed.1", "feed.rec.1", "scoped.doi.1", "scoped.seed.1", "scoped.cite.1")
+    for d in pinned + ("orphan.2",):
+        con.execute("INSERT INTO paper_metadata (doi, refreshed_at) VALUES (?, ?)", [f"10.0000/{d}", now])
+    con.execute("CREATE TABLE recent_feed (seed_doi VARCHAR, recommended_doi VARCHAR, pool VARCHAR, rank INTEGER)")
+    con.execute("INSERT INTO recent_feed VALUES ('10.0000/feed.seed.1', '10.0000/feed.rec.1', 'recent', 1)")
+    con.execute("INSERT INTO scoped_candidates (project, scope, doi, source_type, source_seed_doi) "
+                "VALUES ('T', 'resp', '10.0000/scoped.doi.1', 'forward', '10.0000/scoped.seed.1')")
+    con.execute("INSERT INTO scoped_cites (project, scope, citing_doi, cited_doi) "
+                "VALUES ('T', 'resp', '10.0000/x.1', '10.0000/scoped.cite.1')")
+    assert I.gc_orphan_metadata(con) == 1
+    remaining = {r[0] for r in con.execute("SELECT doi FROM paper_metadata").fetchall()}
+    assert remaining == {f"10.0000/{d}" for d in pinned}

@@ -1,0 +1,223 @@
+{
+ "_comment": "Generated from index_portfolio.py at ce0479b (the pre-W3-C1 index) on public_build_fixture.json; rows sorted. Do not hand-edit.",
+ "queries": {
+  "fetch_extension": [
+   [
+    "10.6666/cite.0101",
+    2,
+    40,
+    2010,
+    "",
+    "Citer one",
+    "V1",
+    "A; B"
+   ],
+   [
+    "10.6666/cite.0102",
+    1,
+    12,
+    2011,
+    "",
+    "Citer two",
+    "V2",
+    "C"
+   ],
+   [
+    "10.6666/cite.0103",
+    1,
+    0,
+    0,
+    "",
+    "Citer three",
+    "V3",
+    "D"
+   ],
+   [
+    "10.6666/cite.0104",
+    1,
+    7,
+    2019,
+    "",
+    "Citer four",
+    "V4",
+    "E"
+   ],
+   [
+    "10.7777/ref.0201",
+    2,
+    0,
+    1990,
+    "Ref",
+    "Reference one",
+    "",
+    ""
+   ],
+   [
+    "10.7777/ref.0202",
+    1,
+    0,
+    1991,
+    "Ref",
+    "Reference two",
+    "",
+    ""
+   ],
+   [
+    "10.7777/ref.0203",
+    1,
+    0,
+    0,
+    "Ref",
+    "Reference three",
+    "",
+    ""
+   ]
+  ],
+  "families": [
+   [
+    "10.6666/cite.0101",
+    "10.5555/seed.0001"
+   ],
+   [
+    "10.6666/cite.0101",
+    "10.5555/seed.0002"
+   ],
+   [
+    "10.6666/cite.0101",
+    "10.5555/seed.0003"
+   ],
+   [
+    "10.6666/cite.0102",
+    "10.5555/seed.0001"
+   ],
+   [
+    "10.6666/cite.0103",
+    "10.5555/seed.0002"
+   ],
+   [
+    "10.6666/cite.0104",
+    "10.5555/seed.0002"
+   ],
+   [
+    "10.7777/ref.0201",
+    "10.5555/seed.0001"
+   ],
+   [
+    "10.7777/ref.0201",
+    "10.5555/seed.0002"
+   ],
+   [
+    "10.7777/ref.0201",
+    "10.5555/seed.0003"
+   ],
+   [
+    "10.7777/ref.0202",
+    "10.5555/seed.0001"
+   ],
+   [
+    "10.7777/ref.0203",
+    "10.5555/seed.0002"
+   ]
+  ]
+ },
+ "cites": [
+  [
+   "10.5555/seed.0001",
+   "10.7777/ref.0201",
+   "reverse",
+   "research_pub"
+  ],
+  [
+   "10.5555/seed.0001",
+   "10.7777/ref.0202",
+   "reverse",
+   "research_pub"
+  ],
+  [
+   "10.5555/seed.0002",
+   "10.5555/seed.0001",
+   "reverse",
+   "research_pub"
+  ],
+  [
+   "10.5555/seed.0002",
+   "10.7777/ref.0201",
+   "reverse",
+   "research_pub"
+  ],
+  [
+   "10.5555/seed.0002",
+   "10.7777/ref.0203",
+   "reverse",
+   "research_pub"
+  ],
+  [
+   "10.5555/seed.0003",
+   "10.7777/ref.0201",
+   "reverse",
+   "research_pub"
+  ],
+  [
+   "10.5555/seed.0003",
+   "10.7777/ref.0204",
+   "reverse",
+   "research_pub"
+  ],
+  [
+   "10.6666/cite.0101",
+   "10.5555/seed.0001",
+   "forward",
+   "research_pub"
+  ],
+  [
+   "10.6666/cite.0101",
+   "10.5555/seed.0002",
+   "forward",
+   "research_pub"
+  ],
+  [
+   "10.6666/cite.0101",
+   "10.5555/seed.0003",
+   "forward",
+   "research_pub"
+  ],
+  [
+   "10.6666/cite.0102",
+   "10.5555/seed.0001",
+   "forward",
+   "research_pub"
+  ],
+  [
+   "10.6666/cite.0103",
+   "10.5555/seed.0002",
+   "forward",
+   "research_pub"
+  ],
+  [
+   "10.6666/cite.0104",
+   "10.5555/seed.0002",
+   "forward",
+   "research_pub"
+  ],
+  [
+   "10.6666/cite.0105",
+   "10.5555/seed.0003",
+   "forward",
+   "research_pub"
+  ],
+  [
+   "10.6666/cite.0106",
+   "10.5555/seed.0004",
+   "forward",
+   "research_pub"
+  ]
+ ],
+ "old_counts": {
+  "paper_metadata": 15,
+  "paper_locations": 4,
+  "papers_no_doi": 1,
+  "candidates": 17,
+  "cites": 15,
+  "top_candidates": 11
+ }
+}
