@@ -153,6 +153,8 @@ def test_legacy_outcome_carries_status_and_original_detail():
     ("EMPTY_OR_NON_XML", "fulltext", Kind.OUTAGE),
     ("CONFIG: LITPIPE_EMAIL is not set", "unpaywall", Kind.CONFIG),
     ("NOT_AT_RA", "unpaywall", Kind.NOT_AT_RA),
+    ("SOURCE_EXCLUDED:biorxiv", "preprint", Kind.SKIPPED),        # W2-C forward 2
+    ("SOURCE_EXCLUDED:europepmc_preprints", "preprint", Kind.SKIPPED),
 ])
 def test_typed_tokens_written_by_rewired_stages_keep_their_kind(s, stage, kind):
     assert from_legacy(s, stage) is kind

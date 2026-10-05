@@ -698,6 +698,14 @@ def _pmc_text_only(p):
             and (not klass or klass.startswith("AM")))
 
 
+def _preprint_text_only(r):
+    """TEXT_ONLY for the preprint stage (W2-C writes Europe PMC preprint full text as a text-only
+    `<stem>_preprint.fulltext.json`, outcome NOT_AVAILABLE, sidecar True): the same rule as pmc's
+    without the class test (integration of W2-C and W2-G, 2026-10-05)."""
+    return (_truthy(r.get("sidecar")) and _cell(r, "sidecar_status").upper() in ("OK", "EXISTS")
+            and not _truthy(r.get("downloaded")) and not _cell(r, "identity"))
+
+
 def pmc_verdict(p):
     if p is None:
         return None
@@ -722,7 +730,8 @@ def preprint_verdict(r):
         return Verdict("preprint", Kind.OK, "ALREADY_EXISTS", skip_exists=True)
     return _verdict("preprint", r, _raw(r, "status"), legacy_col="status", flagged=flagged,
                     download_host=_truthy(r.get("found")),
-                    file_col="preprint_filename" if _cell(r, "preprint_filename") else "filename")
+                    file_col="preprint_filename" if _cell(r, "preprint_filename") else "filename",
+                    text_only=_preprint_text_only(r))
 
 
 def fetched_by(v):

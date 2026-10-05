@@ -271,7 +271,9 @@ def _row(web, tmp_path, monkeypatch, name):
 
 def _verdicts(row):
     import sweep
-    legacy = sweep.unpaywall_verdict(row)
+    # since W2-G sweep reads the typed columns itself, so the legacy reading strips them first
+    legacy = sweep.unpaywall_verdict({k: v for k, v in row.items()
+                                      if k not in (*sweep.TYPED_COLUMNS, "ra", "doc_kind")})
     typed = dataclasses.replace(legacy, kind=Kind(row["outcome"]))
     return legacy, typed
 

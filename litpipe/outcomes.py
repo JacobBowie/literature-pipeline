@@ -81,6 +81,7 @@ _DONE_TOKENS = frozenset({"OK", "SKIP_EXISTS", "ALREADY_EXISTS"})  # a file is i
 # Typed tokens the rewired stages write into legacy status columns (W2a): the kind they name wins
 # over any rule below. Checked in this order, so a CONFIG or EMBARGOED token is never masked.
 _TYPED_TOKENS = (
+    ("SOURCE_EXCLUDED", Kind.SKIPPED),     # preprint stage (W2-C): the project does not enable the source
     ("CONFIG", Kind.CONFIG),
     ("EMBARGOED", Kind.EMBARGOED),
     ("DEFERRED", Kind.DEFERRED),
