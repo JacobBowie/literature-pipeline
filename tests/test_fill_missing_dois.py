@@ -1,7 +1,7 @@
-"""Tests for fill_missing_dois.py — filename parsing, type filtering, scoring.
+"""Tests for fill_missing_dois.py: filename parsing, type filtering, scoring.
 
-Network calls (crossref_query, run_project, main) are not exercised here;
-they are covered only by manual smoke runs, not committed to the repo.
+The section 3.6 rule, DEC-20 writing, the network path and the CLI are in
+tests/test_rename_fill.py (W3-D2).
 """
 import json
 
@@ -121,25 +121,40 @@ def _full(score, doi, typ, title, family, year):
     }
 
 
+LONG_T = "A systems model of the effects of training on physical performance"
+
+
 def test_score_high():
+    """Section 3.6: HIGH needs a strict title found in the file's text, plus author, plus year."""
     items = [
-        _full(120, "10.1/a", "journal-article", "T", "Calvert", "1976"),
+        _full(120, "10.1/a", "journal-article", LONG_T, "Calvert", "1976"),
         _full(50,  "10.1/b", "journal-article", "T", "Other",   "1980"),
     ]
-    label, top, _, _ = score_match("1976", "Calvert", items, items)
+    label, top, _, _ = score_match("1976", "Calvert", items, items, evidence=f"Title page\n{LONG_T}\nCalvert TW")
     assert label == "HIGH"
     assert top["doi"] == "10.1/a"
 
 
-def test_score_near_twin_collapse():
-    """Two near-duplicate CrossRef records (same first_family + year) should
-    collapse, not trigger AMBIG even when scores are within 1.10."""
+def test_score_without_evidence_is_never_high():
+    """The old rule (author + year + ratio) is gone: without the file's text nothing is HIGH."""
     items = [
-        _full(100.05, "10.1/a", "journal-article", "T", "Hoeger", "1990"),
-        _full(100.00, "10.1/b", "journal-article", "T", "Hoeger", "1990"),
+        _full(120, "10.1/a", "journal-article", LONG_T, "Calvert", "1976"),
+        _full(50,  "10.1/b", "journal-article", "T", "Other",   "1980"),
     ]
-    label, _, _, _ = score_match("1990", "Hoeger", items, items)
-    assert label == "HIGH"
+    label, _, _, _ = score_match("1976", "Calvert", items, items)
+    assert label == "MED_AUTHOR_ONLY"
+
+
+def test_score_near_twins_are_ambig():
+    """V3-N2: two same-first-author, same-year records within the tie margin are series parts or
+    versions; the near-twin promotion picked one at HIGH (23% wrong). Now AMBIG, even when the
+    title is in the text."""
+    items = [
+        _full(100.05, "10.1/a", "journal-article", LONG_T, "Hoeger", "1990"),
+        _full(100.00, "10.1/b", "journal-article", LONG_T, "Hoeger", "1990"),
+    ]
+    label, _, _, _ = score_match("1990", "Hoeger", items, items, evidence=LONG_T)
+    assert label == "AMBIG"
 
 
 def test_score_ambig_real():
@@ -170,21 +185,22 @@ def test_score_med_author_year_mismatch():
     assert label == "MED_AUTHOR_YEAR_MISMATCH"
 
 
-def test_score_med_type_mismatch():
-    """Only demoted types in raw results → MED_TYPE_MISMATCH."""
-    raw = [_full(150, "10.1/a", "dataset", "T", "X", "2020")]
+def test_score_demoted_only_is_never_a_fallback():
+    """Only demoted types in the hits -> DEMOTED_ONLY (review), never the writable
+    MED_TYPE_MISMATCH (2026-08-17 gotchas: never fall back to a demoted record)."""
+    raw = [_full(150, "10.1/a", "dataset", LONG_T, "X", "2020")]
     pref, _ = filter_by_type(raw)
-    label, _, _, _ = score_match("2020", "X", pref, raw)
-    assert label == "MED_TYPE_MISMATCH"
+    label, _, _, _ = score_match("2020", "X", pref, raw, evidence=LONG_T)
+    assert label == "DEMOTED_ONLY"
 
 
 def test_score_med_title_strong():
-    """No author in record + ratio >= 1.20 + year matches → MED_TITLE_STRONG."""
+    """No author in the record, strict title in the text, year matches -> MED_TITLE_STRONG (review)."""
     items = [
-        _full(150, "10.1/a", "journal-article", "T", "", "2003"),
+        _full(150, "10.1/a", "journal-article", LONG_T, "", "2003"),
         _full(70,  "10.1/b", "journal-article", "T", "Other", "2003"),
     ]
-    label, _, _, _ = score_match("2003", "Bishop", items, items)
+    label, _, _, _ = score_match("2003", "Bishop", items, items, evidence=LONG_T)
     assert label == "MED_TITLE_STRONG"
 
 
@@ -275,13 +291,12 @@ def test_update_sidecar_rejects_malformed_doi(tmp_path):
     assert after["title"] == "Keep"    # nothing written
 
 
-def test_score_med_type_mismatch_demoted_no_corroboration_is_review_only():
-    """Demoted-only hit with NEITHER author nor year agreeing must not return the
-    writable MED_TYPE_MISMATCH label -- it demotes to review-only AMBIG."""
+def test_score_demoted_only_surfaces_the_doi_for_review():
+    """A demoted-only hit is DEMOTED_ONLY whatever agrees, with the DOI kept for the reviewer."""
     raw = [_full(150, "10.1234/a", "dataset", "T", "Zzz", "1990")]
     pref, _ = filter_by_type(raw)
     label, meta, _, _ = score_match("2020", "Bishop", pref, raw)  # author+year both disagree
-    assert label == "AMBIG"
+    assert label == "DEMOTED_ONLY"
     assert meta is not None and meta["doi"] == "10.1234/a"  # DOI still surfaced for the reviewer
 
 

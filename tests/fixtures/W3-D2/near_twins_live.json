@@ -1,0 +1,926 @@
+{
+ "_source": "live probe 2026-10-05 (notes/2026-09-29_update_evidence/W3-D2/live_probe_crossref.json): api.crossref.org/works query.bibliographic rows=8 for the two V3-N2 files, trimmed (first three authors, dates, update-to without timestamps, relation as counts); and /works/10.1159/000151554.",
+ "cases": [
+  {
+   "query": "Law Rna-seq Analysis Is Easy1-2-3 Limma 2016",
+   "rows": "8",
+   "items": [
+    {
+     "DOI": "10.12688/f1000research.9005.2",
+     "type": "journal-article",
+     "score": 40.59968,
+     "title": [
+      "RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR"
+     ],
+     "author": [
+      {
+       "family": "Law",
+       "given": "Charity W.",
+       "name": null
+      },
+      {
+       "family": "Alhamdoosh",
+       "given": "Monther",
+       "name": null
+      },
+      {
+       "family": "Su",
+       "given": "Shian",
+       "name": null
+      }
+     ],
+     "published-online": {
+      "date-parts": [
+       [
+        2016,
+        11,
+        30
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2016,
+        11,
+        30
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2016,
+        11,
+        30
+       ]
+      ]
+     },
+     "container-title": [
+      "F1000Research"
+     ],
+     "update-to": [
+      {
+       "DOI": "10.12688/f1000research.9005.1",
+       "type": "new_version",
+       "label": "New version",
+       "source": "publisher"
+      }
+     ]
+    },
+    {
+     "DOI": "10.12688/f1000research.9005.1",
+     "type": "journal-article",
+     "score": 40.158848,
+     "title": [
+      "RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR"
+     ],
+     "author": [
+      {
+       "family": "Law",
+       "given": "Charity W.",
+       "name": null
+      },
+      {
+       "family": "Alhamdoosh",
+       "given": "Monther",
+       "name": null
+      },
+      {
+       "family": "Su",
+       "given": "Shian",
+       "name": null
+      }
+     ],
+     "published-online": {
+      "date-parts": [
+       [
+        2016,
+        6,
+        17
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2016,
+        6,
+        17
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2016,
+        6,
+        17
+       ]
+      ]
+     },
+     "container-title": [
+      "F1000Research"
+     ],
+     "relation": {
+      "has-review": 6
+     }
+    },
+    {
+     "DOI": "10.5256/f1000research.9688.r14439",
+     "type": "peer-review",
+     "score": 39.730385,
+     "title": [
+      "Peer Review Report For: RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR [version 1; peer review: 3 approved]"
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2016,
+        7,
+        6
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2016,
+        7,
+        6
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2016,
+        7,
+        6
+       ]
+      ]
+     },
+     "relation": {
+      "is-review-of": 1
+     }
+    },
+    {
+     "DOI": "10.5256/f1000research.9688.r14437",
+     "type": "peer-review",
+     "score": 39.02583,
+     "title": [
+      "Peer Review Report For: RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR [version 1; peer review: 3 approved]"
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2016,
+        7,
+        6
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2016,
+        7,
+        6
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2016,
+        7,
+        6
+       ]
+      ]
+     },
+     "relation": {
+      "is-review-of": 2
+     }
+    },
+    {
+     "DOI": "10.5256/f1000research.9688.r14436",
+     "type": "peer-review",
+     "score": 38.458656,
+     "title": [
+      "Peer Review Report For: RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR [version 1; peer review: 3 approved]"
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2016,
+        6,
+        23
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2016,
+        6,
+        23
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2016,
+        6,
+        23
+       ]
+      ]
+     },
+     "relation": {
+      "is-review-of": 1
+     }
+    },
+    {
+     "DOI": "10.7717/peerj.7071/fig-4",
+     "type": "component",
+     "score": 37.321793,
+     "title": [
+      "Figure 4: Comparison of PComp vs.\n                      <i>limma</i>\n                      statistical analysis of RNA-Seq data overlapped with results of the transcriptomic arrays."
+     ],
+     "issued": {
+      "date-parts": [
+       [
+        null
+       ]
+      ]
+     },
+     "relation": {
+      "is-component-of": 1
+     }
+    },
+    {
+     "DOI": "10.7717/peerj.7071/supp-2",
+     "type": "component",
+     "score": 35.926643,
+     "title": [
+      "Table S2: Differentially expressed genes identified by\n                      <i>limma</i>\n                      in RNA-Seq data and transcriptomic array analyses"
+     ],
+     "issued": {
+      "date-parts": [
+       [
+        null
+       ]
+      ]
+     },
+     "relation": {
+      "is-component-of": 1
+     }
+    },
+    {
+     "DOI": "10.12688/f1000research.9005.3",
+     "type": "journal-article",
+     "score": 34.971703,
+     "title": [
+      "RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR"
+     ],
+     "author": [
+      {
+       "family": "Law",
+       "given": "Charity W.",
+       "name": null
+      },
+      {
+       "family": "Alhamdoosh",
+       "given": "Monther",
+       "name": null
+      },
+      {
+       "family": "Su",
+       "given": "Shian",
+       "name": null
+      }
+     ],
+     "published-online": {
+      "date-parts": [
+       [
+        2018,
+        12,
+        28
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2018,
+        12,
+        28
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2018,
+        12,
+        28
+       ]
+      ]
+     },
+     "container-title": [
+      "F1000Research"
+     ],
+     "update-to": [
+      {
+       "DOI": "10.12688/f1000research.9005.1",
+       "type": "new_version",
+       "label": "New version",
+       "source": "publisher"
+      },
+      {
+       "DOI": "10.12688/f1000research.9005.2",
+       "type": "new_version",
+       "label": "New version",
+       "source": "publisher"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "query": "Impellizzeri Training Load Its Role Injury Prevention 2020",
+   "rows": "8",
+   "items": [
+    {
+     "DOI": "10.4085/1062-6050-501-19",
+     "type": "journal-article",
+     "score": 47.89252,
+     "title": [
+      "Training Load and Its Role in Injury Prevention, Part 2: Conceptual and Methodologic Pitfalls"
+     ],
+     "author": [
+      {
+       "family": "Impellizzeri",
+       "given": "Franco M.",
+       "name": null
+      },
+      {
+       "family": "McCall",
+       "given": "Alan",
+       "name": null
+      },
+      {
+       "family": "Ward",
+       "given": "Patrick",
+       "name": null
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        1
+       ]
+      ]
+     },
+     "published-online": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        19
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        1
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        1
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "9",
+      "published-online": {
+       "date-parts": [
+        [
+         2020,
+         9,
+         19
+        ]
+       ]
+      },
+      "published-print": {
+       "date-parts": [
+        [
+         2020,
+         9,
+         1
+        ]
+       ]
+      }
+     },
+     "container-title": [
+      "Journal of Athletic Training"
+     ]
+    },
+    {
+     "DOI": "10.4085/1062-6050-500-19",
+     "type": "journal-article",
+     "score": 47.352715,
+     "title": [
+      "Training Load and Its Role in Injury Prevention, Part I: Back to the Future"
+     ],
+     "author": [
+      {
+       "family": "Impellizzeri",
+       "given": "Franco M.",
+       "name": null
+      },
+      {
+       "family": "Menaspà",
+       "given": "Paolo",
+       "name": null
+      },
+      {
+       "family": "Coutts",
+       "given": "Aaron J.",
+       "name": null
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        1
+       ]
+      ]
+     },
+     "published-online": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        19
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        1
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        1
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "9",
+      "published-online": {
+       "date-parts": [
+        [
+         2020,
+         9,
+         19
+        ]
+       ]
+      },
+      "published-print": {
+       "date-parts": [
+        [
+         2020,
+         9,
+         1
+        ]
+       ]
+      }
+     },
+     "container-title": [
+      "Journal of Athletic Training"
+     ]
+    },
+    {
+     "DOI": "10.4085/1062-6050-1006-21",
+     "type": "journal-article",
+     "score": 40.713295,
+     "title": [
+      "Corrigendum for Impellizzeri FM, McCall A, Ward P, Bornn L, Coutts AJ. Training load and its role in injury prevention, part 2: conceptual and methodologic pitfalls. <i>Journal of Athletic Training</i>. 2020;55(9):893–901"
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2021,
+        5,
+        1
+       ]
+      ]
+     },
+     "published-online": {
+      "date-parts": [
+       [
+        2021,
+        5,
+        17
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2021,
+        5,
+        1
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2021,
+        5,
+        1
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "5",
+      "published-online": {
+       "date-parts": [
+        [
+         2021,
+         5,
+         17
+        ]
+       ]
+      },
+      "published-print": {
+       "date-parts": [
+        [
+         2021,
+         5,
+         1
+        ]
+       ]
+      }
+     },
+     "container-title": [
+      "Journal of Athletic Training"
+     ]
+    },
+    {
+     "DOI": "10.4085/1062-6050-477-19",
+     "type": "journal-article",
+     "score": 32.528946,
+     "title": [
+      "Injury, Illness, and Training Load in a Professional Contemporary Dance Company: A Prospective Study"
+     ],
+     "author": [
+      {
+       "family": "Jeffries",
+       "given": "Annie C.",
+       "name": null
+      },
+      {
+       "family": "Wallace",
+       "given": "Lee",
+       "name": null
+      },
+      {
+       "family": "Coutts",
+       "given": "Aaron J.",
+       "name": null
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2020,
+        9,
+        1
+       ]
+      ]
+     },
+     "published-online": {
+      "date-parts": [
+       [
+        2020,
+        8,
+        20
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2020,
+        8,
+        20
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2020,
+        8,
+        20
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "9",
+      "published-online": {
+       "date-parts": [
+        [
+         2020,
+         8,
+         20
+        ]
+       ]
+      },
+      "published-print": {
+       "date-parts": [
+        [
+         2020,
+         9,
+         1
+        ]
+       ]
+      }
+     },
+     "container-title": [
+      "Journal of Athletic Training"
+     ]
+    },
+    {
+     "DOI": "10.2519/jospt.2020.9675",
+     "type": "journal-article",
+     "score": 32.22387,
+     "title": [
+      "Training Load and Injury Part 1: The Devil Is in the Detail—Challenges to Applying the Current Research in the Training Load and Injury Field"
+     ],
+     "author": [
+      {
+       "family": "Impellizzeri",
+       "given": "Franco M.",
+       "name": null
+      },
+      {
+       "family": "Ward",
+       "given": "Patrick",
+       "name": null
+      },
+      {
+       "family": "Coutts",
+       "given": "Aaron J.",
+       "name": null
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2020,
+        10
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2020,
+        10
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2020,
+        10
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "10",
+      "published-print": {
+       "date-parts": [
+        [
+         2020,
+         10
+        ]
+       ]
+      }
+     },
+     "container-title": [
+      "Journal of Orthopaedic &amp; Sports Physical Therapy"
+     ]
+    },
+    {
+     "DOI": "10.1136/bjsports-2019-101710",
+     "type": "journal-article",
+     "score": 31.463058,
+     "title": [
+      "‘Training load error’ is not a more accurate term than ‘overuse’ injury"
+     ],
+     "author": [
+      {
+       "family": "Kalkhoven",
+       "given": "Judd",
+       "name": null
+      },
+      {
+       "family": "Coutts",
+       "given": "Aaron James",
+       "name": null
+      },
+      {
+       "family": "Impellizzeri",
+       "given": "Franco M",
+       "name": null
+      }
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2020,
+        8
+       ]
+      ]
+     },
+     "published-online": {
+      "date-parts": [
+       [
+        2020,
+        2,
+        24
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2020,
+        2,
+        24
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2020,
+        2,
+        24
+       ]
+      ]
+     },
+     "journal-issue": {
+      "issue": "15",
+      "published-online": {
+       "date-parts": [
+        [
+         2020,
+         7,
+         17
+        ]
+       ]
+      },
+      "published-print": {
+       "date-parts": [
+        [
+         2020,
+         8
+        ]
+       ]
+      }
+     },
+     "container-title": [
+      "British Journal of Sports Medicine"
+     ]
+    },
+    {
+     "DOI": "10.3390/books978-3-0365-3126-7",
+     "type": "edited-book",
+     "score": 31.167055,
+     "title": [
+      "Training Load and Performance Monitoring, Recovery, Wellbeing, Illness and Injury Prevention"
+     ],
+     "published-print": {
+      "date-parts": [
+       [
+        2022,
+        2,
+        16
+       ]
+      ]
+     },
+     "published": {
+      "date-parts": [
+       [
+        2022,
+        2,
+        16
+       ]
+      ]
+     },
+     "issued": {
+      "date-parts": [
+       [
+        2022,
+        2,
+        16
+       ]
+      ]
+     }
+    },
+    {
+     "DOI": "10.5463/thesis.506",
+     "type": "dissertation",
+     "score": 31.095541,
+     "title": [
+      "Injury prevention in fitness and strength training."
+     ],
+     "subtitle": [
+      "Technology for musculoskeletal load optimization"
+     ],
+     "author": [
+      {
+       "family": "Noteboom",
+       "given": "Lisa",
+       "name": null
+      }
+     ],
+     "issued": {
+      "date-parts": [
+       [
+        null
+       ]
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "muendel": {
+  "DOI": "10.1159/000151554",
+  "type": "book-chapter",
+  "score": 1,
+  "title": [
+   "Exercise Heat Stress and Metabolism"
+  ],
+  "author": [
+   {
+    "family": "M&uuml;ndel",
+    "given": "Toby",
+    "name": null
+   }
+  ],
+  "published-print": {
+   "date-parts": [
+    [
+     2008
+    ]
+   ]
+  },
+  "published": {
+   "date-parts": [
+    [
+     2008
+    ]
+   ]
+  },
+  "issued": {
+   "date-parts": [
+    [
+     2008
+    ]
+   ]
+  },
+  "container-title": [
+   "Medicine and Sport Science",
+   "Thermoregulation and Human Performance"
+  ]
+ }
+}

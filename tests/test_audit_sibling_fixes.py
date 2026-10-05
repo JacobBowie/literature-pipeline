@@ -141,15 +141,11 @@ def test_pipeline_check_stage4b_passes_empty_lib(tmp_path):
 
 # Every fetcher module that binds a module-level EMAIL fallback; jats_to_text is excluded
 # (its mailto is inline in _smoke_test, not a module constant).
-_EMAIL_MODULES = [
-    "audit_filenames",
-    "fill_missing_dois",
-    # left in W2a: pmc_fetch (W2-A1), backfill_fulltext, harvest_citations, recheck_pmc (W2-A2),
-    # unpaywall_fetch_v2 (W2-B) and ris_emit (W2-E1); in W2b: backfill_ris, enrich_abstracts (W2-E2), forward_citations (W2-D2), preprint_fetch (W2-C).
-    # They bind no EMAIL; litpipe.net injects identity (DEC-13; pinned below and by test_w2e1_net.py,
-    # test_unpaywall_stage_has_no_email_constant). Modules move to _REWIRED as W2/W3 rewire them onto litpipe.net.
-]
-_REWIRED = ["backfill_ris", "enrich_abstracts", "forward_citations", "preprint_fetch", "import_downloads", "enrich_recommendations"]
+# Every fetcher now runs on litpipe.net and binds no EMAIL/UA of its own (DEC-13): W2a pmc_fetch,
+# backfill_fulltext, harvest_citations, recheck_pmc, unpaywall_fetch_v2, ris_emit; W2b and W3a the
+# modules below. The old single-source EMAIL pin (_EMAIL_MODULES) is retired with its last module.
+_REWIRED = ["backfill_ris", "enrich_abstracts", "forward_citations", "preprint_fetch", "import_downloads", "enrich_recommendations",
+            "audit_filenames", "fill_missing_dois"]
 
 
 @pytest.mark.parametrize("modname", _REWIRED)
@@ -159,12 +155,6 @@ def test_rewired_module_binds_no_email_constant(modname):
     assert not hasattr(m, "EMAIL") and not hasattr(m, "UA")
 
 
-@pytest.mark.parametrize("modname", _EMAIL_MODULES)
-def test_email_is_single_sourced(modname):
-    """Each fetcher's EMAIL is the env override or lit_util.DEFAULT_EMAIL -- never a
-    divergent literal. The env-unset fallback routes through the one constant."""
-    m = importlib.import_module(modname)
-    assert m.EMAIL == os.environ.get("LITPIPE_EMAIL", lit_util.DEFAULT_EMAIL)
 
 
 def test_default_email_has_no_code_default_and_no_literal():

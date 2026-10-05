@@ -1,0 +1,93 @@
+{
+ "_source": "V3 raw/s60_ap8_summary.json wrong_rows (09-04 run, status HIGH, applied) joined with the remediated live sidecars (doi = the .ris DOI, doi_unverified_match = the wrong match); read-only 2026-10-05. 11 of 12 found on disk (the limma file is in near_twins.json).",
+ "rows": [
+  {
+   "filename": "1973_Hellier_InterrelationshipsGlucoseAminoAcidTransportHuman.pdf",
+   "match_doi": "10.1016/s0016-5085(19)33041-0",
+   "ris_doi": "10.1136/gut.14.1.41",
+   "ris_title": "The effect of amino acids and dipeptides on sodium and water absorption in man",
+   "ris_year": 1973,
+   "ratio": 1.1284
+  },
+  {
+   "filename": "2020_Impellizzeri_TrainingLoadItsRoleInjuryPrevention.pdf",
+   "match_doi": "10.4085/1062-6050-501-19",
+   "ris_doi": "10.4085/1062-6050-500-19",
+   "ris_title": "Training Load and Its Role in Injury Prevention, Part I: Back to the Future",
+   "ris_year": 2020,
+   "ratio": 1.0091
+  },
+  {
+   "filename": "2023_Peden_Post-exerciseRehydrationComparingEfficacyThreeCommercial.pdf",
+   "match_doi": "10.1249/01.mss.0000982372.30957.72",
+   "ris_doi": "10.3389/fspor.2023.1158167",
+   "ris_title": "Post-exercise rehydration: Comparing the efficacy of three commercial oral rehydration solutions",
+   "ris_year": 2023,
+   "ratio": 1.0214
+  },
+  {
+   "filename": "2025_Zheng_LifelongLearningLargeLanguageModelBased_preprint.pdf",
+   "match_doi": "10.1145/3716629",
+   "ris_doi": "10.1109/tpami.2025.3650546",
+   "ris_title": "Lifelong Learning of Large Language Model Based Agents: A Roadmap",
+   "ris_year": 2026,
+   "ratio": "inf"
+  },
+  {
+   "filename": "2026_Dong_3111408-to-13569tokenS.pdf",
+   "match_doi": "10.1016/j.chempr.2026.103156",
+   "ris_doi": "10.1109/isscc49663.2026.11409211",
+   "ris_title": "31.1 A 14.08-to-135.69Token/s ReRAM-on-Logic Stacked Outlier-Free Large-Language-Model Accelerator with Block-Clustered Weight-Compression and Adaptive Parallel-Speculative-Decoding",
+   "ris_year": 2026,
+   "ratio": 1.0314
+  },
+  {
+   "filename": "2022_Yue_Trpv1DrugsAlterCoreBodyTemperature.pdf",
+   "match_doi": "10.7554/elife.80139",
+   "ris_doi": "10.1101/2022.05.09.491211",
+   "ris_title": "TRPV1 drugs alter core body temperature via central projections of primary afferent sensory neurons",
+   "ris_year": 2022,
+   "ratio": "inf"
+  },
+  {
+   "filename": "2023_Brimicombe_WetBulbGlobeTemperatureIndicatingExtreme.pdf",
+   "match_doi": "10.1029/2022gh000701",
+   "ris_doi": "10.1080/15459620802310770",
+   "ris_title": "Modeling the Wet Bulb Globe Temperature Using Standard Meteorological Measurements",
+   "ris_year": 2008,
+   "ratio": 1.3328
+  },
+  {
+   "filename": "2023_Yahiro_TwoAscendingThermosensoryPathwaysLateralParabrachial.pdf",
+   "match_doi": "10.1523/jneurosci.0643-23.2023",
+   "ris_doi": "10.1101/2023.04.10.536301",
+   "ris_title": "Two Ascending Thermosensory Pathways from the Lateral Parabrachial Nucleus That Mediate Behavioral and Autonomous Thermoregulation",
+   "ris_year": 2023,
+   "ratio": 1.26
+  },
+  {
+   "filename": "2024_Estevao_ImpactHeatStressHumanPlasmaLipidome.pdf",
+   "match_doi": "10.1186/s12944-024-02322-7",
+   "ris_doi": "10.21203/rs.3.rs-4548154/v1",
+   "ris_title": "The impact of heat stress on the human plasma lipidome",
+   "ris_year": 2024,
+   "ratio": 1.1742
+  },
+  {
+   "filename": "2022_Nobari_AreAcuteChronicWorkloadRatiosPerceived.pdf",
+   "match_doi": "10.3389/fpsyg.2022.860888",
+   "ris_doi": "10.1186/s13102-022-00445-x",
+   "ris_title": "Are acute:chronic workload ratios of perceived exertion and running based variables sensible to detect variations between player positions over the season? A soccer team study",
+   "ris_year": 2022,
+   "ratio": 1.3236
+  },
+  {
+   "filename": "2024_Ashworth_ThermalToleranceCanBeMaintainedEnhanced.pdf",
+   "match_doi": "10.18276/cej.2024.3-06",
+   "ris_doi": "10.1080/23328940.2019.1666624",
+   "ris_title": "Heat alleviation strategies for athletic performance: A review and practitioner guidelines",
+   "ris_year": 2020,
+   "ratio": 1.6802
+  }
+ ]
+}

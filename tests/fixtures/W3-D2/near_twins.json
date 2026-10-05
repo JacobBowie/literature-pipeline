@@ -1,0 +1,161 @@
+{
+ "_source": "notes/2026-09-25_endpoint_docs/stage3/V3/raw/s70_queries.json (fill_missing_dois replay, recorded 2026-09-25; the V3-N2 near-twin cases). Items rebuilt as Crossref work items from the recorded top5 (DOI, score, type, title) plus the recorded first author and year of the top two.",
+ "cases": [
+  {
+   "file": "2016_Law_Rna-seqAnalysisIsEasy1-2-3Limma.pdf",
+   "query": "Law Rna-seq Analysis Is Easy1-2-3 Limma 2016",
+   "report_doi_0904": "10.12688/f1000research.9005.2",
+   "ratio_recorded": 1.0002,
+   "items": [
+    {
+     "DOI": "10.12688/f1000research.9005.1",
+     "score": 40.509808,
+     "type": "journal-article",
+     "title": [
+      "RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR"
+     ],
+     "author": [
+      {
+       "family": "Law",
+       "given": ""
+      }
+     ],
+     "issued": {
+      "date-parts": [
+       [
+        2016
+       ]
+      ]
+     }
+    },
+    {
+     "DOI": "10.12688/f1000research.9005.2",
+     "score": 40.500896,
+     "type": "journal-article",
+     "title": [
+      "RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR"
+     ],
+     "author": [
+      {
+       "family": "Law",
+       "given": ""
+      }
+     ],
+     "issued": {
+      "date-parts": [
+       [
+        2016
+       ]
+      ]
+     }
+    },
+    {
+     "DOI": "10.5256/f1000research.9688.r14439",
+     "score": 39.654633,
+     "type": "peer-review",
+     "title": [
+      "Peer Review Report For: RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR [version 1; peer review: 3 approv"
+     ]
+    },
+    {
+     "DOI": "10.5256/f1000research.9688.r14437",
+     "score": 38.95259,
+     "type": "peer-review",
+     "title": [
+      "Peer Review Report For: RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR [version 1; peer review: 3 approv"
+     ]
+    },
+    {
+     "DOI": "10.5256/f1000research.9688.r14436",
+     "score": 38.392365,
+     "type": "peer-review",
+     "title": [
+      "Peer Review Report For: RNA-seq analysis is easy as 1-2-3 with limma, Glimma and edgeR [version 1; peer review: 3 approv"
+     ]
+    }
+   ]
+  },
+  {
+   "file": "2020_Impellizzeri_TrainingLoadItsRoleInjuryPrevention.pdf",
+   "query": "Impellizzeri Training Load Its Role Injury Prevention 2020",
+   "report_doi_0904": "10.4085/1062-6050-501-19",
+   "ratio_recorded": 1.0114,
+   "items": [
+    {
+     "DOI": "10.4085/1062-6050-501-19",
+     "score": 47.86191,
+     "type": "journal-article",
+     "title": [
+      "Training Load and Its Role in Injury Prevention, Part 2: Conceptual and Methodologic Pitfalls"
+     ],
+     "author": [
+      {
+       "family": "Impellizzeri",
+       "given": ""
+      }
+     ],
+     "issued": {
+      "date-parts": [
+       [
+        2020
+       ]
+      ]
+     }
+    },
+    {
+     "DOI": "10.4085/1062-6050-500-19",
+     "score": 47.321873,
+     "type": "journal-article",
+     "title": [
+      "Training Load and Its Role in Injury Prevention, Part I: Back to the Future"
+     ],
+     "author": [
+      {
+       "family": "Impellizzeri",
+       "given": ""
+      }
+     ],
+     "issued": {
+      "date-parts": [
+       [
+        2020
+       ]
+      ]
+     }
+    },
+    {
+     "DOI": "10.4085/1062-6050-1006-21",
+     "score": 40.66669,
+     "type": "journal-article",
+     "title": [
+      "Corrigendum for Impellizzeri FM, McCall A, Ward P, Bornn L, Coutts AJ. Training load and its role in injury prevention, "
+     ]
+    },
+    {
+     "DOI": "10.4085/1062-6050-477-19",
+     "score": 32.53114,
+     "type": "journal-article",
+     "title": [
+      "Injury, Illness, and Training Load in a Professional Contemporary Dance Company: A Prospective Study"
+     ]
+    },
+    {
+     "DOI": "10.2519/jospt.2020.9675",
+     "score": 32.102993,
+     "type": "journal-article",
+     "title": [
+      "Training Load and Injury Part 1: The Devil Is in the Detail—Challenges to Applying the Current Research in the Training "
+     ]
+    }
+   ]
+  }
+ ],
+ "impellizzeri_corrigendum": {
+  "DOI": "10.4085/1062-6050-1006-21",
+  "score": 59.81819,
+  "type": "journal-article",
+  "title": [
+   "Corrigendum for Impellizzeri FM, McCall A, Ward P, Bornn L, Coutts AJ. Training load and its role in"
+  ]
+ }
+}
