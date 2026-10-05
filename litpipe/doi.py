@@ -27,7 +27,9 @@ in the section 2.3 order:
 Pure: stdlib only, no network, no I/O, and no import of lit_util (lit_util imports this module).
 
 Standards (read 2026-09-30):
-- DOI Handbook (DOI Foundation, 2025-12-01 PDF, https://www.doi.org/doi-handbook/DOIHandbook_2025.pdf)
+- DOI Handbook (DOI Foundation, 2025 PDF, the version of record: "Publication date: September 2025";
+  landing page "Updated December 10, 2025", re-checked 2026-10-05; https://www.doi.org/doi-handbook/DOIHandbook_2025.pdf;
+  offline copy reference/doi_org/DOIHandbook_2025.md)
   4.3.1 "A DOI name consists of an ordered sequence of code points of the Graphic type ... arranged
   in a DOI prefix and a DOI suffix separated by U+002F SOLIDUS." 4.3.2 "The directory indicator ...
   is usually equal to '10' ... The registrant code consists of sequences of digits". 4.4.1 (the

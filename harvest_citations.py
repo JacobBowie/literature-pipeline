@@ -213,7 +213,8 @@ def fallback_meta_from_file(parsed: dict) -> dict:
         "authors":  authors,
         "container": "", "volume": "", "issue": "", "page": "",
         "issn": "", "abstract": "",
-        "url":      f"https://doi.org/{parsed['doi']}" if parsed.get("doi") else "",
+        # DOI Handbook 4.7: a DOI in a URL path is percent-encoded (ris_emit's one encoder)
+        "url":      R._doi_url(parsed["doi"]) if parsed.get("doi") else "",
         "type":     "journal-article",
     }
 

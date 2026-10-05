@@ -254,3 +254,16 @@ def test_same_doi_twice_is_still_dup_skip(monkeypatch, tmp_path):
     rows = list(csv.DictReader(open(out / "_index.csv", encoding="utf-8")))
     assert sorted(r["status"] for r in rows) == ["DUP_SKIP", "WROTE"]
     assert len(list(out.glob("*.ris"))) == 1
+
+
+def test_fallback_url_percent_encodes_the_doi():
+    """DOI Handbook 4.7: a DOI in a URL path is percent-encoded; the fallback record's UR link used
+    to carry a raw SICI DOI (`<` and `>` break the link). Same encoder as ris_emit. The DOI is a real
+    one from the index (2026-10-05 census: 30 SICI DOIs, none truncated)."""
+    sici = "10.1002/(sici)1097-4598(199709)20:9<1115::aid-mus4>3.0.co;2-b"
+    meta = H.fallback_meta_from_file({"doi": sici, "title": "T", "year": "1997", "authors_raw": ["Doe, J"]})
+    assert meta["url"] == R._doi_url(sici)
+    assert meta["url"].startswith("https://doi.org/10.1002/")
+    assert "<" not in meta["url"] and ">" not in meta["url"]
+    assert "%3C1115" in meta["url"] and "%3E3.0.co" in meta["url"]
+    assert H.fallback_meta_from_file({"title": "T"})["url"] == ""
