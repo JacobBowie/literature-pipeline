@@ -15,6 +15,24 @@ if str(REPO_ROOT) not in sys.path:
 # Hosts a net_env test may reach: loopback mocks, and a name whose DNS failure a test simulates.
 OFFLINE_HOSTS = frozenset({"127.0.0.1", "127.0.0.2", "127.0.0.3", "dns-fail.test"})
 
+# The real state dir (litpipe.config's default state_dir). The suite must never create it: a test
+# that resolves state without a registry (state, the holdings cache, preflight) would.
+REAL_STATE_DIR = Path.home() / ".local" / "db" / "literature_pipeline"
+
+
+def pytest_sessionstart(session):
+    session.config._litpipe_real_state_existed = REAL_STATE_DIR.exists()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Fail the run if it created the real state dir (it did not exist when the session started)."""
+    existed = getattr(session.config, "_litpipe_real_state_existed", True)
+    if not existed and REAL_STATE_DIR.exists():
+        sys.stderr.write(f"\nERROR: the test run created the real state dir {REAL_STATE_DIR}; a test resolved "
+                         "litpipe state or the holdings cache without a temp registry. Find it, then delete "
+                         "the dir by hand.\n")
+        session.exitstatus = 1
+
 
 @pytest.fixture(autouse=True)
 def _litpipe_net_isolation(tmp_path_factory, monkeypatch):
@@ -30,6 +48,12 @@ def _litpipe_net_isolation(tmp_path_factory, monkeypatch):
         return
     monkeypatch.setattr(ledger, "LEDGER_DIR", tmp_path_factory.mktemp("ledger"))
     monkeypatch.setattr(net, "STATE", netmock.FakeState(netmock.FakeClock()))
+    # A direct `litpipe.state` call (kv for the .ris manifest, refusals, runs) resolves
+    # config.state_dir(), which with no registry is the REAL ~/.local/db/literature_pipeline: give
+    # every test a temp state file instead. A test that wants the configured path sets
+    # state.DB_PATH = None itself (tests/test_litpipe_state.py's isolated_state does).
+    from litpipe import state as _state
+    monkeypatch.setattr(_state, "DB_PATH", tmp_path_factory.mktemp("state") / _state.DB_NAME)
     # No live network (dispatch 0.2), with or without net_env: a transport asked for any host but
     # the loopback mocks fails the test instead of sending. Tests that stub a transport replace
     # these entries and never reach the guard.
