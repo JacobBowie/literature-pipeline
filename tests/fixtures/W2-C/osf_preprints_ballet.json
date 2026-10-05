@@ -1,0 +1,218 @@
+{
+ "data": [
+  {
+   "id": "fkdby_v1",
+   "type": "preprints",
+   "attributes": {
+    "date_created": "2021-08-09T13:35:04.692398",
+    "date_modified": "2021-08-11T15:14:46.260574",
+    "date_published": "2021-08-11T15:14:14.476222",
+    "original_publication_date": null,
+    "custom_publication_citation": null,
+    "doi": null,
+    "title": "The Demands of a Professional Ballet Schedule: A Five-Season Analysis",
+    "description": "Periodizing rehearsal and performance schedules in professional ballet is difficult given a lack of published longitudin",
+    "is_published": true,
+    "is_preprint_orphan": false,
+    "license_record": {
+     "copyright_holders": [
+      "Joseph Shaw"
+     ],
+     "year": "2021"
+    },
+    "tags": [
+     "Athlete Monitoring",
+     "Dance",
+     "Injury and Prevention",
+     "Periodization",
+     "Training Load"
+    ],
+    "preprint_doi_created": "2021-08-11T15:14:46.239467",
+    "date_withdrawn": null,
+    "current_user_permissions": [],
+    "public": true,
+    "reviews_state": "accepted",
+    "date_last_transitioned": "2021-08-11T15:14:14.476222",
+    "version": 1,
+    "is_latest_version": true,
+    "has_coi": false,
+    "conflict_of_interest_statement": null,
+    "has_data_links": "no",
+    "why_no_data": null,
+    "data_links": [],
+    "has_prereg_links": "no",
+    "why_no_prereg": null,
+    "prereg_links": [],
+    "prereg_link_info": "",
+    "default_license_id": "563c1cf88c5e4a3877f9e96a",
+    "subjects": [
+     [
+      {
+       "id": "5995e3a754be8104361ac1bf",
+       "text": "Theatre and Performance Studies"
+      },
+      {
+       "id": "5995e3a754be8104361ac1c0",
+       "text": "Dance"
+      }
+     ],
+     [
+      {
+       "id": "5995e3a754be8104361ac1c3",
+       "text": "Sport and Exercise Science"
+      },
+      {
+       "id": "5995e3a754be8104361ac1d0",
+       "text": "Other Sport and Exercise Science"
+      }
+     ]
+    ]
+   },
+   "relationships": {
+    "contributors": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/contributors/",
+       "meta": {}
+      }
+     }
+    },
+    "bibliographic_contributors": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/bibliographic_contributors/",
+       "meta": {}
+      }
+     }
+    },
+    "versions": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/versions/",
+       "meta": {}
+      }
+     }
+    },
+    "citation": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/citation/",
+       "meta": {}
+      }
+     },
+     "data": {
+      "id": "fkdby_v1",
+      "type": "citation"
+     }
+    },
+    "identifiers": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/identifiers/",
+       "meta": {}
+      }
+     }
+    },
+    "node": {
+     "links": {
+      "self": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/relationships/node/",
+       "meta": {}
+      }
+     }
+    },
+    "license": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/licenses/563c1cf88c5e4a3877f9e965/",
+       "meta": {}
+      }
+     },
+     "data": {
+      "id": "563c1cf88c5e4a3877f9e965",
+      "type": "licenses"
+     }
+    },
+    "provider": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/providers/preprints/sportrxiv/",
+       "meta": {}
+      }
+     },
+     "data": {
+      "id": "sportrxiv",
+      "type": "preprint-providers"
+     }
+    },
+    "files": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/files/",
+       "meta": {}
+      }
+     }
+    },
+    "primary_file": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/files/61112f14e38013042f960b92/",
+       "meta": {}
+      }
+     },
+     "data": {
+      "id": "61112f14e38013042f960b92",
+      "type": "files"
+     }
+    },
+    "review_actions": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/review_actions/",
+       "meta": {}
+      }
+     }
+    },
+    "requests": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/requests/",
+       "meta": {}
+      }
+     }
+    },
+    "affiliated_institutions": {
+     "links": {
+      "related": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/institutions/",
+       "meta": {}
+      },
+      "self": {
+       "href": "https://api.osf.io/v2/preprints/fkdby_v1/relationships/institutions/",
+       "meta": {}
+      }
+     }
+    }
+   },
+   "links": {
+    "self": "https://api.osf.io/v2/preprints/fkdby_v1/",
+    "html": "https://osf.io/preprints/sportrxiv/fkdby_v1/",
+    "preprint_doi": "https://doi.org/10.31236/osf.io/fkdby",
+    "iri": "https://osf.io/fkdby"
+   }
+  }
+ ],
+ "links": {
+  "first": null,
+  "last": null,
+  "prev": null,
+  "next": null,
+  "meta": {
+   "total": 1,
+   "per_page": 3
+  }
+ },
+ "meta": {
+  "version": "2.0"
+ }
+}

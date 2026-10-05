@@ -1,0 +1,17 @@
+{
+ "status": 406,
+ "body_bytes": 0,
+ "headers": {
+  "Connection": "keep-alive",
+  "cache-control": "private, no-store",
+  "Accept-Ranges": "bytes",
+  "Via": "1.1 varnish, 1.1 varnish",
+  "Date": "Fri, 25 Sep 2026 16:55:39 GMT",
+  "X-Served-By": "cache-lga-kjfk8660038-LGA, cache-lga-kjfk8660038-LGA, cache-iad-kiad7000025-IAD",
+  "X-Cache": "MISS, MISS",
+  "X-Cache-Hits": "0, 0",
+  "X-Timer": "S1790355339.476439,VS0,VE18",
+  "Strict-Transport-Security": "max-age=300",
+  "transfer-encoding": "chunked"
+ }
+}

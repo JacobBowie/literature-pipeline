@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <link href="http://arxiv.org/api/query?id_list=2103.00020,hep-ex/0307015" rel="self" type="application/atom+xml"/>
+  <title type="html">ArXiv Query: id_list=2103.00020,hep-ex/0307015</title>
+  <id>http://arxiv.org/api/synthetic-fixture</id>
+  <updated>2026-09-25T00:00:00-04:00</updated>
+  <opensearch:totalResults>2</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <opensearch:itemsPerPage>2</opensearch:itemsPerPage>
+  <entry>
+    <id>http://arxiv.org/abs/2103.00020v1</id>
+    <updated>2021-02-26T17:04:58Z</updated>
+    <published>2021-02-26T17:04:58Z</published>
+    <title>Learning Transferable Visual Models From Natural
+      Language Supervision</title>
+    <summary>(cut)</summary>
+    <author><name>Alec Radford</name></author>
+    <author><name>Jong Wook Kim</name></author>
+    <arxiv:doi>10.1145/nnnnnnn.nnnnnnn</arxiv:doi>
+    <link href="http://arxiv.org/abs/2103.00020v1" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2103.00020v1" rel="related" type="application/pdf"/>
+    <arxiv:primary_category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/hep-ex/0307015v1</id>
+    <updated>2003-07-07T13:46:39-04:00</updated>
+    <published>2003-07-07T13:46:39-04:00</published>
+    <title>Multi-Electron Production at High Transverse Momenta in ep Collisions at HERA</title>
+    <summary>(cut)</summary>
+    <author><name>H1 Collaboration</name></author>
+    <arxiv:doi>10.1140/epjc/s2003-01326-x</arxiv:doi>
+    <link href="http://arxiv.org/abs/hep-ex/0307015v1" rel="alternate" type="text/html"/>
+    <arxiv:primary_category term="hep-ex" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+</feed>

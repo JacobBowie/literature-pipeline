@@ -1,0 +1,4 @@
+{
+ "errCode": 404,
+ "errMsg": "Invalid page size provided. Valid size is between 1 and 1000"
+}

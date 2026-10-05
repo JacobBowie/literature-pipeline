@@ -1,0 +1,86 @@
+{
+ "version": "6.9",
+ "hitCount": 1,
+ "request": {
+  "queryString": "DOI:\"10.1101/2025.11.04.686534\" AND SRC:PPR",
+  "resultType": "core",
+  "cursorMark": "*",
+  "pageSize": 5,
+  "sort": "",
+  "synonym": false
+ },
+ "resultList": {
+  "result": [
+   {
+    "id": "PPR1114009",
+    "source": "PPR",
+    "fullTextIdList": {
+     "fullTextId": [
+      "PPR1114009"
+     ]
+    },
+    "doi": "10.1101/2025.11.04.686534",
+    "title": "Muscle Fiber- and Cell Type-Specificity of Training Adaptation in Male Mice",
+    "authorString": "Dilbaz S, Baraldo M, Škrinjar P, Adak V, Furrer R, Stein A, Steurer SA, Santos G, Handschin C.",
+    "pubYear": "2025",
+    "pubTypeList": {
+     "pubType": [
+      "Preprint"
+     ]
+    },
+    "bookOrReportDetails": {
+     "publisher": "bioRxiv",
+     "yearOfPublication": 2025
+    },
+    "fullTextUrlList": {
+     "fullTextUrl": [
+      {
+       "availability": "Free",
+       "availabilityCode": "F",
+       "documentStyle": "doi",
+       "site": "DOI",
+       "url": "https://doi.org/10.1101/2025.11.04.686534"
+      },
+      {
+       "availability": "Open access",
+       "availabilityCode": "OA",
+       "documentStyle": "html",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/article/PPR/PPR1114009"
+      },
+      {
+       "availability": "Open access",
+       "availabilityCode": "OA",
+       "documentStyle": "pdf",
+       "site": "Europe_PMC",
+       "url": "https://europepmc.org/api/fulltextRepo?pprId=PPR1114009&type=FILE&fileName=EMS210407-pdf.pdf&mimeType=application/pdf"
+      }
+     ]
+    },
+    "isOpenAccess": "Y",
+    "inEPMC": "Y",
+    "inPMC": "N",
+    "citedByCount": 0,
+    "hasReferences": "N",
+    "hasTextMinedTerms": "Y",
+    "hasDbCrossReferences": "N",
+    "hasPDF": "Y",
+    "hasBook": "N",
+    "hasSuppl": "N",
+    "hasLabsLinks": "Y",
+    "hasData": "Y",
+    "license": "cc by-nc-nd",
+    "authMan": "N",
+    "epmcAuthMan": "Y",
+    "nihAuthMan": "N",
+    "manuscriptId": "EMS210407",
+    "hasTMAccessionNumbers": "Y",
+    "dateOfCreation": "2025-11-06",
+    "firstPublicationDate": "2025-11-05",
+    "firstIndexDate": "2025-11-06",
+    "fullTextReceivedDate": "2025-11-25",
+    "hasEvaluations": "N"
+   }
+  ]
+ }
+}

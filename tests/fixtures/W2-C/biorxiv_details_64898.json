@@ -1,0 +1,42 @@
+{
+ "messages": [
+  {
+   "status": "ok",
+   "category": "all"
+  }
+ ],
+ "collection": [
+  {
+   "title": "Molecular Transducers of Physical Activity Consortium: Initial Insights into the Dynamic Human Responses to Exercise",
+   "authors": "Consortium Study Group,  ; Brandt, A. R.; Fleg, J.; Goodpaster, B. H.; Jaeger, B.; Jin, C. A.; Johannsen, N. M.; Katz, D.; Keshishian, H.; Kohrt, W. M.; Kraus, W. E.; Lester, B.; Melanson, E. L.; Miller, M. E.; Montalvo, S.; Rejeski, W. J.; Shimly, S. M.; Smith, G. R.; Stowe, C. L.; Trappe, S.; AbouAssi, H.; Adams, N.; Amar, D.; Ashley, E.; Aslamy, A.; Bamman, M. M.; Belangee, A.; Bennett, W.; Bergman, B. C.; Bessesen, D. H.; Bodine, S. C.; Boyd, G.; Buford, T. W.; Burant, C. F.; Carnero, E. A.; Carr, S.; Chambers, T. L.; Chavez, C.; Chen, H.; Chen, S.-H.; Christle, J. W.; Claiborne, A.; Clark, N",
+   "author_corresponding": "Scott Trappe",
+   "author_corresponding_institution": "Ball State University, Muncie, IN",
+   "doi": "10.64898/2026.03.02.705347",
+   "date": "2026-03-05",
+   "version": "1",
+   "type": "new results",
+   "license": "cc_by",
+   "category": "systems biology",
+   "jatsxml": "https://www.biorxiv.org/content/early/2026/03/05/2026.03.02.705347.source.xml",
+   "abstract": "The goal of the Molecular Transducers of Physical Activity Consortium is to examine the physiological and mole",
+   "published": "NA",
+   "server": "bioRxiv"
+  },
+  {
+   "title": "Molecular Transducers of Physical Activity Consortium: Initial Insights into the Dynamic Human Responses to Exercise",
+   "authors": "Consortium Study Group,  ; Brandt, A. R.; Fleg, J.; Goodpaster, B. H.; Jaeger, B.; Jin, C. A.; Johannsen, N. M.; Katz, D.; Keshishian, H.; Kohrt, W. M.; Kraus, W. E.; Lester, B.; Melanson, E. L.; Miller, M. E.; Montalvo, S.; Rejeski, W. J.; Shimly, S. M.; Smith, G. R.; Stowe, C. L.; Trappe, S.; AbouAssi, H.; Adams, N.; Amar, D.; Ashley, E.; Aslamy, A.; Bamman, M. M.; Belangee, A.; Bennett, W.; Bergman, B. C.; Bessesen, D. H.; Bodine, S. C.; Boyd, G.; Buford, T. W.; Burant, C. F.; Carnero, E. A.; Carr, S.; Chambers, T. L.; Chavez, C.; Chen, H.; Chen, S.-H.; Christle, J. W.; Claiborne, A.; Clark, N",
+   "author_corresponding": "Scott Trappe",
+   "author_corresponding_institution": "Ball State University, Muncie, IN",
+   "doi": "10.64898/2026.03.02.705347",
+   "date": "2026-10-01",
+   "version": "2",
+   "type": "new results",
+   "license": "cc_by",
+   "category": "systems biology",
+   "jatsxml": "https://www.biorxiv.org/content/early/2026/10/01/2026.03.02.705347.source.xml",
+   "abstract": "The goal of the Molecular Transducers of Physical Activity Consortium is to examine the physiological and mole",
+   "published": "NA",
+   "server": "bioRxiv"
+  }
+ ]
+}

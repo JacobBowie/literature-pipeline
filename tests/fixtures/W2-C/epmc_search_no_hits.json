@@ -1,0 +1,15 @@
+{
+ "version": "6.9",
+ "hitCount": 0,
+ "request": {
+  "queryString": "(goalkeeper specific gps load profiles across training content match day proximity professional football exploratory case study) AND SRC:PPR",
+  "resultType": "core",
+  "cursorMark": "*",
+  "pageSize": 5,
+  "sort": "",
+  "synonym": false
+ },
+ "resultList": {
+  "result": []
+ }
+}

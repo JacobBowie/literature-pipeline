@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="https://sportrxiv.org/lib/pkp/xml/oai2.xsl" ?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
+		http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
+	<responseDate>2026-10-05T15:00:59Z</responseDate>
+	<request verb="ListRecords" metadataPrefix="oai_dc" from="2026-09-20">https://sportrxiv.org/index.php/server/oai</request>
+	<ListRecords>
+		<record>
+			<header>
+				<identifier>oai:ojs.scholarsportal.info:preprint/1079</identifier>
+				<datestamp>2026-09-20T12:34:14Z</datestamp>
+				<setSpec>server:PRE</setSpec>
+			</header>
+			<metadata>
+<oai_dc:dc
+	xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/
+	http://www.openarchives.org/OAI/2.0/oai_dc.xsd">
+	<dc:title xml:lang="en-US">Sustained Use and Discontinuation in Digital Fitness Applications: A Systematic Review of Retention Patterns</dc:title>
+	<dc:creator>Tsimachidis, Konstantinos</dc:creator>
+	<dc:creator>Mantziou, Labrini</dc:creator>
+	<dc:creator>Mantziou, Foteini</dc:creator>
+	<dc:subject xml:lang="en-US">digital exercise</dc:subject>
+	<dc:subject xml:lang="en-US">fitness</dc:subject>
+	<dc:subject xml:lang="en-US">fitness applications</dc:subject>
+	<dc:subject xml:lang="en-US">physical activity</dc:subject>
+	<dc:subject xml:lang="en-US">engagement</dc:subject>
+	<dc:subject xml:lang="en-US">dropout</dc:subject>
+	<dc:description>(cut)</dc:description>
+	<dc:publisher xml:lang="en-US">SportRxiv</dc:publisher>
+	<dc:date>2026-09-21</dc:date>
+	<dc:type>info:eu-repo/semantics/preprint</dc:type>
+	<dc:type>info:eu-repo/semantics/publishedVersion</dc:type>
+	<dc:format>application/pdf</dc:format>
+	<dc:identifier>https://sportrxiv.org/index.php/server/preprint/view/1079</dc:identifier>
+	<dc:identifier>10.51224/SportRxiv.1079</dc:identifier>
+	<dc:language>eng</dc:language>
+	<dc:relation>https://sportrxiv.org/index.php/server/preprint/view/1079/2330</dc:relation>
+	<dc:rights xml:lang="en-US">Copyright (c) 2026 Konstantinos Tsimachidis, Labrini Mantziou, Foteini Mantziou (Author)</dc:rights>
+	<dc:rights xml:lang="en-US">https://creativecommons.org/licenses/by/4.0</dc:rights>
+</oai_dc:dc>
+			</metadata>
+		</record>
+		<record>
+			<header>
+				<identifier>oai:ojs.scholarsportal.info:preprint/1080</identifier>
+				<datestamp>2026-09-20T17:07:35Z</datestamp>
+				<setSpec>server:PRE</setSpec>
+			</header>
+			<metadata>
+<oai_dc:dc
+	xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/
+	http://www.openarchives.org/OAI/2.0/oai_dc.xsd">
+	<dc:title xml:lang="en-US">Strengthening Students’ Attitudes Toward Disability Inclusion : A Cluster Nonrandomized Controlled Pretest–Posttest Evaluation of a School-Based Intervention</dc:title>
+	<dc:creator>Alexandrou, Katerina</dc:creator>
+	<dc:creator>Skiadopoulos, Andreas</dc:creator>
+	<dc:creator>Patsi, Charikleia</dc:creator>
+	<dc:creator>Mouratidou, Katerina</dc:creator>
+	<dc:creator>Barkoukis, Vassilis</dc:creator>
+	<dc:creator>Evaggelinou, Christina</dc:creator>
+	<dc:subject xml:lang="en-US">Inclusive Education</dc:subject>
+	<dc:subject xml:lang="en-US">Least Restricted Environment</dc:subject>
+	<dc:subject xml:lang="en-US">Adapted Physical Education</dc:subject>
+	<dc:subject xml:lang="en-US">Theory of Planned Behavior</dc:subject>
+	<dc:subject xml:lang="en-US">Contact Theory</dc:subject>
+	<dc:description>(cut)</dc:description>
+	<dc:publisher xml:lang="en-US">SportRxiv</dc:publisher>
+	<dc:date>2026-09-21</dc:date>
+	<dc:type>info:eu-repo/semantics/preprint</dc:type>
+	<dc:type>info:eu-repo/semantics/publishedVersion</dc:type>
+	<dc:format>application/pdf</dc:format>
+	<dc:identifier>https://sportrxiv.org/index.php/server/preprint/view/1080</dc:identifier>
+	<dc:identifier>10.51224/SportRxiv.1080</dc:identifier>
+	<dc:language>eng</dc:language>
+	<dc:relation>https://sportrxiv.org/index.php/server/preprint/view/1080/2331</dc:relation>
+	<dc:rights xml:lang="en-US">Copyright (c) 2026 Katerina Alexandrou, Andreas Skiadopoulos, Charikleia Patsi, Katerina Mouratidou, Vassilis Barkoukis, Christina Evaggelinou (Author)</dc:rights>
+	<dc:rights xml:lang="en-US">https://creativecommons.org/licenses/by/4.0</dc:rights>
+</oai_dc:dc>
+			</metadata>
+		</record>
+	</ListRecords>
+</OAI-PMH>

@@ -1,0 +1,16 @@
+{
+ "epmc_search_doi_biorxiv_oa.json": "live 2026-10-05 W2-C probe E1: search DOI:\"10.1101/2025.11.04.686534\" AND SRC:PPR, resultType core (abstracts dropped)",
+ "epmc_search_64898_biorxiv.json": "V4 2026-09-25 raw/039: keyword search for a 10.64898 bioRxiv preprint (publisher bioRxiv, not OA; the consortium acronym in titles and author strings replaced, since it doubles as a registry key)",
+ "epmc_search_no_hits.json": "V4 2026-09-25 raw/035: hitCount 0",
+ "epmc_errcode_200.json": "reference/europepmc/live/E08 (2026-09-25): an application error inside a 200",
+ "biorxiv_details_64898.json": "live 2026-10-05 W2-C probe B1: /details/biorxiv/10.64898/2026.03.02.705347/na/json (abstract cut; the consortium acronym replaced as above)",
+ "biorxiv_details_no_posts.json": "live 2026-10-05 W2-C probe B2: the same DOI under /details/medrxiv (wrong server): 'no posts found', empty collection",
+ "osf_preprints_ballet.json": "live 2026-10-05 W2-C probe O1: preprints/?filter[title]=<title prefix> (description cut)",
+ "osf_file_record.json": "live 2026-10-05 W2-C probe O2: files/60a530d48b826b010e8c03c8/ (links.download)",
+ "sportrxiv_oai_listrecords.xml": "live 2026-10-05 W2-C probe S1: ListRecords from=2026-09-20, first 2 of 12 records (descriptions cut)",
+ "sportrxiv_oai_getrecord.xml": "live 2026-10-05 W2-C probe S2: GetRecord oai:ojs.scholarsportal.info:preprint/1079 (description cut)",
+ "crossref_prefix_51224_works.json": "live 2026-10-05 W2-C probe C1: /prefixes/10.51224/works?query.bibliographic=<title>&rows=2&select=...",
+ "crossref_work_sportrxiv_997.json": "live 2026-10-05 W2-C probe C2: /works/10.51224/SportRxiv.997",
+ "arxiv_406_response.json": "V4 2026-09-25 raw/003: export.arxiv.org 406 Not Acceptable, 0 B, no Retry-After (the refusal replayed)",
+ "arxiv_atom_docs_example.xml": "synthetic: the Atom shape documented in the arXiv API User Manual sections 3.3 (reference/arxiv/api_user-manual.md); arXiv refuses this machine, so no live body exists"
+}

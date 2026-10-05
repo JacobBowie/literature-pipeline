@@ -1,0 +1,60 @@
+{
+ "status": "ok",
+ "message-type": "work-list",
+ "message-version": "1.0.0",
+ "message": {
+  "facets": {},
+  "total-results": 59,
+  "items": [
+   {
+    "DOI": "10.51224/sportrxiv.1079",
+    "title": [
+     "Sustained Use and Discontinuation in Digital Fitness Applications: A Systematic Review of Retention Patterns"
+    ],
+    "resource": {
+     "primary": {
+      "URL": "https://sportrxiv.org/index.php/server/preprint/view/1079/version/1332"
+     }
+    },
+    "issued": {
+     "date-parts": [
+      [
+       2026,
+       9,
+       21
+      ]
+     ]
+    },
+    "type": "posted-content",
+    "URL": "https://doi.org/10.51224/sportrxiv.1079"
+   },
+   {
+    "DOI": "10.51224/sportrxiv.1095",
+    "title": [
+     "IMPROVING THE EDUCATIONAL PROCESS OF SPORTS COACHES THROUGH THE SYSTEMATIC USE OF MOBILE APPLICATIONS"
+    ],
+    "resource": {
+     "primary": {
+      "URL": "https://sportrxiv.org/index.php/server/preprint/view/1095/version/1353"
+     }
+    },
+    "issued": {
+     "date-parts": [
+      [
+       2026,
+       10,
+       1
+      ]
+     ]
+    },
+    "type": "posted-content",
+    "URL": "https://doi.org/10.51224/sportrxiv.1095"
+   }
+  ],
+  "items-per-page": 2,
+  "query": {
+   "start-index": 0,
+   "search-terms": null
+  }
+ }
+}
