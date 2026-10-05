@@ -499,8 +499,9 @@ def prepare_rows(norm_csv, lib_dir, holdings=None):
     (INVALID_DOI, HELD_ELSEWHERE, NO_METADATA), fill blank metadata, and rewrite `norm_csv` with
     only the rows to fetch (DOIs normalized). A blank-title row whose metadata source could not
     answer (ris_emit.MetadataUnavailable) is asked once more after the other rows; if it still
-    cannot, the row is NO_METADATA with the reason "metadata unavailable", apart from a genuine
-    not-found ("metadata not found"). Returns (fields, to_fetch, settled, meta_counts)."""
+    cannot, the row is settled with the reason "metadata unavailable" (TRANSIENT until its third run,
+    then NO_METADATA; decided where attempts are known), apart from a genuine not-found ("metadata
+    not found", NO_METADATA at once). Returns (fields, to_fetch, settled, meta_counts)."""
     fields, rows = read_queue(norm_csv)
     if "citation_count" not in fields:
         fields.append("citation_count")
@@ -691,11 +692,15 @@ def unpaywall_verdict(u):
 
 def _pmc_text_only(p):
     """TEXT_ONLY, exactly (W2b): a text sidecar written or already there, no PDF downloaded, no
-    PDF judged (identity blank), and, where pmc_class is present, an author manuscript."""
+    PDF judged (identity blank), and, where pmc_class is present, an author manuscript or a PDF that
+    failed for good (outcome NOT_AVAILABLE / NO_MATCH / NOT_AT_RA): an OA- or NONE-class row whose
+    text is held is not an ILL request, while a transient PDF failure still retries (verifier E,
+    W2-G open question 1)."""
     klass = _cell(p, "pmc_class").upper()
+    terminal_pdf = _cell(p, "outcome").upper() in ("NOT_AVAILABLE", "NO_MATCH", "NOT_AT_RA")
     return (_truthy(p.get("sidecar")) and _cell(p, "sidecar_status").upper() in ("OK", "EXISTS")
             and not _truthy(p.get("downloaded")) and not _cell(p, "identity")
-            and (not klass or klass.startswith("AM")))
+            and (not klass or klass.startswith("AM") or terminal_pdf))
 
 
 def _preprint_text_only(r):
@@ -1072,6 +1077,10 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
         residual.append(out)
 
     for r, cls, reason, held in settled:
+        if cls == "NO_METADATA" and reason == NO_METADATA_UNAVAILABLE                 and _attempts(r) < ERROR_RUNS_TO_TERMINAL:
+            # a source that could not answer is not a "no" (verifier E, W2-G open question 2): the
+            # row is retried via retry_later and closes as NO_METADATA only on its third run
+            cls = "TRANSIENT"
         classes[cls] += 1
         _residual_row(r, cls, reason, held=held)
     for r in to_fetch:

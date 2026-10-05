@@ -234,7 +234,8 @@ def main_queue():
             + [HELD, UNAVAIL, RETRY_OK, NOTFOUND, INVALID])
 
 
-SETTLED = {HELD: "HELD_ELSEWHERE", UNAVAIL: "NO_METADATA", NOTFOUND: "NO_METADATA", INVALID: "INVALID_DOI",
+# UNAVAIL: a source outage is retried (TRANSIENT) until its third run (verifier E, W2-G open question 2)
+SETTLED = {HELD: "HELD_ELSEWHERE", UNAVAIL: "TRANSIENT", NOTFOUND: "NO_METADATA", INVALID: "INVALID_DOI",
            RETRY_OK: "TERMINAL_CLOSED"}
 
 
@@ -349,7 +350,9 @@ def test_the_same_run_with_legacy_only_reports_routes_as_before(tmp_path, monkey
     want.update(SETTLED)
     assert got == want
     diff = {r["name"] for r in EXPECTED.values() if r["class_legacy"] != r["class_typed"]}
-    assert diff == {"pmc_oa_text"}
+    # typed and legacy readings now agree on every row: the one difference was an OA-class pmc text
+    # sidecar, which is TEXT_ONLY either way since verifier E (W2-G open question 1)
+    assert diff == set()
     assert resid[doi_of("pmc_embargo_dated")]["not_before"] == "2027-03-11"   # parsed from the legacy string
     assert resid[doi_of("pmc_flag_ok")]["flagged_path"] == str(w.lib / "2020_Doe_PmcFlag.pdf")
     assert resid[doi_of("ppr_manual")]["landing_url"] == ""
@@ -567,9 +570,15 @@ def test_text_only_is_exactly_the_w2b_definition():
     am = fixture("pmc")[doi_of("pmc_am_text")]
     assert sweep.pmc_verdict(am).text_only
     assert sweep.pmc_verdict(dict(am, pmc_class="AM (from S3 metadata)")).text_only
-    for change in ({"pmc_class": "OA"}, {"pmc_class": "NONE"}, {"identity": "OK"}, {"sidecar": "False"},
+    for change in ({"pmc_class": "OA", "outcome": "OUTAGE"}, {"pmc_class": "NONE", "outcome": "TRANSPORT"},
+                   {"identity": "OK"}, {"sidecar": "False"},
                    {"sidecar_status": "IDENTITY_ONLY"}, {"sidecar_status": "OUTAGE"}):
         assert not sweep.pmc_verdict(dict(am, **change)).text_only, change
+    # an OA- or NONE-class row whose PDF failed for good while its text is held is TEXT_ONLY, not an
+    # ILL request (verifier E, W2-G open question 1); a transient failure (above) still retries
+    for klass in ("OA", "NONE"):
+        for outcome in ("NOT_AVAILABLE", "NO_MATCH", "NOT_AT_RA"):
+            assert sweep.pmc_verdict(dict(am, pmc_class=klass, outcome=outcome)).text_only, (klass, outcome)
     assert sweep.pmc_verdict(dict(am, sidecar_status="EXISTS")).text_only
     assert sweep.pmc_verdict(_strip(dict(am, pmc_class="OA"), "pmc")).text_only   # legacy: no class to read
 

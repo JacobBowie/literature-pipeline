@@ -570,8 +570,7 @@ def test_the_crossref_work_url_encodes_the_doi(monkeypatch):
 
 
 # ================================================================ W2-G open questions (recommendations)
-@pytest.mark.xfail(strict=True, reason="W2-G open question 1 (recommendation: a held pmc text sidecar with "
-                                       "no PDF on any sanctioned route is TEXT_ONLY whatever its class)")
+# W2-G open question 1: recommendation adopted by the dispatcher (2026-10-05)
 @pytest.mark.parametrize("klass,outcome", [("OA", "NOT_AVAILABLE"), ("NONE", "NOT_AVAILABLE")])
 def test_open_q1_an_oa_or_none_class_text_sidecar_is_not_sent_to_ill(klass, outcome):
     pmc = {"doi": "10.1000/q1", "downloaded": "False", "skipped": "False", "pmcid": "PMC1", "error": "NOT_AVAILABLE",
@@ -581,8 +580,7 @@ def test_open_q1_an_oa_or_none_class_text_sidecar_is_not_sent_to_ill(klass, outc
     assert sweep.classify([sweep.unpaywall_verdict(upw), sweep.pmc_verdict(pmc)], attempts=1)[0] == "TEXT_ONLY"
 
 
-@pytest.mark.xfail(strict=True, reason="W2-G open question 2 (recommendation: 'metadata unavailable' after a "
-                                       "source outage is retried, not closed)")
+# W2-G open question 2: recommendation adopted by the dispatcher (2026-10-05)
 def test_open_q2_metadata_unavailable_after_an_outage_is_retried(tmp_path, monkeypatch, web):
     import ris_emit
     w = make_world(tmp_path, monkeypatch, {"P": {"lib_dir": "lit"}})
