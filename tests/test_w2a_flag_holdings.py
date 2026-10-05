@@ -64,3 +64,22 @@ def test_unpaywall_sidecar_doi_ignores_a_flagged_fulltext_record(tmp_path):
 def test_unpaywall_existing_holds_is_not_same_for_a_flagged_pmc_copy(tmp_path):
     flagged = _held(tmp_path, "2020_Author_Flagged", identity="FLAG")
     assert U.existing_holds(str(flagged), DOI, "A title") != "same"
+
+
+@pytest.mark.parametrize("extra,held", [
+    ({"has_pdf": False}, True),                               # a PMC text-only record (W2a)
+    ({}, True),                                               # a pre-W2a JATS sidecar: no key, not extracted
+    ({"has_pdf": True}, False),                               # extracted from a PDF that is gone: an orphan
+    ({"extracted_from_pdf": True}, False),                    # legacy PDF extraction, PDF gone: an orphan
+])
+def test_a_pdf_less_sidecar_is_text_only_only_when_not_extracted_from_a_pdf(tmp_path, root, extra, held):
+    """W2b verifier F: holdings agrees with the instruments' text-only predicate. A sidecar extracted
+    from a PDF that was later renamed or deleted keeps no DOI "held", so sweep re-fetches it."""
+    lib = root / "teaching_a" / "lib"
+    lib.mkdir(parents=True)
+    rec = {"doi": DOI, "text": "Body text of the article.", **extra}
+    (lib / "2020_Author_Gone.fulltext.json").write_text(json.dumps(rec), encoding="utf-8")
+    for _ in range(2):                                        # the second build reads the cache
+        hm = holdings.build(_registry(tmp_path))
+        assert (DOI in hm) is held
+        assert not hm.has_pdf(DOI)
