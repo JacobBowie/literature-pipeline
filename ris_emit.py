@@ -66,7 +66,6 @@ import hashlib
 import os
 import re
 import sys
-import unicodedata
 from datetime import date
 
 # Config loader + safe_ascii live in lit_util (stdlib-pure); re-exported here so the many
@@ -79,7 +78,6 @@ from litpipe import net
 from litpipe import text as _text
 from litpipe.ledger import redact
 from litpipe.outcomes import Kind
-from pdf_text_clean import LIGATURES
 
 CROSSREF_WORK = "https://api.crossref.org/works/{doi}"      # {doi}: litpipe.doi.encode_path output
 CROSSREF_SEARCH = "https://api.crossref.org/works"
@@ -138,21 +136,12 @@ def warn_if_default_email():
 
 
 # ---------------------------------------------------------------------------- text
-# As litpipe.text.clean_field, without NFKC: soft hyphen, zero-width space, word joiner and BOM
-# dropped; U+2011 NON-BREAKING HYPHEN made "-" (as U+00A0 becomes a space) so a title search
-# for "high-intensity" finds it.
-_DISPLAY_MAP = {**LIGATURES, **dict.fromkeys(map(ord, "­​⁠﻿")), 0x2011: "-"}
-
-
 def _display(s) -> str:
-    """A metadata string as it should read in a bibliography: tags stripped, then references
-    decoded, NFC, ligatures expanded, invisibles dropped, odd spaces made plain, whitespace
-    collapsed. Compatibility characters (sub/superscripts, micro sign, trade mark) are kept."""
-    if not s:
-        return ""
-    s = _text.unescape(_text.strip_tags(str(s)))
-    s = unicodedata.normalize("NFC", s).translate(_DISPLAY_MAP)
-    return " ".join(s.split())                          # str.split() splits on U+00A0/U+2009/U+202F
+    """A metadata string as it should read in a bibliography: litpipe.text.display_field (tags
+    stripped, then references decoded, NFC, ligatures expanded, invisibles dropped, U+2011 made "-",
+    odd spaces made plain, whitespace collapsed; compatibility characters kept). One definition,
+    shared with the abstract and backfill writers."""
+    return _text.display_field(s)
 
 
 def _first(v) -> str:
