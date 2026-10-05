@@ -719,11 +719,21 @@ def main(argv=None):
     g.add_argument("--clear-refusal", metavar="HOST",
                    help="clear a host refusal, including a 'manual' one (e.g. export.arxiv.org)")
     g.add_argument("--clear-deferral", metavar="HOST", help="clear a host deferral")
+    g.add_argument("--refuse", metavar="HOST",
+                   help="refuse a host until --clear-refusal ('manual'), e.g. seed export.arxiv.org "
+                        "before a first run; creates the state file if it does not exist")
+    ap.add_argument("--reason", default="manual: refused by hand",
+                    help="reason recorded with --refuse (default: %(default)s)")
     ap.add_argument("--json", action="store_true", help="print --status as JSON")
     ap.add_argument("--db", metavar="PATH", help="state file to use instead of the configured one")
     args = ap.parse_args(argv)
     if args.db:
         DB_PATH = Path(args.db)
+    if args.refuse:                     # the one CLI action that may create the state file
+        host = _norm_host(args.refuse)
+        refuse(host, args.reason, persistence="manual")
+        print(f"{host}: refused (manual) until `python -m litpipe.state --clear-refusal {host}`")
+        return 0
     p = db_path(create=False)
     if not p.exists():  # nothing to show or clear; never create the state just for this
         print(f"no state yet: {p} does not exist (it is created on first use)")

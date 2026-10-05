@@ -530,6 +530,21 @@ def test_cli_does_not_create_state_it_would_only_read(isolated_state, capsys):
     assert not isolated_state.parent.exists()
 
 
+def test_cli_refuse_seeds_a_manual_refusal_even_before_first_use(isolated_state, capsys):
+    """Cutover: seed arXiv's refusal (since 2026-09-25) before a first live run would contact it."""
+    assert not isolated_state.parent.exists()
+    assert state.main(["--refuse", "Export.Arxiv.Org", "--reason", "manual: HTTP 406 since 2026-09-25"]) == 0
+    assert "export.arxiv.org: refused (manual)" in capsys.readouterr().out
+    assert isolated_state.exists() and state.is_refused("export.arxiv.org")
+    state.register_run("sweep")                     # a new run does not lift a manual refusal
+    assert state.is_refused("export.arxiv.org")
+    assert state.main(["--status", "--json"]) == 0
+    row = json.loads(capsys.readouterr().out)["hosts"][0]
+    assert row["refused"] == "manual" and row["refused_reason"] == "manual: HTTP 406 since 2026-09-25"
+    assert state.main(["--clear-refusal", "export.arxiv.org"]) == 0
+    assert not state.is_refused("export.arxiv.org")
+
+
 @pytest.mark.parametrize("mod", [state, preflight])
 def test_help_touches_no_state(mod, monkeypatch):
     def forbidden(*a, **k):
