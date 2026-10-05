@@ -498,6 +498,18 @@ def test_kv_ttl_expires(clock):
     assert state.kv_get("c", "k", default="gone") == "gone"
 
 
+def test_kv_items_lists_one_namespace_unexpired_and_sorted(clock):
+    state.kv_set("ris", "b.ris", "sha-b")
+    state.kv_set("ris", "a.ris", {"sha": "a"})
+    state.kv_set("ris", "old.ris", "sha-old", ttl_s=5)
+    state.kv_set("other", "a.ris", "not this namespace")
+    assert state.kv_items("ris") == {"a.ris": {"sha": "a"}, "b.ris": "sha-b", "old.ris": "sha-old"}
+    assert list(state.kv_items("ris")) == ["a.ris", "b.ris", "old.ris"]
+    clock.t += 6
+    assert state.kv_items("ris") == {"a.ris": {"sha": "a"}, "b.ris": "sha-b"}
+    assert state.kv_items("empty") == {}
+
+
 # ================================================================== state CLI
 def test_cli_clear_refusal_and_status(capsys):
     state.refuse("export.arxiv.org", "HTTP 406", persistence="manual")

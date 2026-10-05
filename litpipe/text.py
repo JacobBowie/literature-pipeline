@@ -44,7 +44,7 @@ import unicodedata
 # that keeps both cleaners on one definition. pdf_text_clean imports only `re` (no cycle).
 from pdf_text_clean import LIGATURES
 
-__all__ = ["strip_tags", "unescape", "clean_field", "normalise_title", "ISOGRK1"]
+__all__ = ["strip_tags", "unescape", "clean_field", "display_field", "normalise_title", "ISOGRK1"]
 
 # isogrk1 (W3C isogrk1.ent, 2007 entity set, current in the 2023 Recommendation).
 ISOGRK1 = {
@@ -124,6 +124,23 @@ def clean_field(s):
     s = unicodedata.normalize("NFKC", s)
     s = s.translate(LIGATURES).translate(_INVISIBLE)
     return " ".join(s.split())                          # str.split() splits on U+00A0/U+2009/U+202F too
+
+
+# The display form keeps compatibility characters: measured over 6,087 `.ris` (W2-E1, 2026-09-30),
+# NFKC would flatten VO2max subscripts and split surnames carrying U+00B4. U+2011 NON-BREAKING
+# HYPHEN becomes "-" so a title search for "high-intensity" finds it.
+_DISPLAY_MAP = {**LIGATURES, **_INVISIBLE, 0x2011: "-"}
+
+
+def display_field(s):
+    """A metadata string as it should read in a bibliography or an abstract column: tags stripped,
+    then references decoded, NFC (not NFKC), ligatures expanded, invisibles dropped, odd spaces
+    made plain, whitespace collapsed. Sub/superscripts, the micro sign and U+00B4 are kept."""
+    if not s:
+        return ""
+    s = unescape(strip_tags(str(s)))
+    s = unicodedata.normalize("NFC", s).translate(_DISPLAY_MAP)
+    return " ".join(s.split())
 
 
 def normalise_title(s):

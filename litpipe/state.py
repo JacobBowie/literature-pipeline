@@ -643,6 +643,16 @@ def kv_get(ns, key, default=None):
     return json.loads(row[0])
 
 
+def kv_items(ns) -> dict:
+    """Every unexpired value in one namespace, {key: value}, keys in sorted order (for example the
+    DEC-29 `.ris` manifest, so a repair script can list the files the pipeline wrote)."""
+    with _read() as con:
+        now = _time()
+        rows = con.execute("SELECT key, value FROM kv WHERE ns=? AND (expires IS NULL OR expires > ?) "
+                           "ORDER BY key", (str(ns), now)).fetchall()
+    return {k: json.loads(v) for k, v in rows}
+
+
 # ------------------------------------------------------------------------------ status + CLI
 def status() -> dict:
     """A snapshot for --status and preflight: hosts, live runs, leases."""
