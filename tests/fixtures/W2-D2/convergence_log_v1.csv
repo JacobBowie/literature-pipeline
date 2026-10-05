@@ -1,0 +1,15 @@
+date,project,iter,n_before,n_after,growth_pct
+2026-05-06,research_a,1,9810,17248,75.82
+2026-05-06,research_a,2,17248,17248,0.00
+2026-05-20,research_b,1,0,0,inf
+2026-05-20,research_b,2,0,0,inf
+2026-05-20,research_b,3,0,0,inf
+2026-08-19,teaching_a,1,0,1507,inf
+2026-08-19,teaching_a,2,1507,1338,-11.21
+2026-08-19,teaching_b,1,0,4634,inf
+2026-08-19,teaching_b,2,4634,3982,-14.07
+2026-09-06,teaching_a,1,8705,9401,8.00
+2026-09-06,teaching_a,2,9401,9401,0.00
+2026-09-11,teaching_a,1,13764,14460,5.06
+2026-09-11,teaching_a,2,14460,14431,-0.20
+2026-09-16,teaching_a,1,23187,36767,58.57

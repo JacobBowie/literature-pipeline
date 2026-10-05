@@ -143,13 +143,13 @@ def test_pipeline_check_stage4b_passes_empty_lib(tmp_path):
 # (its mailto is inline in _smoke_test, not a module constant).
 _EMAIL_MODULES = [
     "audit_filenames",
-    "enrich_recommendations", "fill_missing_dois", "forward_citations", "preprint_fetch",
+    "enrich_recommendations", "fill_missing_dois", "preprint_fetch",
     # left in W2a: pmc_fetch (W2-A1), backfill_fulltext, harvest_citations, recheck_pmc (W2-A2),
-    # unpaywall_fetch_v2 (W2-B) and ris_emit (W2-E1); in W2b: backfill_ris, enrich_abstracts (W2-E2).
+    # unpaywall_fetch_v2 (W2-B) and ris_emit (W2-E1); in W2b: backfill_ris, enrich_abstracts (W2-E2), forward_citations (W2-D2).
     # They bind no EMAIL; litpipe.net injects identity (DEC-13; pinned below and by test_w2e1_net.py,
     # test_unpaywall_stage_has_no_email_constant). Modules move to _REWIRED as W2/W3 rewire them onto litpipe.net.
 ]
-_REWIRED = ["backfill_ris", "enrich_abstracts"]
+_REWIRED = ["backfill_ris", "enrich_abstracts", "forward_citations"]
 
 
 @pytest.mark.parametrize("modname", _REWIRED)

@@ -1,0 +1,11 @@
+{
+ "_source": "The 2026-09-15/16 snowball of a teaching library (iteration 2 stopped by hand): the forward_citations summaries of both iterations and the candidate counts, as printed by the old walker. Project renamed.",
+ "project": "teaching_a",
+ "candidates": {"n_before_iter1": 23187, "n_after_iter1": 36767},
+ "forward": {
+  "iter1": {"seeds": 237, "with_doi": 237, "no_doi": 0, "resolve_failed": 4, "seeds_with_citers": 222,
+            "total_citing_rows": 41949, "unique_citing_dois": 34254, "exit_code": 0},
+  "iter2": {"seeds": 237, "with_doi": 237, "no_doi": 0, "resolve_failed": 8, "seeds_with_citers": 141,
+            "total_citing_rows": 26073, "unique_citing_dois": 22158, "exit_code": 0}
+ }
+}
