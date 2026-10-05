@@ -90,3 +90,19 @@ def test_row_deadline_is_transient():
     pre = _row(status="DEFERRED:row_deadline:90s", outcome="DEFERRED", route="deadline",
                detail="row_deadline:90s")
     assert _classify(pre) == "TRANSIENT"
+
+
+# ---------------------------------------------------------------- the quarantine is gone (W2-C forward 1)
+@pytest.mark.parametrize("modname", ["unpaywall_fetch_v2", "pmc_fetch", "preprint_fetch", "import_downloads"])
+def test_no_stage_quarantines_a_file(modname):
+    """The identity check replaced the _mismatch quarantine (W2-B, W2-A1, W2-C): no fetch stage keeps
+    the helpers or moves a file into _mismatch/ (only the instruments read that folder, DEC-07)."""
+    import importlib
+    import inspect
+    try:
+        m = importlib.import_module(modname)
+    except ImportError:
+        pytest.skip(f"{modname} not in this tree yet")
+    assert not hasattr(m, "quarantine_mismatch") and not hasattr(m, "pdf_doi_disagrees")
+    src = inspect.getsource(m)
+    assert '"_mismatch"' not in src and "'_mismatch'" not in src

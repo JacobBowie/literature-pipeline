@@ -379,36 +379,6 @@ def resolve_dest(lib_dir, fn, doi, written_this_run):
     return cand, True
 
 
-def pdf_doi_disagrees(pdf_path, queue_doi):
-    """DEPRECATED (W2-B): this stage uses litpipe.identity.check. Kept only because
-    preprint_fetch still imports it (W2-C rewires that stage); remove once nothing imports it.
-    True iff the PDF's first DOI disagrees with `queue_doi`."""
-    found = doi_from_pdf_bytes(pdf_path)
-    if not found:
-        return False
-    return found != lit_util.normalize_doi(queue_doi)
-
-
-def quarantine_mismatch(dest, lib_dir):
-    """DEPRECATED (W2-B): the identity check replaced the quarantine and this stage never moves a
-    file. Kept, unchanged, only because preprint_fetch still imports it (W2-C rewires that stage);
-    remove once nothing imports it. Moves `dest` to <lib>/_mismatch/; True if moved."""
-    try:
-        mismatch_dir = os.path.join(lib_dir, "_mismatch")
-        os.makedirs(mismatch_dir, exist_ok=True)
-        base = os.path.basename(dest)
-        target = os.path.join(mismatch_dir, base)
-        if os.path.exists(target):
-            stem, ext = os.path.splitext(base)
-            n = 1
-            while os.path.exists(os.path.join(mismatch_dir, f"{stem}_{n}{ext}")):
-                n += 1
-            target = os.path.join(mismatch_dir, f"{stem}_{n}{ext}")
-        os.replace(dest, target)
-        return True
-    except OSError:
-        return False
-
 # ---------- state (the same object litpipe.net uses) ----------
 
 def _state():

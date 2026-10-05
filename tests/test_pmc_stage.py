@@ -386,7 +386,8 @@ def test_replay_oa_am_embargo_none_missing(world, tmp_path):
 
 
 def test_report_rows_route_through_sweep_as_expected(world, tmp_path):
-    """sweep reads the legacy columns until W2-G switches it to `outcome`."""
+    """The real report rows route through sweep, which reads the typed `outcome` column (W2-G) and
+    falls back to the legacy `error` column."""
     import sweep
     _, rows, _ = run_stage(tmp_path, [OA_DOI, AM_DOI, NONE_DOI, MISS_DOI], titles={OA_DOI: OA_TITLE})
     cls = {d: sweep.classify([sweep.pmc_verdict(r)])[0] for d, r in rows.items()}
