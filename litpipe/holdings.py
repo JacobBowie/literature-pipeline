@@ -38,7 +38,7 @@ import lit_util
 from litpipe import config
 from litpipe import doi as _doi
 
-CACHE_VERSION = 2   # 2: DOIs normalised by litpipe.doi
+CACHE_VERSION = 3   # 2: DOIs normalised by litpipe.doi; 3: identity-FLAG sidecars give no DOI
 CACHE_NAME = "holdings_cache.json"
 SIDECAR_SUFFIX = ".fulltext.json"
 
@@ -110,14 +110,17 @@ def read_ris_doi(path) -> str:
 
 def read_sidecar(path):
     """(doi, text_chars, has_pmcid) of a .fulltext.json sidecar. Raises OSError, or ValueError when
-    the file is not a JSON object."""
+    the file is not a JSON object. A sidecar whose identity verdict is FLAG gives no DOI: the PMC stage
+    records the queue DOI there for a PDF judged to be another work, which is a review item, not a
+    holding (W2a verifier A, V-A2)."""
     with open(path, "rb") as f:
         data = json.loads(f.read().decode("utf-8", errors="replace"))
     if not isinstance(data, dict):
         raise ValueError("sidecar is not a JSON object")
     text = data.get("text")
     n = len(text.strip()) if isinstance(text, str) else 0
-    return normalise_doi(data.get("doi") or ""), n, bool(data.get("pmcid"))
+    doi = "" if data.get("identity") == "FLAG" else normalise_doi(data.get("doi") or "")
+    return doi, n, bool(data.get("pmcid"))
 
 
 # ---------------------------------------------------------------- the map

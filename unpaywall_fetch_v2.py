@@ -244,7 +244,9 @@ def _read_identity_sidecar(pdf_path):
 
 
 def _sidecar_doi(pdf_path):
-    """The DOI a PDF's `.ris` (DO) or `.fulltext.json` (doi) records, normalised; '' if none."""
+    """The DOI a PDF's `.ris` (DO) or `.fulltext.json` (doi) records, normalised; '' if none. A
+    `.fulltext.json` whose identity verdict is FLAG records the queue DOI of a PDF judged to be
+    another work (the PMC stage), so it names no DOI here."""
     ris_path = str(lit_util.companion_path(pdf_path, ".ris"))
     if os.path.exists(ris_path):
         try:
@@ -260,7 +262,8 @@ def _sidecar_doi(pdf_path):
     if os.path.exists(sc_path):
         try:
             with open(sc_path, encoding="utf-8") as f:
-                d = _doi.normalise((json.load(f) or {}).get("doi") or "")
+                rec = json.load(f) or {}
+            d = "" if rec.get("identity") == "FLAG" else _doi.normalise(rec.get("doi") or "")
             if d:
                 return d
         except (OSError, ValueError, AttributeError):
