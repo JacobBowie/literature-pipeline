@@ -530,8 +530,13 @@ def _finish(seeds, walk_n, walk_dois, entries, prior, out, journal, sess, force,
             cites = ()
         rows.extend({**c, "seed_pdf": pdf.name, "seed_doi": doi} for c in cites)
     current = {doi for _, doi in seeds if doi}
+    on_disk = {pdf.name for pdf, _ in seeds}
     with_citers = len({r["seed_doi"] for r in rows})
-    prior_with = len(current & set(prior)) if prior is not None else None
+    # A published seed still counts while its PDF is in the library, even when its DOI could not be
+    # read this run: a removed PDF is a removed seed, an unreadable .ris is not.
+    prior_with = (len({d for d, rs in prior.items()
+                       if d in current or any(r.get("seed_pdf") in on_disk for r in rs)})
+                  if prior is not None else None)
 
     aborted = sess.aborted
     code, reasons = verdict(len(walk_dois), len(failed), with_citers, prior_with, aborted, force, not_walked)

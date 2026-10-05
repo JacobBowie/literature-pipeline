@@ -250,11 +250,18 @@ def one_iteration(project: str, skip_forward: bool, skip_reverse: bool, step_run
 
 
 # ------------------------------------------------------------------------------ classification
+def degraded_exit(rc, summary) -> bool:
+    """The walker's verdict: exit 2 or 3 WITH its [step-summary] line. Any other exit 2 (argparse
+    usage errors, ris_emit.load_projects_config without a registry, reverse_citations' config
+    errors) is a failed step, not a degraded walk."""
+    return rc in DEGRADED_EXITS and summary is not None
+
+
 def degraded_reasons(n_before: int, n_after: int, steps=()) -> list:
     why = []
     for s in steps:
         summ = s.summary or {}
-        if s.rc in DEGRADED_EXITS:
+        if degraded_exit(s.rc, s.summary):
             detail = (f"aborted: {summ['aborted']}" if summ.get("aborted")
                       else "; ".join(summ.get("reasons") or []))
             why.append(f"{s.label} exit {s.rc}" + (f" ({detail})" if detail else ""))
@@ -270,7 +277,7 @@ def classify(n_before: int, n_after: int, steps=()) -> tuple:
     """("ok" | "DEGRADED" | "FAILED", why) for one iteration."""
     from litpipe.ledger import redact
     deg = degraded_reasons(n_before, n_after, steps)
-    fail = [f"{s.label} exit {s.rc}" for s in steps if s.rc != 0 and s.rc not in DEGRADED_EXITS]
+    fail = [f"{s.label} exit {s.rc}" for s in steps if s.rc != 0 and not degraded_exit(s.rc, s.summary)]
     if deg:
         return "DEGRADED", redact("; ".join(deg + fail))
     if fail:
@@ -362,12 +369,12 @@ def run(*, project=None, all_projects=False, until_convergence=False, max_iter=3
                    skip_abstracts=skip_abstracts, projects=projects)
     results = [snowball_project(p, opts, step_runner) for p in projects]
     post = post_loop(opts, step_runner)
-    def crashed(rc):
-        return rc != 0 and rc not in DEGRADED_EXITS
-    failed = (any(crashed(s["rc"]) for r in results for it in r["iterations"] for s in it["steps"])
-              or any(crashed(s.rc) for s in post))
+    def crashed(rc, summary):
+        return rc != 0 and not degraded_exit(rc, summary)
+    failed = (any(crashed(s["rc"], s["summary"]) for r in results for it in r["iterations"] for s in it["steps"])
+              or any(crashed(s.rc, s.summary) for s in post))
     degraded = (any(r["status"] == "DEGRADED" for r in results)
-                or any(s.rc in DEGRADED_EXITS for s in post))
+                or any(degraded_exit(s.rc, s.summary) for s in post))
     code = EXIT_FAILED if failed else (EXIT_DEGRADED if degraded else EXIT_OK)
     print(f"\n# snowball: {len(results)} project(s); "
           + ", ".join(f"{r['project']} {r['status']}" for r in results)

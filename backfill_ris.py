@@ -61,7 +61,7 @@ import ris_emit as R  # noqa: E402
 from litpipe import config  # noqa: E402
 from litpipe import doi as _doi  # noqa: E402
 from litpipe.ledger import redact  # noqa: E402
-from litpipe.text import display_field  # noqa: E402
+from litpipe.text import abstract_field, display_field  # noqa: E402
 
 SIDECAR = ".fulltext.json"
 REPORT_NAME = "_ris_backfill_report.csv"
@@ -208,7 +208,7 @@ def sidecar_meta(sc: dict) -> dict:
         "issue": display_field(sc.get("issue")),
         "page": display_field(sc.get("pages")),
         "issn": "",
-        "abstract": display_field(sc.get("abstract")),
+        "abstract": abstract_field(sc.get("abstract")),
         "url": "https://doi.org/" + _doi.encode_path(d) if d else "",   # DOI Handbook 4.7 (build_ris re-encodes too)
         "type": "journal-article",
     }
@@ -315,6 +315,9 @@ def _do_text_only(sc_path, commit, overwrite, force, stats, sources):
         return _row("text_only", sc_path, "SIDECAR_ERROR", detail=f"{type(e).__name__}: {e}")
     if _flagged_record(sc):
         return _row("text_only", sc_path, "IDENTITY_FLAG", detail=f"identity={sc.get('identity', '')}")
+    if sc.get("has_pdf") is True or ("has_pdf" not in sc and sc.get("extracted_from_pdf") is True):
+        return _row("text_only", sc_path, "ORPHAN_SIDECAR",
+                    detail="extracted from a PDF that is not beside it (renamed or deleted): not a holding")
     txt = sc.get("text")
     if not (isinstance(txt, str) and txt.strip()):
         return _row("text_only", sc_path, "NO_TEXT", detail="sidecar without text: not a holding")
