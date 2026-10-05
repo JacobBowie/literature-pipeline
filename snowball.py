@@ -2,11 +2,16 @@
 
 One iteration, per project:
   1. forward_citations.py   (S2 forward citations on every PDF; exit 2 degraded, 3 aborted)
-  2. reverse_citations.py   (References-section parse on every PDF)
+  2. reverse_citations.py   (what every PDF cites: S2, OpenAlex and Crossref over the network, then
+                             the local parse; exit 2 degraded, 3 aborted). While S2_API_KEY is
+                             unset it runs with --sources openalex,crossref,regex: the shared
+                             unkeyed S2 pool answers 429 at once, which would make every
+                             iteration DEGRADED.
   3. index_portfolio.py     (refresh the DuckDB index with the new candidates)
 After the loop, once per invocation (both tools are portfolio-wide; D8):
-  4. enrich_recommendations.py   only with --with-recs. S2's recommendations are a
-     last-60-days feed, so they are no longer part of the loop or of the count.
+  4. enrich_recommendations.py --recent-feed   only with --with-recs (and it sends nothing
+     without S2_API_KEY). S2's recommendations are a last-60-days feed, so they are no longer
+     part of the loop or of the count.
   5. enrich_abstracts.py         incremental (only missing); --skip-abstracts skips it.
 
 Iterations: one by default. With --until-convergence, iteration N+1 runs only when the
@@ -233,6 +238,20 @@ def run_step(cmd, label) -> StepResult:
     return StepResult(label, cmd, rc, summary, n, elapsed)
 
 
+REVERSE_SOURCES_UNKEYED = "openalex,crossref,regex"
+
+
+def reverse_source_args() -> list:
+    """The reverse step's --sources: every leg with an S2 key; without one, S2 is left out (its
+    unkeyed 429 would mark the iteration DEGRADED while the other legs could answer)."""
+    from litpipe import s2
+    if s2.key_present():
+        return []
+    print(f"  [note] S2_API_KEY unset: reverse_citations runs --sources {REVERSE_SOURCES_UNKEYED}",
+          flush=True)
+    return ["--sources", REVERSE_SOURCES_UNKEYED]
+
+
 def one_iteration(project: str, skip_forward: bool, skip_reverse: bool, step_runner=None) -> list:
     """The per-project discovery steps and the index refresh. Every step runs even when an
     earlier one failed (the index also refreshes reverse candidates and library locations)."""
@@ -242,8 +261,8 @@ def one_iteration(project: str, skip_forward: bool, skip_reverse: bool, step_run
         steps.append(runner([py(), str(HERE / "forward_citations.py"), "--project", project],
                             "forward_citations"))
     if not skip_reverse:
-        steps.append(runner([py(), str(HERE / "reverse_citations.py"), "--project", project],
-                            "reverse_citations"))
+        steps.append(runner([py(), str(HERE / "reverse_citations.py"), "--project", project,
+                             *reverse_source_args()], "reverse_citations"))
     steps.append(runner([py(), str(HERE / "index_portfolio.py"), "--project", project,
                          "--db", str(DB_PATH)], f"index_portfolio({project})"))
     return steps
@@ -252,8 +271,8 @@ def one_iteration(project: str, skip_forward: bool, skip_reverse: bool, step_run
 # ------------------------------------------------------------------------------ classification
 def degraded_exit(rc, summary) -> bool:
     """The walker's verdict: exit 2 or 3 WITH its [step-summary] line. Any other exit 2 (argparse
-    usage errors, ris_emit.load_projects_config without a registry, reverse_citations' config
-    errors) is a failed step, not a degraded walk."""
+    usage errors, ris_emit.load_projects_config without a registry) is a failed step, not a
+    degraded walk. The steps' own config errors exit 1 (W2b, W3a)."""
     return rc in DEGRADED_EXITS and summary is not None
 
 
@@ -340,7 +359,8 @@ def post_loop(opts: Options, step_runner=None) -> list:
     runner = step_runner or run_step
     steps = []
     if opts.with_recs:
-        steps.append(runner([py(), str(HERE / "enrich_recommendations.py"), "--db", str(DB_PATH)],
+        steps.append(runner([py(), str(HERE / "enrich_recommendations.py"), "--db", str(DB_PATH),
+                             "--recent-feed"],
                             "enrich_recommendations (portfolio-wide, once, --with-recs)"))
     if not opts.skip_abstracts:
         steps.append(runner([py(), str(HERE / "enrich_abstracts.py"), "--db", str(DB_PATH)],
@@ -398,7 +418,8 @@ def main(argv=None) -> int:
     ap.add_argument("--skip-forward",   action="store_true")
     ap.add_argument("--skip-reverse",   action="store_true")
     ap.add_argument("--with-recs",      action="store_true",
-                    help="Also run the portfolio-wide recommendations feed, once, after the loop")
+                    help="Also run the portfolio-wide recommendations feed (enrich_recommendations "
+                         "--recent-feed; sends nothing without S2_API_KEY), once, after the loop")
     ap.add_argument("--skip-recs",      action="store_true",
                     help="Accepted for compatibility: recommendations are off unless --with-recs")
     ap.add_argument("--skip-abstracts", action="store_true",

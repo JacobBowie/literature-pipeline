@@ -163,7 +163,8 @@ def _rows():
                    status_kinds={422: Kind.CONFIG, 410: Kind.CONFIG},
                    note="100k/day; the email is the only credential (redacted); 422/410 abort the run; 404 bodies are HTML"),
         HostPolicy("api.openalex.org", min_interval_s=0.2,
-                   note="1,000 credits/day keyless; URL <= 8,190 B; budget from X-RateLimit-* (litpipe.openalex registers)"),
+                   note="10,000 credits/day with OPENALEX_API_KEY (1,000 keyless); a singleton costs 0, a list call 1; "
+                        "URL <= 8,190 B; budget from X-RateLimit-* (litpipe.openalex registers)"),
         HostPolicy("pmc.ncbi.nlm.nih.gov", min_interval_s=1.0, transport="urllib", identity="ncbi",
                    offpeak=NCBI_OFFPEAK, retry=_NO_429_RETRY,
                    note="idconv only (/articles/ prohibited); requests gets 403, urllib 200; since 2026-09-30 a "

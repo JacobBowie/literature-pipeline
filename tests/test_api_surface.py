@@ -48,6 +48,10 @@ SURFACE = {
     "litpipe.identity": (["check", "doc_kind", "suspect_file", "text_stats"],
                          ["Verdict", "SuspectCheck"]),
     "litpipe.holdings": (["build"], ["HoldMap", "Holding"]),
+    # W3a: the OpenAlex client W3-A builds on
+    "litpipe.openalex": (["works_by_doi", "works_by_id", "referenced_works", "referenced_works_many",
+                          "citing_works", "content_pdf", "key_present", "apply_host_policy"],
+                         ["RefList", "Page", "Session"]),
 }
 
 CASES = [(mod, name, True) for mod, (fns, _) in SURFACE.items() for name in fns] + \
