@@ -223,6 +223,9 @@ def test_first_run_of_the_day_keeps_the_legacy_names(env):
 
 
 def test_two_same_day_sweeps_keep_two_complete_artifact_sets(env):
+    # DEC-31: the preprint stage (and its artifact) runs only for a project whose sources name a
+    # preprint server
+    env.register({"P": {"lib_dir": "lit", "sources": ["unpaywall", "pmc", "osf"]}})
     env.queue(["10.1000/first9"])
     assert env.sweep() == 0
     env.queue(["10.1000/second9"])

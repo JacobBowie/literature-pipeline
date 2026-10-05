@@ -1,0 +1,9 @@
+doi,title,year,preprint_filename,found,source,match_id,similarity,downloaded,skipped,status,first_status,route,outcome,detail,identity,release_date,landing_url
+10.1000/w2g.ppr_manual9,A study of ppr_manual,2020,,True,biorxiv,,,False,False,MANUAL_PREPRINT,,biorxiv,SKIPPED,manual_preprint,,,https://www.biorxiv.org/content/10.1101/2020.06.01.000001v1
+10.1000/w2g.ppr_excluded9,A study of ppr_excluded,2020,,False,medrxiv,,,False,False,source_excluded:medrxiv,,none,SKIPPED,source_excluded:medrxiv,,,
+10.1000/w2g.ppr_refused_dl9,A study of ppr_refused_dl,2020,,True,osf,,,False,False,HTTP_403,403,osf,REFUSED,,,,
+10.48550/arxiv.2101.00001,A study of ppr_arxiv_refused,2020,,False,arxiv,,,False,False,REFUSED: host_refused:export.arxiv.org,,arxiv,REFUSED,host_refused:export.arxiv.org,,,
+10.1000/w2g.ppr_deferred_deadline9,A study of ppr_deferred_deadline,2020,,False,osf,,,False,False,DEFERRED: row_deadline:90s,,osf,DEFERRED,row_deadline:90s,,,
+10.1000/w2g.ppr_flag_supplement9,A study of ppr_flag_supplement,2020,2020_Doe_Supp_preprint.pdf,True,osf,,,False,False,DOI_MISMATCH:pdf_doi=none;doc_kind=SUPPLEMENT,,osf,ERROR,,FLAG,,
+10.1000/w2g.ppr_aliased9,A study of ppr_aliased,2020,,True,osf,,,False,False,ALIASED,,osf,ALIASED,resolved under 10.31236/osf.io/abcde,,,
+10.1000/w2g.ppr_skipped_other9,A study of ppr_skipped_other,2020,,False,osf,,,False,False,NO_MATCH,,osf,SKIPPED,not_attempted,,,

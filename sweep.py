@@ -23,15 +23,24 @@ lit_pull_queue.<date>.processed.<n>.csv) stay readable (parse_artifact).
 Per queue: a row with an invalid or placeholder DOI (NO_DOI_*) is skipped (INVALID_DOI); a row
 held in another registered library is not fetched (HELD_ELSEWHERE, with the path); a blank title
 or author list is filled from CrossRef/DataCite, and a title that stays blank is not fetched
-(NO_METADATA). The rest go through Unpaywall v2, PMC and, unless skipped, the preprint stage,
-then PDF text extraction. Every row that was not fetched gets a residual class (dispatch 0.5) in
-the residual CSV; the report counts rows per class and per stage, SKIP_EXISTS apart from fetched.
+(NO_METADATA; a source that could not answer is asked once more in the run first). The rest go
+through Unpaywall v2, PMC and the preprint stage, then PDF text extraction. The preprint stage
+runs (with --project) only when the project's `sources` name a preprint server (DEC-31: a project
+with no `sources` key has unpaywall and pmc only), or for the rows with a 10.48550/ (arXiv) DOI,
+which reach arXiv whatever the sources (DEC-09); --skip-preprint skips it outright.
+
+Every row that was not fetched gets a residual class (dispatch 0.5) in the residual CSV, read
+from each stage report's typed columns (outcome, detail, identity, release_date, landing_url)
+when present and from the legacy columns (error / status through from_legacy) otherwise. The
+residual CSV also carries not_before (an embargo's release date), flagged_path (a file the
+identity check flagged) and landing_url (the page a person opens for a manual preprint). The
+report counts rows per class and per stage, SKIP_EXISTS apart from fetched.
 The queue retires (renamed to its .processed.csv) when every fetch stage completed and every row
-has a class. A deliberately skipped stage (--skip-preprint, or a project `sources` list with no
+has a class. A deliberately skipped stage (--skip-preprint, or a project whose sources name no
 preprint server) does not block retirement; a failed or crashed stage does, and the queue stays
-for the next sweep. Routing the residual rows (ILL list, retry_later, review) is
-migrate_closed_to_md.py's job: --migrate runs it for this run id, otherwise the exact command is
-printed.
+for the next sweep. A stage that exits 2, or a CONFIG outcome in any row, aborts the run.
+Routing the residual rows (ILL list, retry_later, review) is migrate_closed_to_md.py's job:
+--migrate runs it for this run id, otherwise the exact command is printed.
 """
 import argparse
 import csv
@@ -63,8 +72,8 @@ EXIT_CODES_HELP = """exit codes:
   0  every stage of every queue completed, including when nothing was fetched or nothing was
      staged (a bare sweep with no queue is an idle run)
   1  --project named a project with nothing to sweep
-  2  usage or configuration error (bad arguments, an invalid `sources` list, or a CONFIG outcome
-     such as Unpaywall 422, which aborts the run)
+  2  usage or configuration error (bad arguments, an invalid `sources` list, a CONFIG outcome
+     such as Unpaywall 422, or a stage that exited 2; each aborts the run)
   3  a stage failed or crashed (unpaywall, pmc, preprint, pdf extract, or --migrate); the queue
      is left in place for the next sweep unless only the extract or migrate step failed
   4  a queue was refused before fetching (no destination; a destination outside the project or
@@ -90,6 +99,7 @@ _ARTIFACT_RE = re.compile(
     r"\.(?P<date>\d{4}-\d{2}-\d{2})(?:\.(?P<seq>\d+))?"
     r"\.(?P<stage>[a-z_]+)(?:\.(?P<legacy_seq>\d+))?\.csv")
 PREPRINT_SOURCES = frozenset({"europepmc_preprints", "biorxiv", "medrxiv", "osf", "sportrxiv", "arxiv"})
+ARXIV_DOI_PREFIX = "10.48550/"   # DEC-09: arXiv DOIs reach arXiv whatever the project's sources
 
 LOOSE_DONE = "✅ Lit pull done:"
 LOOSE_PARTIAL = "⏸️ Lit pull PARTIAL:"
@@ -350,6 +360,31 @@ def admit_retries(root, today, default_destination=None):
     return out
 
 
+def _dkey(raw):
+    """The DOI key rows are compared by: the shared normaliser, else the legacy lower-case form."""
+    raw = str(raw or "").strip()
+    return _doi.normalise(raw) or lit_util.normalize_doi(raw)
+
+
+def retry_history(root):
+    """{doi key: attempts} from <root>/lit_pull_queue.retry_later.csv, every row (due or waiting).
+    run() reads it before admission, so a DOI re-queued fresh (not through `retry`) keeps its count
+    and an ERROR row still closes on its third run. {} when the file is absent or unreadable."""
+    p = Path(root) / RETRY_LATER_FILE
+    if not p.exists():
+        return {}
+    try:
+        _, rows = read_queue(p)
+    except (OSError, UnicodeDecodeError, csv.Error):
+        return {}
+    out = {}
+    for r in rows:
+        k = _dkey(r.get("doi"))
+        if k:
+            out[k] = max(out.get(k, 0), lit_util.coerce_int(r.get("attempts")))
+    return out
+
+
 # ---------------------------------------------------------------- per-row preparation
 def _resolve_meta(doi):
     """ris_emit.resolve_meta, imported late (network; tests replace this function)."""
@@ -374,14 +409,31 @@ def _format_authors(authors):
     return "; ".join(out)
 
 
+def _metadata_unavailable():
+    """ris_emit.MetadataUnavailable (a source could not answer), imported late; () when absent, so
+    isinstance(e, ...) is simply False."""
+    try:
+        import ris_emit
+        return ris_emit.MetadataUnavailable
+    except (ImportError, AttributeError):
+        return ()
+
+
 def fill_metadata(row, doi):
     """Fill a blank title, author list or year in place from CrossRef, then DataCite
-    (ris_emit.resolve_meta). Returns "filled", "unavailable" or "error:<ExceptionType>". Only the
-    exception type is kept: its text can carry a request URL with an email in it."""
+    (ris_emit.resolve_meta). Returns "filled", "unavailable" (no source holds a record: a genuine
+    not-found) or "error:<ExceptionType>" ("error:MetadataUnavailable" when a source could not
+    answer). Only the exception type is kept: its text can carry a request URL with an email."""
+    return _fill(row, doi)[0]
+
+
+def _fill(row, doi):
+    """fill_metadata's work: (result, source_unavailable), the flag true when resolve_meta raised
+    ris_emit.MetadataUnavailable (prepare_rows asks such a row once more in the run)."""
     try:
         meta, _source = _resolve_meta(doi)
-    except Exception as e:   # W2-E1 makes resolve_meta raise MetadataUnavailable
-        return f"error:{type(e).__name__}"
+    except Exception as e:   # resolve_meta raises MetadataUnavailable when a source cannot answer
+        return f"error:{type(e).__name__}", isinstance(e, _metadata_unavailable())
     meta = meta or {}
     changed = False
     if not (row.get("title") or "").strip() and (meta.get("title") or "").strip():
@@ -395,7 +447,7 @@ def fill_metadata(row, doi):
     if not (row.get("year") or "").strip() and meta.get("year"):
         row["year"] = str(meta["year"])
         changed = True
-    return "filled" if changed else "unavailable"
+    return ("filled" if changed else "unavailable"), False
 
 
 def _held_elsewhere(holdings, doi, lib_dir):
@@ -434,31 +486,65 @@ def _load_holdings(registry):
         return None, f"holdings build failed ({type(e).__name__})"
 
 
+NO_METADATA_UNAVAILABLE = "metadata unavailable"   # a source could not answer, twice in the run
+
+
+def _no_metadata_reason(res):
+    """The NO_METADATA reason for a fill result: a genuine not-found reads apart from an error."""
+    return "blank title; metadata not found" if res == "unavailable" else f"blank title; metadata {res}"
+
+
 def prepare_rows(norm_csv, lib_dir, holdings=None):
     """Split the normalized queue into rows to fetch and rows settled before any fetch
     (INVALID_DOI, HELD_ELSEWHERE, NO_METADATA), fill blank metadata, and rewrite `norm_csv` with
-    only the rows to fetch (DOIs normalized). Returns (fields, to_fetch, settled, meta_counts)."""
+    only the rows to fetch (DOIs normalized). A blank-title row whose metadata source could not
+    answer (ris_emit.MetadataUnavailable) is asked once more after the other rows; if it still
+    cannot, the row is NO_METADATA with the reason "metadata unavailable", apart from a genuine
+    not-found ("metadata not found"). Returns (fields, to_fetch, settled, meta_counts)."""
     fields, rows = read_queue(norm_csv)
     if "citation_count" not in fields:
         fields.append("citation_count")
-    to_fetch, settled, meta = [], [], Counter()
+    meta = Counter()
+    slots = []      # [row, ("fetch",) | ("settled", class, reason, held) | ("retry",)] in queue order
     for r in rows:
         raw = (r.get("doi") or "").strip()
         doi = None if raw.upper().startswith("NO_DOI") else _doi.normalise(raw)
         if not doi or not lit_util.is_valid_doi(doi):
-            settled.append((r, "INVALID_DOI", f"invalid or placeholder DOI {raw!r}", ""))
+            slots.append([r, ("settled", "INVALID_DOI", f"invalid or placeholder DOI {raw!r}", "")])
             continue
         r["doi"] = doi
         held = _held_elsewhere(holdings, doi, lib_dir)
         if held:
-            settled.append((r, "HELD_ELSEWHERE", "held in another library", "; ".join(held)))
+            slots.append([r, ("settled", "HELD_ELSEWHERE", "held in another library", "; ".join(held))])
             continue
         if not (r.get("title") or "").strip() or not (r.get("authors") or "").strip():
-            res = fill_metadata(r, doi)
-            meta[res] += 1
+            res, unavailable = _fill(r, doi)
             if not (r.get("title") or "").strip():
-                settled.append((r, "NO_METADATA", f"blank title; metadata {res}", ""))
+                if unavailable:
+                    slots.append([r, ("retry",)])
+                    continue
+                meta[res] += 1
+                slots.append([r, ("settled", "NO_METADATA", _no_metadata_reason(res), "")])
                 continue
+            meta[res] += 1
+        slots.append([r, ("fetch",)])
+    for slot in slots:   # one more ask in the run for a source that could not answer
+        r, state = slot
+        if state[0] != "retry":
+            continue
+        meta["retried"] += 1
+        res, unavailable = _fill(r, r["doi"])
+        meta[res] += 1
+        if (r.get("title") or "").strip():
+            slot[1] = ("fetch",)
+        else:
+            reason = NO_METADATA_UNAVAILABLE if unavailable else _no_metadata_reason(res)
+            slot[1] = ("settled", "NO_METADATA", reason, "")
+    to_fetch, settled = [], []
+    for r, state in slots:
+        if state[0] == "settled":
+            settled.append((r, *state[1:]))
+            continue
         if not (r.get("citation_count") or "").strip():
             r["citation_count"] = "0"
         to_fetch.append(r)
@@ -467,9 +553,26 @@ def prepare_rows(norm_csv, lib_dir, holdings=None):
 
 
 # ---------------------------------------------------------------- stage verdicts and classes
+# The typed report columns (W2b contract): a reader takes whichever exist. `outcome` is a Kind name
+# (the row's FIRST root cause); `detail` is exactly `manual_preprint` or `source_excluded:<source>`
+# for SKIPPED; `identity` is OK / TITLE_MATCH / FLAG / blank; `release_date` is YYYY-MM-DD for
+# EMBARGOED; `landing_url` is the page a person opens for a manual preprint.
+TYPED_COLUMNS = ("outcome", "first_status", "route", "detail", "identity", "release_date",
+                 "landing_url")
+MANUAL_PREPRINT_DETAIL = "manual_preprint"
+SOURCE_EXCLUDED_PREFIX = "source_excluded:"
+# unpaywall `route` values that are not a download host (a refusal there is the API's, or nothing
+# was sent): anything else (publisher, repository, ...) names the host type of a download
+_UNPAYWALL_LOOKUP_ROUTES = frozenset({"", "api", "ra", "none", "exists", "dry_run"})
+# a W1-era download 404 (the underscore form; the API's "HTTP 404" is NO_MATCH): a dead OA link
+_DOWNLOAD_404 = re.compile(r"(?<![A-Za-z0-9])HTTP_404(?!\d)")
+_EMBARGO_UNTIL = re.compile(r"EMBARGOED\s+until\s+(\d{4}-\d{2}-\d{2})")
+
+
 @dataclass(frozen=True)
 class Verdict:
-    """What one stage's report says about one row (legacy strings mapped by from_legacy)."""
+    """What one stage's report says about one row: the typed `outcome` column when the report has
+    one, else the legacy string mapped by from_legacy."""
     stage: str
     kind: Kind
     raw: str = ""
@@ -477,54 +580,154 @@ class Verdict:
     skip_exists: bool = False
     text_only: bool = False
     download_host: bool = False   # the refusal came from a download route, not a lookup API
-    identity: bool = False        # DOI_MISMATCH: the served file was another work
+    identity: bool = False        # flagged: identity FLAG, a SUPPLEMENT, or a DOI_MISMATCH string
     manual_preprint: bool = False
+    typed: bool = False           # read from the typed `outcome` column
+    excluded_source: str = ""     # SKIPPED source_excluded:<source>: the project does not enable it
+    release_date: str = ""        # EMBARGOED: the release date (the row's not_before), "" unknown
+    landing_url: str = ""         # manual_preprint: the page a person opens
+    flagged_file: str = ""        # identity: the flagged file's name in the library
 
 
 def _truthy(v):
     return str(v or "").strip().lower() in ("true", "1", "yes")
 
 
+def _cell(row, col):
+    return str(row.get(col) or "").strip()
+
+
+def _typed_kind(row):
+    """The Kind the typed `outcome` column names; None when it is absent, blank or not a Kind."""
+    s = _cell(row, "outcome").upper()
+    try:
+        return Kind(s) if s else None
+    except ValueError:
+        return None
+
+
+def _legacy_kind(raw, stage):
+    """from_legacy, plus the W1-era download `HTTP_404` (a dead OA link) as NOT_AVAILABLE: the
+    stages write `HTTP_404 [NOT_AVAILABLE]` since W2a, and an old report must route the same way.
+    BOILERPLATE and TOO_LARGE stay ERROR (counted, closed on the third run)."""
+    kind = from_legacy(raw, stage)
+    if kind is Kind.ERROR and _DOWNLOAD_404.search(raw or ""):
+        return Kind.NOT_AVAILABLE
+    return kind
+
+
+def is_flagged(row, legacy_col="error"):
+    """True when a stage report row is identity-flagged (W2b contract): identity == FLAG, a
+    SUPPLEMENT (unpaywall doc_kind), or a legacy error / status starting DOI_MISMATCH. A flagged
+    row never counts as downloaded, whatever its outcome says (pmc writes OK, unpaywall ERROR)."""
+    return (_cell(row, "identity").upper() == "FLAG" or _cell(row, "doc_kind").upper() == "SUPPLEMENT"
+            or _cell(row, legacy_col).startswith("DOI_MISMATCH"))
+
+
+def _verdict(stage, row, raw, *, legacy_col, flagged, download_host, file_col, text_only=False):
+    """A not-fetched row's verdict: the typed outcome when present (a SKIPPED whose detail is
+    neither manual_preprint nor source_excluded reads through the legacy columns), else
+    from_legacy. A flagged verdict is never OK; a typed OK without a file is not a success."""
+    kind, detail = _typed_kind(row), _cell(row, "detail")
+    if kind is Kind.SKIPPED and not (detail == MANUAL_PREPRINT_DETAIL
+                                     or detail.startswith(SOURCE_EXCLUDED_PREFIX)):
+        kind = None
+    typed = kind is not None
+    if not typed:
+        kind = _legacy_kind(raw, stage)
+        if SOURCE_EXCLUDED_PREFIX in raw.lower():   # no legacy token names it; the detail text does
+            kind = Kind.SKIPPED
+    excluded = ""
+    if kind is Kind.SKIPPED:
+        src = (detail if typed else raw).lower()
+        if SOURCE_EXCLUDED_PREFIX in src:
+            excluded = (src.split(SOURCE_EXCLUDED_PREFIX, 1)[1].split() or ["unknown"])[0].strip(";,") \
+                or "unknown"
+    manual = kind is Kind.SKIPPED and not excluded and (
+        detail == MANUAL_PREPRINT_DETAIL if typed else "MANUAL_PREPRINT" in raw)
+    if kind is Kind.OK:
+        # success comes from `downloaded` or an already-held file (the callers checked both); an OK
+        # left here is a flagged file (pmc writes OK beside identity FLAG) or a report with no file
+        kind = Kind.ERROR
+        if not flagged:
+            raw = f"{raw} (outcome OK but no file)"
+    release = ""
+    if kind is Kind.EMBARGOED:
+        m = _EMBARGO_UNTIL.search(raw)
+        release = _cell(row, "release_date")[:10] or (m.group(1) if m else "")
+    return Verdict(stage, kind, raw, text_only=text_only and not flagged,
+                   download_host=download_host, identity=flagged, manual_preprint=manual,
+                   typed=typed, excluded_source=excluded, release_date=release,
+                   landing_url=_cell(row, "landing_url"),
+                   flagged_file=_cell(row, file_col) if flagged else "")
+
+
+def _raw(row, legacy_col):
+    """The text a verdict shows: the legacy string, else the typed outcome and its detail."""
+    s = _cell(row, legacy_col)
+    if s:
+        return s
+    kind, detail = _cell(row, "outcome"), _cell(row, "detail")
+    return (f"{kind}: {detail}" if detail else kind) if kind else "UNKNOWN"
+
+
 def unpaywall_verdict(u):
     if u is None:
         return None
-    if _truthy(u.get("downloaded")):
+    flagged = is_flagged(u, "error")
+    oa = _cell(u, "oa_status")
+    if not flagged and _truthy(u.get("downloaded")):
         return Verdict("unpaywall", Kind.OK, "downloaded", downloaded=True)
-    oa = (u.get("oa_status") or "").strip()
-    err = (u.get("error") or "").strip()
-    if oa == "SKIP_EXISTS":
+    if not flagged and (oa == "SKIP_EXISTS" or _truthy(u.get("skipped"))):
         return Verdict("unpaywall", Kind.OK, "SKIP_EXISTS", skip_exists=True)
-    raw = err or ("OA_NO_URL" if oa == "OA" else oa) or "UNKNOWN"
-    return Verdict("unpaywall", from_legacy(raw, "unpaywall"), raw, download_host=(oa == "OA"),
-                   identity=raw.startswith("DOI_MISMATCH"))
+    err = _cell(u, "error")
+    raw = err or ("OA_NO_URL" if oa == "OA" else oa) or _raw(u, "error")
+    route = _cell(u, "route").lower()
+    # a download host refused us: the record was OA and (typed reports) the route is a host type
+    download_host = oa == "OA" and ("route" not in u or route not in _UNPAYWALL_LOOKUP_ROUTES)
+    return _verdict("unpaywall", u, raw, legacy_col="error", flagged=flagged,
+                    download_host=download_host, file_col="filename")
+
+
+def _pmc_text_only(p):
+    """TEXT_ONLY, exactly (W2b): a text sidecar written or already there, no PDF downloaded, no
+    PDF judged (identity blank), and, where pmc_class is present, an author manuscript."""
+    klass = _cell(p, "pmc_class").upper()
+    return (_truthy(p.get("sidecar")) and _cell(p, "sidecar_status").upper() in ("OK", "EXISTS")
+            and not _truthy(p.get("downloaded")) and not _cell(p, "identity")
+            and (not klass or klass.startswith("AM")))
 
 
 def pmc_verdict(p):
     if p is None:
         return None
-    if _truthy(p.get("downloaded")):
+    flagged = is_flagged(p, "error")
+    if not flagged and _truthy(p.get("downloaded")):
         return Verdict("pmc", Kind.OK, "downloaded", downloaded=True)
-    if _truthy(p.get("skipped")) or (p.get("winning_source") or "") == "ALREADY_EXISTS":
+    if not flagged and (_truthy(p.get("skipped")) or _cell(p, "winning_source") == "ALREADY_EXISTS"):
         return Verdict("pmc", Kind.OK, "ALREADY_EXISTS", skip_exists=True)
-    raw = (p.get("error") or "").strip() or "UNKNOWN"
-    return Verdict("pmc", from_legacy(raw, "pmc"), raw, text_only=_truthy(p.get("sidecar")),
-                   download_host=bool((p.get("pmcid") or "").strip()),
-                   identity=raw.startswith("DOI_MISMATCH"))
+    return _verdict("pmc", p, _raw(p, "error"), legacy_col="error", flagged=flagged,
+                    download_host=bool(_cell(p, "pmcid")), file_col="filename",
+                    text_only=_pmc_text_only(p))
 
 
 def preprint_verdict(r):
     if r is None:
         return None
-    if _truthy(r.get("downloaded")):
+    flagged = is_flagged(r, "status")
+    st = _cell(r, "status")
+    if not flagged and _truthy(r.get("downloaded")):
         return Verdict("preprint", Kind.OK, "downloaded", downloaded=True)
-    st = (r.get("status") or "").strip()
-    if _truthy(r.get("skipped")) or st == "ALREADY_EXISTS":
+    if not flagged and (_truthy(r.get("skipped")) or st == "ALREADY_EXISTS"):
         return Verdict("preprint", Kind.OK, "ALREADY_EXISTS", skip_exists=True)
-    raw = st or "UNKNOWN"
-    kind = from_legacy(raw, "preprint")
-    return Verdict("preprint", kind, raw, download_host=_truthy(r.get("found")),
-                   identity=raw.startswith("DOI_MISMATCH"),
-                   manual_preprint=(kind is Kind.SKIPPED and "MANUAL_PREPRINT" in raw))
+    return _verdict("preprint", r, _raw(r, "status"), legacy_col="status", flagged=flagged,
+                    download_host=_truthy(r.get("found")),
+                    file_col="preprint_filename" if _cell(r, "preprint_filename") else "filename")
+
+
+def fetched_by(v):
+    """True for a verdict that fetched the row: OK and not identity-flagged."""
+    return v is not None and v.kind is Kind.OK and not v.identity
 
 
 _TERMINAL_KINDS = frozenset({Kind.NO_MATCH, Kind.NOT_AVAILABLE, Kind.NOT_AT_RA})
@@ -536,18 +739,35 @@ RESIDUAL_CLASSES = ("HELD_ELSEWHERE", "TEXT_ONLY", "OA_BLOCKED", "TRANSIENT", "I
 REPORT_CLASSES = ("fetched",) + RESIDUAL_CLASSES
 
 
+def _enabled(verdicts):
+    """The verdicts of enabled stages: None dropped, and a SKIPPED source_excluded too (the
+    project does not enable that source, so it is not an enabled stage's answer)."""
+    return [v for v in verdicts if v is not None and not v.excluded_source]
+
+
+def _embargo(vs):
+    """(stage, release date or "") of the embargo a row waits on: the earliest dated one."""
+    emb = [v for v in vs if v.kind is Kind.EMBARGOED]
+    dated = sorted((v.release_date, v.stage) for v in emb if v.release_date)
+    return (dated[0][1], dated[0][0]) if dated else (emb[0].stage, "")
+
+
 def classify(verdicts, attempts=1):
     """The residual class of a row from its enabled stages' verdicts (dispatch 0.5 table, top
     to bottom, first match wins). HELD_ELSEWHERE, NO_METADATA and INVALID_DOI are settled before
-    any fetch (prepare_rows). `attempts` counts sweeps of this row including this one; an
+    any fetch (prepare_rows). A SKIPPED source_excluded verdict is dropped first: the row is
+    SKIPPED_SOURCE only when no enabled stage's verdict remains. An identity-flagged verdict never
+    counts as OK or TEXT_ONLY. `attempts` counts sweeps of this row including this one; an
     ERROR row turns TERMINAL_CLOSED on its third. Returns (class, reason)."""
-    vs = [v for v in verdicts if v is not None]
-    if any(v.kind is Kind.OK for v in vs):
+    vs = _enabled(verdicts)
+    if any(fetched_by(v) for v in vs):
         return "fetched", ""
-    if any(v.text_only for v in vs):
+    if any(v.text_only and not v.identity for v in vs):
         return "TEXT_ONLY", "text sidecar, no PDF"
     if any(v.kind is Kind.EMBARGOED for v in vs):
-        return "TRANSIENT", "embargoed"
+        stage, until = _embargo(vs)
+        return "TRANSIENT", (f"{stage}: EMBARGOED until {until}" if until
+                             else f"{stage}: EMBARGOED (release date unknown)")
     blocked = [v for v in vs if (v.kind is Kind.REFUSED and v.download_host) or v.manual_preprint]
     if blocked:
         return "OA_BLOCKED", f"{blocked[0].stage}: {blocked[0].raw}"
@@ -570,6 +790,29 @@ def classify(verdicts, attempts=1):
     if attempts >= ERROR_RUNS_TO_TERMINAL:
         return "TERMINAL_CLOSED", f"error in {attempts} runs, last {err.stage}: {err.raw}"
     return "TRANSIENT", f"error (run {attempts} of {ERROR_RUNS_TO_TERMINAL}) {err.stage}: {err.raw}"
+
+
+RESIDUAL_EXTRA_FIELDS = ("not_before", "flagged_path", "landing_url")
+
+
+def residual_extras(verdicts, cls, lib_dir=None):
+    """The residual CSV's per-row extras for a classified row (W2-G):
+    not_before    an embargo's release date when the row is TRANSIENT on an embargo ("" when the
+                  date is unknown: migrate applies its default delay)
+    flagged_path  the library path of every identity-flagged file, "; "-joined (the file stays put;
+                  its evidence is <stem>.identity.json, or pmc's <stem>.fulltext.json identity_*)
+    landing_url   the page a person opens for a manual preprint"""
+    vs = _enabled(verdicts)
+    out = dict.fromkeys(RESIDUAL_EXTRA_FIELDS, "")
+    if cls == "TRANSIENT" and any(v.kind is Kind.EMBARGOED for v in vs):
+        out["not_before"] = _embargo(vs)[1]
+    files = [v.flagged_file for v in vs if v.identity and v.flagged_file]
+    if files:
+        out["flagged_path"] = "; ".join(str(Path(lib_dir) / f) if lib_dir else f
+                                        for f in dict.fromkeys(files))
+    out["landing_url"] = next((v.landing_url for v in vs if v.manual_preprint and v.landing_url),
+                              next((v.landing_url for v in vs if v.landing_url), ""))
+    return out
 
 
 from litpipe.ledger import redact as _ledger_redact   # the one implementation (dispatch 0.5)
@@ -625,13 +868,31 @@ def _refuse(msg):
     return None
 
 
+def _stage_status(r, report):
+    """completed (exit 0 and a report), config (exit 2: a stage's CONFIG abort, or a usage error
+    in the command sweep built), else failed."""
+    if r.returncode == 0 and Path(report).exists():
+        return "completed"
+    return "config" if r.returncode == EXIT_USAGE else "failed"
+
+
+def is_arxiv_doi(doi):
+    return str(doi or "").strip().lower().startswith(ARXIV_DOI_PREFIX)
+
+
 def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_preprint=False, *,
                  key=None, registry=None, run_id=None, holdings=None, artifact_dir=None,
-                 allow_destination=False, skip_reason=None):
+                 allow_destination=False, skip_reason=None, preprint_arxiv_only=False,
+                 history=None):
     """Run unpaywall_v2 -> pmc_fetch -> preprint_fetch -> pdf extract against one queue and
     classify every row. Returns a result dict, or None when the queue is refused before any
     fetch (no destination, a destination that escapes the project or, given `key` and
-    `registry`, is not the registry library for `key`, unless `allow_destination`)."""
+    `registry`, is not the registry library for `key`, unless `allow_destination`).
+
+    `preprint_arxiv_only` (DEC-31: the project's sources name no preprint server) sends only the
+    10.48550/ rows to the preprint stage, and skips it when there are none. `history` is
+    {doi: attempts} from retry_later before admission (default: read it now), so a DOI re-queued
+    fresh keeps its count."""
     project_dir = Path(project_dir)
     queue_csv = Path(queue_csv)
     tag = queue_tag(queue_csv.name) or ""
@@ -685,9 +946,10 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
 
     py = sys.executable
     status = {"unpaywall": "not_run", "pmc": "not_run", "preprint": "not_run", "extract": "not_run"}
+    stage_note = {}
     report_unpw, report_pmc, report_ppr = names["unpaywall"], names["pmc"], names["preprint"]
     residual_csv, summary_csv = names["residual"], names["report"]
-    preprint_input = []
+    preprint_input, gated = [], set()   # gated: rows the DEC-31 gate kept from the preprint stage
 
     # Stage 1: Unpaywall. It always runs (legacy behaviour; with no rows it writes an empty report).
     r1 = _run_stage([py, str(HERE / "unpaywall_fetch_v2.py"),
@@ -696,11 +958,9 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
                      "--lib-dir", str(lib_dir),
                      "--report", str(report_unpw),
                      "--base-dir", str(project_dir)])
-    if r1.returncode == 0 and report_unpw.exists():
-        status["unpaywall"] = "completed"
-    else:
-        status["unpaywall"] = "failed"
-        print(f"  ERR unpaywall stage failed (exit {r1.returncode}, report "
+    status["unpaywall"] = _stage_status(r1, report_unpw)
+    if status["unpaywall"] != "completed":
+        print(f"  ERR unpaywall stage {status['unpaywall']} (exit {r1.returncode}, report "
               f"{'present' if report_unpw.exists() else 'MISSING'}); PMC and preprint cannot run:\n"
               f"{(r1.stderr or '')[-500:]}")
 
@@ -711,51 +971,62 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
                          "--lib-dir", str(lib_dir),
                          "--report-out", str(report_pmc),
                          "--base-dir", str(project_dir)])
-        if r2.returncode != 0 or not report_pmc.exists():
+        status["pmc"] = _stage_status(r2, report_pmc)
+        if status["pmc"] != "completed":
             # T3 (2026-06-25): a missing report must NOT read as 'PMC found nothing'.
-            print(f"  [WARN] PMC stage did NOT complete (exit {r2.returncode}, "
+            print(f"  [WARN] PMC stage did NOT complete ({status['pmc']}, exit {r2.returncode}, "
                   f"report={'present' if report_pmc.exists() else 'MISSING'}); the queue stays "
                   f"for a re-sweep." + (f"\n{r2.stderr[-400:]}" if r2.stderr else ""))
-            status["pmc"] = "failed"
-        else:
-            status["pmc"] = "completed"
 
+    if status["unpaywall"] == "completed":
         # Stage 3: preprint_fetch for the rows neither Unpaywall nor PMC got.
         # T5b (2026-06-25 audit): an already-present paper reports oa_status=SKIP_EXISTS
         # (unpaywall) or skipped/winning_source=ALREADY_EXISTS (pmc) with downloaded=False; treat
-        # those as got, or a _preprint duplicate is fetched.
-        got = set()
-        for d, r in _index(report_unpw).items():
-            if _truthy(r.get("downloaded")) or r.get("oa_status", "") == "SKIP_EXISTS":
-                got.add(d)
-        for d, r in _index(report_pmc).items():
-            if (_truthy(r.get("downloaded")) or _truthy(r.get("skipped"))
-                    or r.get("winning_source", "") == "ALREADY_EXISTS"):
-                got.add(d)
+        # those as got, or a _preprint duplicate is fetched. An identity-flagged file is not got.
+        got = {d for d, r in _index(report_unpw).items() if fetched_by(unpaywall_verdict(r))}
+        got |= {d for d, r in _index(report_pmc).items() if fetched_by(pmc_verdict(r))}
         preprint_input = [r for r in to_fetch if lit_util.normalize_doi(r.get("doi")) not in got]
-        if skip_preprint:
+        if preprint_arxiv_only and not skip_preprint:
+            # DEC-31: no preprint server in the project's sources; DEC-09: arXiv DOIs go anyway
+            gated = {lit_util.normalize_doi(r.get("doi")) for r in preprint_input
+                     if not is_arxiv_doi(r.get("doi"))}
+            preprint_input = [r for r in preprint_input if is_arxiv_doi(r.get("doi"))]
+            if preprint_input:
+                stage_note["preprint"] = (f"{len(preprint_input)} {ARXIV_DOI_PREFIX} row(s) only; the "
+                                          f"project's sources name no preprint server")
+        if skip_preprint or (preprint_arxiv_only and not preprint_input):
             status["preprint"] = "skipped"
-            print(f"  [SKIP] preprint stage skipped ({skip_reason or '--skip-preprint'}); "
-                  f"{len(preprint_input)} row(s) classified on Unpaywall and PMC alone")
+            n_left = len(preprint_input) + len(gated)
+            why = skip_reason or ("--skip-preprint" if skip_preprint else
+                                  "the project's sources name no preprint server")
+            print(f"  [SKIP] preprint stage skipped ({why}); "
+                  f"{n_left} row(s) classified on Unpaywall and PMC alone")
+            gated = set()
+        elif preprint_input and status["pmc"] == "config":
+            # the run aborts at PMC's CONFIG: the stage is not run, and its rows are PENDING
+            print(f"  [SKIP] preprint stage not run: the run aborts (PMC exited {EXIT_USAGE}, CONFIG)")
         elif preprint_input:
             _write_csv(residual_csv, preprint_input, fields)
-            r3 = _run_stage([py, str(HERE / "preprint_fetch.py"),
-                             "--triage", str(residual_csv),
-                             "--lib-dir", str(lib_dir),
-                             "--report", str(report_ppr)])
-            if r3.returncode != 0 or not report_ppr.exists():
-                print(f"  [WARN] preprint stage did NOT complete (exit {r3.returncode}, "
-                      f"report={'present' if report_ppr.exists() else 'MISSING'})."
+            cmd = [py, str(HERE / "preprint_fetch.py"),
+                   "--triage", str(residual_csv),
+                   "--lib-dir", str(lib_dir),
+                   "--report", str(report_ppr)]
+            if key:
+                cmd += ["--project", key]   # the stage selects its servers from the project's sources
+            r3 = _run_stage(cmd)
+            status["preprint"] = _stage_status(r3, report_ppr)
+            if status["preprint"] != "completed":
+                print(f"  [WARN] preprint stage did NOT complete ({status['preprint']}, exit "
+                      f"{r3.returncode}, report={'present' if report_ppr.exists() else 'MISSING'})."
                       + (f"\n{r3.stderr[-400:]}" if r3.stderr else ""))
-                status["preprint"] = "failed"
-            else:
-                status["preprint"] = "completed"
         else:
             status["preprint"] = "not_needed"
+            gated = set()
 
+    if status["unpaywall"] == "completed" and "config" not in status.values():
         # Stage 4: PDF text extraction for PDFs in lib_dir without a .fulltext.json sidecar.
         # Indexing only and idempotent, so a failure does not keep the queue; it does set the
-        # exit code.
+        # exit code. A CONFIG stage aborts the run, so it does not run then.
         r4 = _run_stage([py, str(HERE / "extract_pdf_fulltext.py"), "--lib-dir", str(lib_dir)])
         status["extract"] = "completed" if r4.returncode == 0 else "failed"
         if r4.returncode != 0:
@@ -763,20 +1034,32 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
 
     # ---- classify every row
     u_idx, p_idx, r_idx = _index(report_unpw), _index(report_pmc), _index(report_ppr)
+    # the rows the preprint stage was given, or would have been (not_run: the run aborted first)
     ppr_dois = ({lit_util.normalize_doi(r.get("doi")) for r in preprint_input}
-                if status["preprint"] in ("completed", "failed") else set())
+                if status["preprint"] in ("completed", "failed", "config", "not_run") else set())
     skipped_sources = [s for s in _STAGE_ORDER if status[s] == "skipped"]
+    history = retry_history(project_dir) if history is None else history
     classes = Counter()
     config_rows = 0   # rows with any CONFIG verdict: the run aborts whatever class the row gets
     residual = []
     res_fields = _union(fields, ["residual_class", "reason", "stages", "held_at",
-                                 "skipped_sources", "attempts", "run_id"])
+                                 "skipped_sources", "attempts", "run_id"],
+                        RESIDUAL_EXTRA_FIELDS)
 
-    def _residual_row(r, cls, reason, stages="", held=""):
+    def _attempts(r):
+        """Sweeps of this row including this one: the row's own count (a re-admitted retry row
+        carries it) or retry_later's for its DOI (a fresh re-queue), whichever is higher."""
+        return max(lit_util.coerce_int(r.get("attempts")), history.get(_dkey(r.get("doi")), 0)) + 1
+
+    def _residual_row(r, cls, reason, stages="", held="", skipped=(), extras=None):
         out = dict(r)
         out.update(residual_class=cls, reason=_redact(reason), stages=_redact(stages),
-                   held_at=held, skipped_sources=";".join(skipped_sources),
-                   attempts=str(lit_util.coerce_int(r.get("attempts")) + 1), run_id=run_id)
+                   held_at=held, skipped_sources=";".join(skipped_sources + [
+                       s for s in skipped if s not in skipped_sources]),
+                   attempts=str(_attempts(r)), run_id=run_id)
+        # not_before, flagged_path, landing_url: always written, so a stale not_before carried
+        # in by a re-admitted retry row is not mistaken for this run's
+        out.update({k: _redact(v) for k, v in (extras or dict.fromkeys(RESIDUAL_EXTRA_FIELDS, "")).items()})
         residual.append(out)
 
     for r, cls, reason, held in settled:
@@ -785,9 +1068,12 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
     for r in to_fetch:
         d = lit_util.normalize_doi(r.get("doi"))
         verdicts, missing = [], []
-        uv = unpaywall_verdict(u_idx.get(d))
+        u_row = u_idx.get(d)
+        uv = unpaywall_verdict(u_row)
+        # pmc_fetch reads every unpaywall row not downloaded and not SKIP_EXISTS (its own rule)
         expected = {"unpaywall": True,
-                    "pmc": not (uv is not None and uv.kind is Kind.OK),
+                    "pmc": u_row is None or not (_truthy(u_row.get("downloaded"))
+                                                 or _cell(u_row, "oa_status") == "SKIP_EXISTS"),
                     "preprint": d in ppr_dois}
         vfun = {"unpaywall": lambda: uv, "pmc": lambda: pmc_verdict(p_idx.get(d)),
                 "preprint": lambda: preprint_verdict(r_idx.get(d))}
@@ -801,31 +1087,35 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
                 verdicts.append(v)
         stages_txt = "; ".join(f"{v.stage}={v.raw}" for v in verdicts)
         config_rows += any(v.kind is Kind.CONFIG for v in verdicts)
-        if any(v.kind is Kind.OK for v in verdicts):
+        if any(fetched_by(v) for v in verdicts):
             cls, reason = "fetched", ""
         elif missing:
             cls, reason = "PENDING", "; ".join(missing)
         else:
-            cls, reason = classify(verdicts, attempts=lit_util.coerce_int(r.get("attempts")) + 1)
+            cls, reason = classify(verdicts, attempts=_attempts(r))
         classes[cls] += 1
         if cls != "fetched":
-            _residual_row(r, cls, reason, stages_txt)
+            skipped = (["preprint"] if d in gated else []) + [
+                v.stage for v in verdicts if v.excluded_source]
+            _residual_row(r, cls, reason, stages_txt, skipped=skipped,
+                          extras=residual_extras(verdicts, cls, lib_dir))
     _write_csv(residual_csv, residual, res_fields)
 
-    # ---- counts and the report
-    n_unpw = _count(u_idx, lambda r: _truthy(r.get("downloaded")))
-    n_pmc = _count(p_idx, lambda r: _truthy(r.get("downloaded")))
-    n_ppr = _count(r_idx, lambda r: _truthy(r.get("downloaded")))
-    sk_unpw = _count(u_idx, lambda r: r.get("oa_status", "") == "SKIP_EXISTS")
-    sk_pmc = _count(p_idx, lambda r: not _truthy(r.get("downloaded")) and (
-        _truthy(r.get("skipped")) or r.get("winning_source", "") == "ALREADY_EXISTS"))
-    sk_ppr = _count(r_idx, lambda r: not _truthy(r.get("downloaded")) and (
-        _truthy(r.get("skipped")) or r.get("status", "") == "ALREADY_EXISTS"))
+    # ---- counts and the report (a flagged file is never a download, whatever its row says)
+    verdict_of = {"unpaywall": unpaywall_verdict, "pmc": pmc_verdict, "preprint": preprint_verdict}
+
+    def _n(index, stage, field):
+        return _count(index, lambda r: getattr(verdict_of[stage](r), field))
+
+    n_unpw, n_pmc, n_ppr = (_n(u_idx, "unpaywall", "downloaded"), _n(p_idx, "pmc", "downloaded"),
+                            _n(r_idx, "preprint", "downloaded"))
+    sk_unpw, sk_pmc, sk_ppr = (_n(u_idx, "unpaywall", "skip_exists"), _n(p_idx, "pmc", "skip_exists"),
+                               _n(r_idx, "preprint", "skip_exists"))
     n_total, n_skip = n_unpw + n_pmc + n_ppr, sk_unpw + sk_pmc + sk_ppr
 
     failed = [s for s in ("unpaywall", "pmc", "preprint", "extract") if status[s] == "failed"]
-    blocking = [s for s in _STAGE_ORDER if status[s] in ("failed", "not_run")]
-    config_error = config_rows > 0
+    blocking = [s for s in _STAGE_ORDER if status[s] in ("failed", "not_run", "config")]
+    config_error = config_rows > 0 or "config" in status.values()
     retired = not blocking and not classes["PENDING"] and not config_error
     if retired:
         keep_reason = ""
@@ -835,9 +1125,12 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
         keep_reason = "a source refused the configuration (CONFIG)"
     else:
         keep_reason = f"{classes['PENDING']} row(s) unclassified"
+    skip_why = skip_reason or ("--skip-preprint" if skip_preprint else
+                               "the project's sources name no preprint server")
 
     def _st(s):
-        return status[s] + (f" ({skip_reason or '--skip-preprint'})" if status[s] == "skipped" else "")
+        note = skip_why if status[s] == "skipped" else stage_note.get(s)
+        return status[s] + (f" ({note})" if note else "")
 
     rep = [("run", "run_id", "", run_id), ("run", "queue", "", queue_csv.name),
            ("run", "destination", "", str(lib_dir)),
@@ -976,11 +1269,10 @@ def loose_end_line(key, results, refused):
 
 # ---------------------------------------------------------------- the run
 def _preprint_excluded(key, cfg):
-    """True when the project's own `sources` list names no preprint server. Without a `sources`
-    key the preprint stage runs as before (per-server selection lands with W2-C)."""
-    entry = (cfg.get("projects") or {}).get(key) or {}
-    if "sources" not in entry:
-        return False
+    """DEC-31: True when the project's sources (its own `sources` list, else the default
+    unpaywall + pmc) name no preprint server. The preprint stage then runs only for rows with a
+    10.48550/ DOI (DEC-09: arXiv rows reach arXiv whatever the sources), and is skipped when
+    there are none. Raises litpipe.config.ConfigError on an invalid `sources` list."""
     from litpipe import config as lp_config
     return not (lp_config.sources(key, cfg=cfg) & PREPRINT_SOURCES)
 
@@ -1020,9 +1312,13 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
     cfg_full = lit_util.load_projects_config(CONFIG_PATH, missing_ok=True)
     registry = cfg_full.get("projects") or {}
 
-    # Due retry_later rows become the `retry` tagged queue before discovery.
+    # Due retry_later rows become the `retry` tagged queue before discovery. Each project's
+    # retry_later attempts are read first: admission removes the due rows, and a DOI also
+    # re-queued fresh must keep its count.
     due_dry = 0
+    histories = {}
     for key, root in _project_roots(project, registry):
+        histories[key] = retry_history(root)
         if dry_run:
             _, due, waiting, bad = split_retry_later(root, today)
             if due or bad:
@@ -1096,12 +1392,13 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
             if len(qs) > 1:
                 print(f"\n  --- {q.name} ---")
             res = run_pipeline(proj, q, dry_run=dry_run, run_date=today,
-                               skip_preprint=skip_preprint or excluded, key=key,
+                               skip_preprint=skip_preprint, key=key,
                                registry=registry, run_id=run_id, holdings=holdings,
                                artifact_dir=artifact_dir, allow_destination=allow_destination,
                                skip_reason=None if skip_preprint else (
                                    "the project's sources list names no preprint server"
-                                   if excluded else None))
+                                   if excluded else None),
+                               preprint_arxiv_only=excluded, history=histories.get(key))
             if res is None:
                 refused.append(q.name)
                 refused_any = True
@@ -1130,7 +1427,12 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
         if results:
             cmd = migrate_command(key, run_id, artifact_dir, skip_preprint or excluded)
             proj_out["migrate"] = cmd
-            if migrate:
+            if config_abort:
+                # CONFIG aborts the run: nothing is routed (a stage that exited 2 may have left
+                # no CONFIG row for migrate to see)
+                print("  migrate not run: CONFIG aborts the run; the queue stays for a re-sweep "
+                      "once the configuration is fixed")
+            elif migrate:
                 print(f"  -> migrate: {shlex.join(cmd)}")
                 rm = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
                                     errors="replace", env=_stage_env())

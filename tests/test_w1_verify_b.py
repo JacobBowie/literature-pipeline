@@ -127,7 +127,10 @@ class World:
         self.cfg_path = tmp_path / "projects.json"
         self.cfg = {"root": str(self.root), "state_dir": str(self.state),
                     "loose_ends": "Ops/LOOSE_ENDS.md",
-                    "projects": {"P": {"lib_dir": "lit"}, "Q": {"lib_dir": "qlib"}}}
+                    # W2-G (DEC-31): the preprint stage runs only for a project whose sources
+                    # name a preprint server
+                    "projects": {"P": {"lib_dir": "lit", "sources": ["unpaywall", "pmc", "osf"]},
+                                 "Q": {"lib_dir": "qlib"}}}
         self.cfg_path.write_text(json.dumps(self.cfg), encoding="utf-8")
         self.proj = self.root / "P"
         self.lib = self.proj / "lit"
@@ -186,7 +189,9 @@ A, B, C, Dm, E, F, G, H, I, J = (
     "10.1000/textonly1", "10.1000/sidecar1", "NO_DOI_smith2020", "10.1000/nometa1", "10.1000/err1")
 K, L, M, N = "10.1000/alphaclosed1", "10.1000/alphablocked1", "10.1000/closed2", "10.1000/dns2"
 BLOCK = {"oa_status": "OA", "attempts": "publisher/publishedVersion/HTTP_403", "error": "HTTP_403"}
-ERR404 = {"oa_status": "OA", "attempts": "publisher/publishedVersion/HTTP_404", "error": "HTTP_404"}
+# W2-G: a download HTTP_404 is now NOT_AVAILABLE (a dead OA link, TERMINAL_CLOSED on run 1), so
+# the ERROR row is a TOO_SMALL download (still ERROR: counted, closed on its third run)
+ERR404 = {"oa_status": "OA", "attempts": "publisher/publishedVersion/TOO_SMALL", "error": "TOO_SMALL"}
 
 
 def _libraries(w):

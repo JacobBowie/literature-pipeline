@@ -12,11 +12,13 @@ wins) and routed:
   TRANSIENT        an embargo, a source refused or deferred for the run, an outage, a transport
                    error, or an unclassified ERROR (on the row's third sweep, `attempts` >= 3, it
                    becomes TERMINAL_CLOSED with its reason) -> lit_pull_queue.retry_later.csv with
-                   not_before (1 day; an embargo's release date) and attempts
+                   not_before (1 day; an embargo's release date, 7 days when the date is unknown)
+                   and attempts
   OA_BLOCKED       a download host refused us (403, an HTML wall, a final 429), or a preprint needs a
-                   manual click -> lit_pull_queue.oa_blocked.md (browser worklist) and retry_later
-                   (3 days)
-  IDENTITY_FLAG    the served PDF named another DOI -> lit_pull_queue.review.md (the file stays put)
+                   manual click -> lit_pull_queue.oa_blocked.md (browser worklist; a manual preprint
+                   links its landing page) and retry_later (3 days)
+  IDENTITY_FLAG    the served file failed the identity check (another DOI, or a supplement) ->
+                   lit_pull_queue.review.md with the file's path and its evidence (the file stays put)
   SKIPPED_SOURCE   no enabled stage attempted the row: nothing
   NO_METADATA      blank title and authors: nothing queued; listed in the routing report
   TERMINAL_CLOSED  every enabled stage said NO_MATCH / NOT_AVAILABLE -> the ILL list lit_pull_queue.md
@@ -27,8 +29,10 @@ Artifacts: the untagged chain `lit_pull_queue.<run_id>.<stage>.csv` and every ta
 `lit_pull_queue.<tag>.<run_id>.<stage>.csv` of the run, in the project root or sweep's
 --artifact-dir; run_id is `YYYY-MM-DD` or `YYYY-MM-DD.N`, so the legacy dated names read unchanged.
 When the chain has sweep's typed residual CSV (a `residual_class` column, W1-D1) the rows route by
-that class, with the stage reports supplying the worklist detail; a legacy chain is classified
-here from its stage reports. Each routed chain also gets
+that class, with its not_before, flagged_path and landing_url columns (W2-G) and the stage
+reports supplying the worklist detail; a chain without one is classified here from its stage
+reports, reading each row's typed columns through sweep's verdict readers when the report has
+them and the legacy columns otherwise. Each routed chain also gets
 `lit_pull_queue[.<tag>].<run_id>.routing.csv` (one row per residual: class, reason, held paths).
 
 The .md lists and retry_later dedup by DOI in any form (bare, backtick, `doi:`, doi.org link),
@@ -49,9 +53,11 @@ import os
 import re
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 import lit_util  # RC4: atomic writes for crash-safe .md / .csv writes
 from litpipe import config, holdings
+from litpipe import doi as _doi
 from litpipe import ledger as _ledger
 from litpipe.outcomes import Kind, from_legacy
 
@@ -102,7 +108,8 @@ _ARTIFACT = re.compile(rf"^lit_pull_queue(?:\.(?P<tag>{TAG_RE}))?\.(?P<run>{RUN_
 RETRY_FIELDS = ["doi", "title", "authors", "year", "destination", "notes", "residual_class",
                 "reason", "not_before", "attempts", "first_seen", "last_seen", "last_run"]
 ROUTING_FIELDS = ["doi", "title", "year", "residual_class", "route", "reason", "held_paths",
-                  "not_before", "attempts", "stage_unpaywall", "stage_pmc", "stage_preprint"]
+                  "not_before", "attempts", "stage_unpaywall", "stage_pmc", "stage_preprint",
+                  "flagged_path", "landing_url"]
 
 
 # ---------------------------------------------------------------- redaction (I20)
@@ -183,8 +190,31 @@ def _split_attempts(s):
     return [a.strip() for a in (s or "").split(" | ") if a.strip()]
 
 
+def _sweep():
+    """sweep, imported late: its verdict readers are the one implementation of the typed report
+    columns (W2-G), so a chain routed here reads a typed row exactly the way sweep does."""
+    import sweep
+    return sweep
+
+
+def _verdict_signals(v, r):
+    """(signals, identity) from sweep's Verdict for a typed report row: one signal from the
+    row's `outcome` (its first root cause), none for a fetched row, a source the project
+    excludes, or an identity-flagged file (the flag itself is returned as `identity`)."""
+    identity = (v.raw or "identity FLAG") if v.identity else ""
+    if v.excluded_source or v.identity or _sweep().fetched_by(v):
+        return [], identity
+    if v.manual_preprint:
+        src = (r.get("source") or "").strip()
+        return [_sig(v.stage, Kind.SKIPPED, "download", f"manual_preprint:{src}".rstrip(":"))], ""
+    return [_sig(v.stage, v.kind, "download" if v.download_host else "api", v.raw)], ""
+
+
 def _unpaywall_signals(r):
     """Signals from one unpaywall report row (not downloaded, not SKIP_EXISTS)."""
+    v = _sweep().unpaywall_verdict(r)
+    if v.typed or v.identity and not (r.get("error") or "").strip().startswith("DOI_MISMATCH"):
+        return _verdict_signals(v, r)
     sig, identity = [], ""
     err = (r.get("error") or "").strip()
     oa = (r.get("oa_status") or "").strip().upper()
@@ -216,7 +246,10 @@ def _pmc_signals(r):
     attempts = _split_attempts(r.get("attempts"))
     if err.startswith("DOI_MISMATCH"):
         identity = err
-    if attempts:
+    v = _sweep().pmc_verdict(r)
+    if v.typed or (v.identity and not identity):
+        sig, identity = _verdict_signals(v, r)
+    elif attempts:
         for a in attempts:  # "source/STATUS"; the source prefix is load-bearing (europepmc/HTTP_500)
             kind = from_legacy(a, "pmc")
             if kind is not Kind.OK:
@@ -239,6 +272,9 @@ def _pmc_signals(r):
 
 def _preprint_signals(r):
     st = (r.get("status") or "").strip()
+    v = _sweep().preprint_verdict(r)
+    if v.typed or v.identity or v.excluded_source:
+        return _verdict_signals(v, r)
     if st.startswith("DOI_MISMATCH"):
         return [], st
     if not st or st == "DRY":
@@ -259,8 +295,30 @@ def _key(doi):
 
 
 def _resolved(r, *flags):
-    return (_truthy(r.get("downloaded")) or _truthy(r.get("skipped"))
-            or any((r.get(f) or "").strip() == "ALREADY_EXISTS" for f in flags))
+    """The stage holds the paper: downloaded, skipped or ALREADY_EXISTS, and not identity-flagged
+    (a flagged file is never the paper, whatever the row says)."""
+    flagged = any(_sweep().is_flagged(r, f) for f in ("error", "status"))
+    return not flagged and (_truthy(r.get("downloaded")) or _truthy(r.get("skipped"))
+                            or any((r.get(f) or "").strip() == "ALREADY_EXISTS" for f in flags))
+
+
+def _flagged_paths(v, lib_dir):
+    """The library path of a flagged file named by a stage verdict, as a one-item list."""
+    if not (v.identity and v.flagged_file):
+        return []
+    return [str(Path(lib_dir) / v.flagged_file) if lib_dir is not None else v.flagged_file]
+
+
+def _add_extras(row, v):
+    """Carry a later stage's typed extras onto a chain row: the earliest embargo release date, a
+    flagged file, a manual preprint's landing page."""
+    if v.kind is Kind.EMBARGOED and v.release_date and not v.excluded_source:
+        row["not_before"] = min(filter(None, (row.get("not_before"), v.release_date)))
+    for p in _flagged_paths(v, row.get("lib_dir")):
+        if p not in row["flagged_path"]:
+            row["flagged_path"].append(p)
+    if v.landing_url and not row.get("landing_url") and not v.excluded_source:
+        row["landing_url"] = v.landing_url
 
 
 def read_report_chain(project_root: Path, sweep_date: str, tag=None, *, project_dir=None):
@@ -287,18 +345,20 @@ def read_report_chain(project_root: Path, sweep_date: str, tag=None, *, project_
                 queue.setdefault(d, q)
 
     out = {}
+    sw = _sweep()
     for r in _read_csv(unpaywall_path):
-        if _truthy(r.get("downloaded")):
-            continue
-        if (r.get("oa_status") or "").strip().upper() == "SKIP_EXISTS":
+        held = _truthy(r.get("downloaded")) or (r.get("oa_status") or "").strip().upper() == "SKIP_EXISTS"
+        if held and not sw.is_flagged(r, "error"):
             continue
         doi = (r.get("doi") or "").strip()
         d = _key(doi)
         if not d or d in out:
             continue
         sig, identity = _unpaywall_signals(r)
+        uv = sw.unpaywall_verdict(r)
         q = queue.get(d, {})
         dest = (q.get("destination") or "").strip()
+        lib_dir = Path(os.path.abspath(anchor / dest)) if dest else None
         out[d] = {
             "doi": doi, "doi_norm": d, "tag": tag, "run_id": sweep_date,
             "title": (r.get("title") or q.get("title") or "").strip(),
@@ -308,7 +368,7 @@ def read_report_chain(project_root: Path, sweep_date: str, tag=None, *, project_
             "prior_attempts": lit_util.coerce_int(q.get("attempts")),
             "first_seen": (q.get("first_seen") or "").strip(),
             "destination": dest,
-            "lib_dir": Path(os.path.abspath(anchor / dest)) if dest else None,
+            "lib_dir": lib_dir,
             "oa_status": (r.get("oa_status") or "").strip(),
             "winning_host": (r.get("winning_host") or "").strip(),
             "error": (r.get("error") or "").strip(),
@@ -317,6 +377,9 @@ def read_report_chain(project_root: Path, sweep_date: str, tag=None, *, project_
             "stage_unpaywall": "FAIL", "stage_pmc": "skip", "stage_preprint": "skip",
             "signals": sig, "identity": identity, "identity_stage": "unpaywall" if identity else "",
             "missing": {},
+            # W2-G: the typed extras (an embargo's release date, a flagged file, a landing page)
+            "not_before": uv.release_date if uv.kind is Kind.EMBARGOED else "",
+            "flagged_path": _flagged_paths(uv, lib_dir), "landing_url": "",
         }
 
     if pmc_path.exists():
@@ -337,9 +400,12 @@ def read_report_chain(project_root: Path, sweep_date: str, tag=None, *, project_
             row["signals"] += sig
             if identity and not row["identity"]:
                 row["identity"], row["identity_stage"] = identity, "pmc"
+            pv = sw.pmc_verdict(r)
+            _add_extras(row, pv)
             row["pmcid"] = (r.get("pmcid") or "").strip()
             row["pmc_filename"] = (r.get("filename") or "").strip()
-            row["sidecar_flag"] = _truthy(r.get("sidecar")) and (r.get("sidecar_status") or "").strip() in ("OK", "EXISTS")
+            # TEXT_ONLY exactly as sweep reads it: a sidecar, no PDF judged, never a flagged file
+            row["sidecar_flag"] = pv.text_only
             row["stage_pmc"] = "no_pmcid" if not row["pmcid"] else "fail"
         for d, row in out.items():
             if d not in seen:
@@ -366,9 +432,12 @@ def read_report_chain(project_root: Path, sweep_date: str, tag=None, *, project_
             row["signals"] += sig
             if identity and not row["identity"]:
                 row["identity"], row["identity_stage"] = identity, "preprint"
+            rv = sw.preprint_verdict(r)
+            _add_extras(row, rv)
             st = (r.get("status") or "").strip()
-            row["stage_preprint"] = ("no_match" if st in ("NO_MATCH", "") else
-                                     "manual" if st == "MANUAL_PREPRINT" else "fail")
+            row["stage_preprint"] = ("excluded" if rv.excluded_source else
+                                     "no_match" if st in ("NO_MATCH", "") else
+                                     "manual" if st == "MANUAL_PREPRINT" or rv.manual_preprint else "fail")
         for d, row in out.items():
             if d not in seen:
                 row["missing"]["preprint"] = "not_in_report"
@@ -420,6 +489,9 @@ def read_residual(project_root: Path, run_id: str, tag=None, *, project_dir=None
             "first_seen": (r.get("first_seen") or "").strip(),
             "signals": [], "identity": "", "identity_stage": "", "pmcid": "",
             "stage_unpaywall": "", "stage_pmc": "", "stage_preprint": "",
+            # W2-G extras (absent in a W1-D1 residual)
+            "flagged_path": [p.strip() for p in (r.get("flagged_path") or "").split(";") if p.strip()],
+            "landing_url": (r.get("landing_url") or "").strip(),
         }
         if cls == IDENTITY_FLAG:
             m = _REASON_STAGE.match(reason)
@@ -445,6 +517,13 @@ def _enrich(typed_rows, chain_rows):
                 t[k] = c[k]
         if not t["identity"] and c.get("identity"):
             t["identity"], t["identity_stage"] = c["identity"], c.get("identity_stage", "")
+        # a residual written before W2-G has no extras columns: the reports supply them
+        if not t.get("flagged_path") and c.get("flagged_path"):
+            t["flagged_path"] = list(c["flagged_path"])
+        if not t.get("landing_url") and c.get("landing_url"):
+            t["landing_url"] = c["landing_url"]
+        if not t.get("not_before_in") and c.get("not_before"):
+            t["not_before_in"] = c["not_before"]
     return typed_rows
 
 
@@ -633,10 +712,30 @@ def render_md_block(project: str, sweep_date: str, rows: list, tag=None) -> str:
     return "\n".join(lines)
 
 
+def _is_manual(r):
+    """The row is OA-blocked because a preprint needs a person (manual_preprint)."""
+    if any(s["detail"].startswith("manual_preprint") for s in r.get("signals", ())):
+        return True
+    return "manual_preprint" in (r.get("reason") or "").lower()
+
+
+def doi_url(doi):
+    """https://doi.org/ plus the DOI percent-encoded for a URL path (DOI Handbook 2025, 4.7: "The
+    percent-encoding algorithm specified at RFC 3986 is applied whenever a DOI name is used in the
+    path component of a URL"), after normalising, so a SICI `<...>` or a `#` cannot break the
+    markdown link or the browser click. A string that holds no DOI is percent-encoded as it is."""
+    try:
+        return "https://doi.org/" + _doi.encode_path(doi)
+    except ValueError:
+        return "https://doi.org/" + quote(str(doi or "").strip(), safe="/")
+
+
 def _oa_link(r):
+    if r.get("landing_url") and _is_manual(r):   # the preprint's landing page (W2b landing_url)
+        return r["landing_url"]
     if r.get("pmcid") and any(s["stage"] == "pmc" and s["kind"] is Kind.REFUSED for s in r.get("signals", ())):
         return f"https://pmc.ncbi.nlm.nih.gov/articles/{r['pmcid']}/"
-    return f"https://doi.org/{r['doi']}"
+    return doi_url(r["doi"])
 
 
 def _oa_cause(r):
@@ -651,7 +750,8 @@ def _oa_cause(r):
             return redact(cause), (f"{s['stage']}:{host}" if host else s["stage"])
     m = _REASON_STAGE.match(r.get("reason") or "")   # a typed row with no report detail
     if m:
-        return redact(m.group(2).split(";")[0].strip()), m.group(1)
+        cause = m.group(2).split(";")[0].strip()
+        return ("manual_preprint" if "manual_preprint" in cause.lower() else redact(cause)), m.group(1)
     return "unknown", "unknown"
 
 
@@ -671,6 +771,20 @@ def render_oa_blocked_block(sweep_date, rows, tag=None):
     return "\n".join(lines) + "\n"
 
 
+def identity_evidence(path, stage=""):
+    """Where the identity verdict of a flagged file lives: `<stem>.identity.json` (unpaywall,
+    preprint), or the identity_* fields of pmc's `<stem>.fulltext.json`. With no stage, the
+    sidecar on disk decides."""
+    p = str(path)
+    stem = p[:-4] if p.lower().endswith(".pdf") else p
+    pmc_form = f"{stem}.fulltext.json (identity_* fields)"
+    if stage == "pmc":
+        return pmc_form
+    if not stage and not Path(stem + ".identity.json").exists() and Path(stem + ".fulltext.json").exists():
+        return pmc_form
+    return f"{stem}.identity.json"
+
+
 def render_review_block(sweep_date, rows, tag=None):
     if not rows:
         return ""
@@ -678,8 +792,12 @@ def render_review_block(sweep_date, rows, tag=None):
     lines = ["", f"## Sweep {label}, {_n_rows(rows)}", ""]
     for r in rows:
         year = f" ({r['year']})" if r.get("year") else ""
-        lines.append(f"- [ ] **{_title(r)}**{year} DOI `{r['doi']}` flag `{redact(r.get('identity', ''))}` "
-                     f"stage `{r.get('identity_stage') or 'unknown'}`")
+        stage = r.get("identity_stage") or ""
+        line = (f"- [ ] **{_title(r)}**{year} DOI `{r['doi']}` flag `{redact(r.get('identity', ''))}` "
+                f"stage `{stage or 'unknown'}`")
+        for p in r.get("flagged_path") or ():
+            line += f" file `{redact(p)}` evidence `{redact(identity_evidence(p, stage))}`"
+        lines.append(line)
     return "\n".join(lines) + "\n"
 
 
@@ -693,8 +811,10 @@ _HEADERS = {
                                 "click. Each row also sits in `lit_pull_queue.retry_later.csv` for an "
                                 "automatic retry.\n\nAccumulating ledger, append only.\n"),
     REVIEW_NAME: lambda p: (f"# {p}: identity review\n\n"
-                            "The file served for each row named another DOI. Nothing was deleted: check "
-                            "the file and fetch the version of record.\n\nAccumulating ledger, append only.\n"),
+                            "The file served for each row failed the identity check (it named another DOI, "
+                            "or it is a supplement). Nothing was moved or deleted: the file stays at its "
+                            "`file` path and the verdict is in its `evidence` sidecar. Check the file and "
+                            "fetch the version of record.\n\nAccumulating ledger, append only.\n"),
 }
 
 
@@ -713,23 +833,36 @@ def _run_label(run_id, tag):
     return f"{run_id}:{tag}" if tag else run_id
 
 
+_EMBARGO_REASON = re.compile(r"\bEMBARGOED\b")
+
+
+def _is_embargo(r):
+    """A TRANSIENT row waiting on an embargo: an EMBARGOED signal from the reports, or sweep's
+    typed reason (`<stage>: EMBARGOED until <date>` / `(release date unknown)`)."""
+    if any(s["kind"] is Kind.EMBARGOED for s in r.get("signals", ())):
+        return True
+    return r["residual_class"] == TRANSIENT and bool(r.get("typed")) and bool(
+        _EMBARGO_REASON.search(r.get("reason") or ""))
+
+
 def _not_before(r, today):
-    """3 days for OA_BLOCKED, 1 day otherwise (7 for an embargo without a date); a later date the
-    row already carries (an embargo's release date) wins. A past date carried through a
-    re-admitted retry queue is stale and ignored, or the row would come back every day."""
+    """3 days for OA_BLOCKED, 1 day otherwise; an embargo waits for its release date (sweep's
+    not_before, at least 1 day), or 7 days when the date is unknown. A later date the row
+    already carries wins. A past date carried through a re-admitted retry queue is stale and
+    ignored, or the row would come back every day."""
+    given = []
+    for g in (r.get("not_before"), r.get("not_before_in")):
+        try:
+            given.append(datetime.date.fromisoformat(str(g or "").strip()[:10]))
+        except ValueError:
+            continue
     if r["residual_class"] == OA_BLOCKED:
         nb = today + datetime.timedelta(days=OA_BLOCKED_DAYS)
-    elif any(s["kind"] is Kind.EMBARGOED for s in r.get("signals", ())):
+    elif _is_embargo(r) and not given:
         nb = today + datetime.timedelta(days=EMBARGO_DEFAULT_DAYS)
     else:
         nb = today + datetime.timedelta(days=TRANSIENT_DAYS)
-    for given in (r.get("not_before"), r.get("not_before_in")):
-        try:
-            d = datetime.date.fromisoformat(str(given or "").strip()[:10])
-        except ValueError:
-            continue
-        nb = max(nb, d)
-    return nb.isoformat()
+    return max([nb, *given]).isoformat()
 
 
 def upsert_retry_later(project_root, rows, today, dry_run=False):
@@ -934,6 +1067,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
             "not_before": r.get("not_before", ""), "attempts": r.get("attempts", ""),
             "stage_unpaywall": r.get("stage_unpaywall", ""), "stage_pmc": r.get("stage_pmc", ""),
             "stage_preprint": r.get("stage_preprint", ""),
+            "flagged_path": " | ".join(r.get("flagged_path") or ()), "landing_url": r.get("landing_url", ""),
         } for r in rs]
         if not dry_run:
             lit_util.atomic_write_csv(str(path), [{k: redact(v) for k, v in o.items()} for o in out],
