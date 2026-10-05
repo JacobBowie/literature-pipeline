@@ -340,8 +340,9 @@ _REFUTES = frozenset({"NO_MATCH"})
 def resolve_first(cands, resolver):
     """The first candidate the injected `resolver` confirms, or None when it refutes all of them.
 
-    `resolver(doi)` may return a truthy/falsy value (for example `ris_emit.resolve_meta`'s dict or
-    None) or a `litpipe.outcomes.Outcome`: OK, ALIASED, NOT_AT_RA, NOT_AVAILABLE and EMBARGOED
+    `resolver(doi)` may return a truthy/falsy value (for example `lambda d: ris_emit.resolve_meta(d)[0]`,
+    a dict or None: `resolve_meta` itself returns a (meta, source) pair, which is always truthy) or a
+    `litpipe.outcomes.Outcome`: OK, ALIASED, NOT_AT_RA, NOT_AVAILABLE and EMBARGOED
     confirm the DOI exists, NO_MATCH refutes it, and any other kind raises ResolverUnavailable,
     because a failed call is not a "no" (dispatch 0.8 item 5) and falling through to the next,
     less likely candidate could pick a different paper. A plain resolver cannot tell a failure

@@ -455,11 +455,11 @@ def test_per_call_retry_statuses_option(net_env, monkeypatch):
 
 # ============================================================================ 6. harvest_citations
 def test_harvest_metadata_unavailable_guard_is_not_empty_and_counts():
-    """Line 50's getattr guard resolves to the real class (an empty tuple would catch nothing). Compared
-    by name: tests/test_imports.py reloads ris_emit, which makes a new class object."""
+    """The harvest catches ris_emit.MetadataUnavailable looked up at call time (L-5: an import-time
+    binding broke when tests/test_imports.py reloads ris_emit, which makes a new class object)."""
     import harvest_citations
-    (cls,) = harvest_citations._META_UNAVAILABLE
-    assert cls.__name__ == "MetadataUnavailable" and cls.__module__ == "ris_emit"
+    assert not hasattr(harvest_citations, "_META_UNAVAILABLE")
+    cls = harvest_citations.R.MetadataUnavailable
     stats = {"metadata_lookup_failed": 0}
 
     def boom(doi):

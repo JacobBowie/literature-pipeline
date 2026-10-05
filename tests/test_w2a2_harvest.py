@@ -163,12 +163,8 @@ def test_main_uses_the_esummary_doi(quiet_net, monkeypatch, tmp_path, capsys):
 def test_main_counts_a_metadata_failure_instead_of_crashing(monkeypatch, tmp_path, capsys):
     """REG-I46 on the Crossref side: once ris_emit raises MetadataUnavailable for a failed lookup,
     the harvest counts it and falls back to the file's own metadata instead of dying."""
-    class MetadataUnavailable(Exception):
-        pass
-    monkeypatch.setattr(H, "_META_UNAVAILABLE", (MetadataUnavailable,))
-
     def boom(doi, **k):
-        raise MetadataUnavailable("Crossref 503")
+        raise R.MetadataUnavailable("Crossref 503")
     monkeypatch.setattr(R, "crossref_by_doi", boom)
     src = tmp_path / "in"; src.mkdir()
     (src / "a.ris").write_text("TY  - JOUR\nTI  - A title\nAU  - Doe, J\nPY  - 2020\nDO  - 10.1/a\nER  - \n",

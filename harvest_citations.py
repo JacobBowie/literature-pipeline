@@ -45,9 +45,6 @@ from litpipe.outcomes import Kind, Outcome
 # "will only return related IDs if the article is in PubMed Central" (N-B6), and its host refuses this
 # pipeline since 2026-09-30. litpipe.net adds the NCBI tool/email identity and paces the host.
 ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
-# ris_emit raises this for a failed (not an empty) metadata lookup once it types its failures
-# (REG-I46); an empty tuple catches nothing until then.
-_META_UNAVAILABLE = tuple(e for e in (getattr(R, "MetadataUnavailable", None),) if e)
 
 DEFAULT_SOURCE = os.path.expanduser("~/Downloads")
 DEFAULT_OUT    = str(lit_util.PROJECTS_ROOT / "_references" / "citations")
@@ -223,10 +220,11 @@ def fallback_meta_from_file(parsed: dict) -> dict:
 
 def _crossref(fn, args, stats, what):
     """A ris_emit Crossref lookup whose typed failure (MetadataUnavailable, REG-I46) is counted and
-    reported instead of ending the harvest; the row then falls back to the file's own metadata."""
+    reported instead of ending the harvest; the row then falls back to the file's own metadata.
+    The class is looked up at call time, so a reloaded ris_emit (tests reload it) is still caught."""
     try:
         return fn(*args)
-    except _META_UNAVAILABLE as e:
+    except R.MetadataUnavailable as e:
         stats["metadata_lookup_failed"] += 1
         print(f"  [crossref] {what}: lookup failed: {e}", file=sys.stderr)
         return None
