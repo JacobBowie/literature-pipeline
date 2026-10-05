@@ -1,0 +1,2044 @@
+{
+"source": "V2 raw/cr02_CRREF_list25.json (2026-09-25), 6 of 25 items; select DOI,reference,references-count",
+"items": [
+{
+"DOI": "10.1152/japplphysiol.00775.2024",
+"reference": [
+{
+"doi-asserted-by": "publisher",
+"key": "B1",
+"DOI": "10.1002/cphy.c100082"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B2",
+"DOI": "10.3389/fphys.2019.01485"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B3",
+"DOI": "10.1152/physrev.00038.2020"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B4",
+"DOI": "10.1152/japplphysiol.00367.2010"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B5",
+"DOI": "10.1249/01.mss.0000150018.90213"
+},
+{
+"key": "B6",
+"first-page": "245",
+"volume": "51",
+"author": "International Union of Physiological Sciences Thermal Commission.",
+"year": "2001",
+"journal-title": "Jpn J Physiol"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B7",
+"DOI": "10.1152/ajpregu.00359.2003"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B8",
+"DOI": "10.1152/jappl.1977.43.1.133"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B9",
+"DOI": "10.1152/jappl.1974.37.4.515"
+},
+{
+"key": "B10",
+"first-page": "144",
+"volume": "2",
+"author": "Bean WB",
+"year": "1943",
+"journal-title": "Fed Proc"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B11",
+"DOI": "10.1152/ajplegacy.1950.163.3.585"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B12",
+"DOI": "10.1249/MSS.0b013e31802fa199"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B13",
+"DOI": "10.1136/bjsports-2015-094915"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B14",
+"DOI": "10.1055/s-2007-971985"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B15",
+"DOI": "10.1007/s00421-007-0563-z"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B16",
+"DOI": "10.1111/sms.12408"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B18",
+"DOI": "10.1136/bjsports-2016-096579"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B19",
+"DOI": "10.1136/bjsm.2007.034207"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B20",
+"DOI": "10.1123/ijspp.5.4.535"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B21",
+"DOI": "10.1007/s00421-011-2153-3"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B22",
+"DOI": "10.1111/sms.12526"
+},
+{
+"key": "B23",
+"first-page": "118",
+"volume": "15",
+"author": "Kelly M",
+"year": "2016",
+"journal-title": "J Sports Sci Med"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B24",
+"DOI": "10.1152/jappl.1980.48.4.657"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B25",
+"DOI": "10.3389/fphys.2016.00564"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B26",
+"DOI": "10.3389/fphys.2017.00811"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B27",
+"DOI": "10.1016/j.jtherbio.2017.12.001"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B28",
+"DOI": "10.3389/fphys.2019.00539"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B29",
+"DOI": "10.1016/j.jtherbio.2020.102697"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B30",
+"DOI": "10.1007/s00421-019-04269-5"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B31",
+"DOI": "10.1016/j.jtherbio.2022.103373"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B32",
+"DOI": "10.1080/23328940.2019.1666624"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B33",
+"DOI": "10.2165/00007256-200232030-00003"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B34",
+"DOI": "10.1097/00003677-200410000-00011"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B35",
+"DOI": "10.1016/j.bbi.2005.03.005"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B36",
+"DOI": "10.1093/milmed/usz214"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B37",
+"DOI": "10.1249/MSS.0000000000001643"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B38",
+"DOI": "10.1016/j.jsams.2019.06.00"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B39",
+"DOI": "10.1186/2046-7648-1-7"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B40",
+"DOI": "10.1007/s40279-017-0717-z"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B41",
+"DOI": "10.1152/ajpregu.00339.2021"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B42",
+"DOI": "10.1152/japplphysiol.00495.2010"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B43",
+"DOI": "10.1007/s40279-014-0212-8"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B44",
+"DOI": "10.1113/EP087268"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B45",
+"DOI": "10.1007/s40279-021-01445-6"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B46",
+"DOI": "10.1080/17461391.2020.1856935"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B47",
+"DOI": "10.1152/jappl.1967.22.1.21"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B48",
+"DOI": "10.1152/jappl.1973.35.6.875"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B49",
+"DOI": "10.1080/00140137708931642"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B50",
+"DOI": "10.1007/s40279-017-0808-x"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B51",
+"DOI": "10.1016/j.jtherbio.2007.04.003"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B52",
+"DOI": "10.1016/j.jsams.2021.05.008"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B53",
+"DOI": "10.1079/bjn19740060"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B54",
+"DOI": "10.1152/japplphysiol.00906.2015"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B55",
+"DOI": "10.1152/japplphysiol.00281.2015"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B56",
+"DOI": "10.1007/s00421-010-1743-9"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B57",
+"DOI": "10.1016/j.jtherbio.2015.02.005"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B58",
+"DOI": "10.1152/ajpregu.00103.2017"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B59",
+"DOI": "10.1016/j.autneu.2016.03.001"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B60",
+"DOI": "10.1113/jphysiol.2010.193458"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B61",
+"DOI": "10.1152/jappl.1964.19.3.531"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B62",
+"DOI": "10.4085/1062-6050-52.2.10"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B63",
+"DOI": "10.1152/ajpregu.00338.2006"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B64",
+"DOI": "10.1249/00005768-198205000-00012"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B65",
+"DOI": "10.1152/jappl.1974.37.2.247"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B66",
+"DOI": "10.1038/nrneph.2011.14"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B67",
+"DOI": "10.14814/phy2.13734"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B68",
+"DOI": "10.1139/apnm-2017-0059"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B69",
+"DOI": "10.1113/jphysiol.1963.sp007121"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B70",
+"DOI": "10.14814/phy2.13936"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B71",
+"DOI": "10.1081/cbi-120004227"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B72",
+"DOI": "10.1002/cphy.c130022"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B73",
+"DOI": "10.1113/jphysiol.1966.sp008110"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B74",
+"DOI": "10.1007/BF00421090"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B75",
+"DOI": "10.1016/j.cyto.2018.01.018"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B76",
+"DOI": "10.1038/s41598-021-94814-0"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B77",
+"DOI": "10.1123/ijspp.2019-0973"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B78",
+"DOI": "10.1007/s00421-023-05329-7"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B79",
+"DOI": "10.1016/j.jsams.2019.04.010"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B80",
+"DOI": "10.3390/nu11092087"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B81",
+"DOI": "10.1111/sms.12417"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B82",
+"DOI": "10.1111/sms.12638"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B83",
+"DOI": "10.1249/MSS.0000000000003355"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B84",
+"DOI": "10.1007/s40279-016-0538-5"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B85",
+"DOI": "10.3389/fphys.2016.00078"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B86",
+"DOI": "10.1007/s004210050232"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B87",
+"DOI": "10.1152/ajpregu.1983.245.2.R203"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B88",
+"DOI": "10.1152/jappl.1976.40.5.768"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B89",
+"DOI": "10.1113/EP088486"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B90",
+"DOI": "10.1152/jappl.1976.40.5.786"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B91",
+"DOI": "10.1016/j.autneu.2016.02.002"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B92",
+"DOI": "10.1123/ijspp.2018-0707"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B93",
+"DOI": "10.1111/sms.12349"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B94",
+"DOI": "10.1007/s12192-013-0468-1"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B95",
+"DOI": "10.1007/s12192-010-0197-7"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B96",
+"DOI": "10.3357/asem.3241.2012"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B97",
+"DOI": "10.1152/japplphysiol.00332.2015"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B98",
+"DOI": "10.1155/2015/849809"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B99",
+"DOI": "10.1055/s-0034-1368724"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B100",
+"DOI": "10.1007/s40279-021-01611-w"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B101",
+"DOI": "10.1007/s00421-019-04218-2"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "B102",
+"DOI": "10.1152/japplphysiol.00422.2014"
+}
+],
+"references-count": 101
+},
+{
+"DOI": "10.1111/sms.70236",
+"reference": [
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_2_1",
+"DOI": "10.1152/jappl.1997.83.1.102"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_3_1",
+"DOI": "10.1089/ham.2017.0020"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_4_1",
+"DOI": "10.1249/mss.0b013e3180de49bd"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_5_1",
+"DOI": "10.1519/jsc.0000000000002227"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_6_1",
+"DOI": "10.1152/jappl.1998.85.4.1448"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_7_1",
+"DOI": "10.3389/fphys.2019.00430"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_8_1",
+"DOI": "10.1152/japplphysiol.00448.2015"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_9_1",
+"DOI": "10.1136/bjsports‐2022‐105942"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_10_1",
+"DOI": "10.1007/s40279‐014‐0178‐6"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_11_1",
+"DOI": "10.1111/sms.12408"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_12_1",
+"DOI": "10.1111/apha.12214"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_13_1",
+"DOI": "10.1007/s40279‐014‐0212‐8"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_14_1",
+"DOI": "10.1136/bjsports‐2013‐092559"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_15_1",
+"DOI": "10.1016/j.jsams.2021.05.008"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_16_1",
+"DOI": "10.1113/EP088544"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_17_1",
+"DOI": "10.1111/sms.14156"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_18_1",
+"DOI": "10.1249/MSS.0000000000002928"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_19_1",
+"DOI": "10.1007/s42978‐024‐00302‐y"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_20_1",
+"DOI": "10.1055/s‐2007‐971985"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_21_1",
+"DOI": "10.1113/JP288997"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_22_1",
+"DOI": "10.1113/JP287700"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_23_1",
+"DOI": "10.1097/maj.0b013e318095a4ae"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_24_1",
+"DOI": "10.1152/japplphysiol.00185.2017"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_25_1",
+"DOI": "10.1152/japplphysiol.00118.2017"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_26_1",
+"DOI": "10.1111/sms.14268"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_27_1",
+"DOI": "10.1123/ijspp.2023‐0250"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_28_1",
+"DOI": "10.1123/ijspp.2021‐0451"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_29_1",
+"DOI": "10.1152/japplphysiol.00579.2015"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_30_1",
+"DOI": "10.1097/00005768‐199807000‐00023"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_31_1",
+"DOI": "10.1152/ajpheart.00334.2025"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_32_1",
+"DOI": "10.1249/MSS.0000000000002320"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_33_1",
+"DOI": "10.1055/s‐2007‐1021051"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_34_1",
+"DOI": "10.1111/j.1600‐0838.2008.00827.x"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_35_1",
+"DOI": "10.1002/ejsc.12320"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_36_1",
+"DOI": "10.1080/02701367.1996.10608849"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_37_1",
+"DOI": "10.1136/bjsports‐2013‐092840"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_38_1",
+"DOI": "10.2165/00007256‐199213010‐00004"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_39_1",
+"DOI": "10.1123/ijspp.2023‐0166"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_40_1",
+"DOI": "10.1080/23328940.2024.2383505"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_41_1",
+"DOI": "10.1113/EP092968"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_42_1",
+"DOI": "10.3389/fphys.2024.1474479"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_43_1",
+"DOI": "10.1007/978-1-4899-7678-9_24"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_44_1",
+"DOI": "10.1152/jappl.1976.40.5.786"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_45_1",
+"DOI": "10.1152/japplphysiol.00015.2007"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_46_1",
+"DOI": "10.1152/physrev.00038.2020"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_47_1",
+"DOI": "10.1123/ijspp.2020‐0630"
+},
+{
+"doi-asserted-by": "publisher",
+"key": "e_1_2_11_48_1",
+"DOI": "10.2165/11317920‐000000000‐00000"
+}
+],
+"references-count": 47
+},
+{
+"DOI": "10.1123/ijsnem.14.6.673",
+"references-count": 0
+},
+{
+"DOI": "10.1152/jappl.1973.35.2.236",
+"references-count": 0
+},
+{
+"DOI": "10.1123/jpah.2018-0627",
+"reference": [
+{
+"key": "ref341",
+"doi-asserted-by": "crossref",
+"first-page": "808",
+"DOI": "10.1123/jpah.2012-0428",
+"article-title": "Oxygen cost of recreational horse-riding in females",
+"volume": "12",
+"author": "Beale",
+"year": "2015",
+"journal-title": "J Phys Act Heal"
+},
+{
+"key": "ref281",
+"doi-asserted-by": "crossref",
+"first-page": "1844",
+"DOI": "10.1002/1097-0142(19881015)62:1+<1844::AID-CNCR2820621328>3.0.CO;2-O",
+"article-title": "Mortality by relative weight and exercise",
+"volume": "62",
+"author": "Garfinkel",
+"year": "1988",
+"journal-title": "Cancer"
+},
+{
+"key": "ref381",
+"doi-asserted-by": "crossref",
+"first-page": "202",
+"DOI": "10.1519/JSC.0b013e31815f5831",
+"article-title": "Cardiorespiratory and neuromuscular responses to motocross riding",
+"volume": "22",
+"author": "Konttinen",
+"year": "2008",
+"journal-title": "J Strength Cond Res"
+},
+{
+"key": "ref391",
+"doi-asserted-by": "crossref",
+"first-page": "1345",
+"DOI": "10.1249/MSS.0b013e3181cd5cd3",
+"article-title": "Physiological demands of off-road vehicle riding",
+"volume": "42",
+"author": "Burr",
+"year": "2010",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"volume-title": "ACSM’s Guidelines for Exercise Testing and Prescription",
+"year": "2006",
+"author": "Pescatello",
+"key": "ref201"
+},
+{
+"key": "ref291",
+"doi-asserted-by": "crossref",
+"first-page": "460",
+"DOI": "10.1007/BF00625068",
+"article-title": "Exercise for older women: a training method and its influences on physical and cognitive performance",
+"volume": "64",
+"author": "Hassmén",
+"year": "1992",
+"journal-title": "Eur J Appl Physiol Occup Physiol"
+},
+{
+"key": "ref11",
+"doi-asserted-by": "crossref",
+"first-page": "322",
+"DOI": "10.1007/s00125-003-1031-x",
+"article-title": "Occupational, commuting, and leisure-time physical activity in relation to risk for type 2 diabetes in middle-aged Finnish men and women",
+"volume": "46",
+"author": "Hu",
+"year": "2003",
+"journal-title": "Diabetologia"
+},
+{
+"key": "ref511",
+"doi-asserted-by": "crossref",
+"first-page": "312",
+"DOI": "10.1161/HYPERTENSIONAHA.109.146282",
+"article-title": "Shear stress mediates endothelial adaptations to exercise training in humans",
+"volume": "55",
+"author": "Tinken",
+"year": "2010",
+"journal-title": "Hypertension (Dallas, Tex 1979)"
+},
+{
+"key": "ref371",
+"doi-asserted-by": "crossref",
+"first-page": "995",
+"DOI": "10.1080/02640410600944584",
+"article-title": "Cardiopulmonary loading in motocross riding",
+"volume": "25",
+"author": "Konttinen",
+"year": "2007",
+"journal-title": "J Sports Sci"
+},
+{
+"key": "ref101",
+"doi-asserted-by": "crossref",
+"first-page": "373",
+"DOI": "10.1007/BF00423243",
+"article-title": "A study of physical demands in riding",
+"volume": "50",
+"author": "Westerling",
+"year": "1983",
+"journal-title": "Eur J Appl Physiol Occup Physiol"
+},
+{
+"key": "ref301",
+"doi-asserted-by": "crossref",
+"first-page": "502",
+"DOI": "10.1111/j.1532-5415.2004.52154.x",
+"article-title": "The association between physical function and lifestyle activity and exercise in the health, aging and body composition study",
+"volume": "52",
+"author": "Brach",
+"year": "2004",
+"journal-title": "J Am Geriatr Soc"
+},
+{
+"key": "ref121",
+"doi-asserted-by": "crossref",
+"first-page": "202",
+"DOI": "10.1519/JSC.0b013e31815f5831",
+"article-title": "Cardiorespiratory and neuromuscular responses to motocross riding",
+"volume": "22",
+"author": "Konttinen",
+"year": "2008",
+"journal-title": "J Strength Cond Res"
+},
+{
+"key": "ref471",
+"doi-asserted-by": "crossref",
+"first-page": "36",
+"DOI": "10.1139/H11-009",
+"article-title": "New Canadian physical activity guidelines",
+"volume": "36",
+"author": "Tremblay",
+"year": "2011",
+"journal-title": "Appl Physiol Nutr Metab"
+},
+{
+"key": "ref501",
+"doi-asserted-by": "crossref",
+"first-page": "785",
+"DOI": "10.1152/jappl.1985.58.3.785",
+"article-title": "Arterial blood pressure response to heavy resistance exercise",
+"volume": "58",
+"author": "MacDougall",
+"year": "1985",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref231",
+"doi-asserted-by": "crossref",
+"first-page": "1225",
+"DOI": "10.1249/01.MSS.0000074443.17247.05",
+"article-title": "Physiological responses to indoor rock-climbing and their relationship to maximal cycle ergometry",
+"volume": "35",
+"author": "Sheel",
+"year": "2003",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref331",
+"doi-asserted-by": "crossref",
+"first-page": "76",
+"DOI": "10.1093/oxfordjournals.aje.a115126",
+"article-title": "Leisure time physical activity in the Framingham offspring study. Description, seasonal variation, and risk factor correlates",
+"volume": "129",
+"author": "Dannenberg",
+"year": "1989",
+"journal-title": "Am J Epidemiol"
+},
+{
+"volume-title": "ACSM’s Guidelines for Exercise Testing and Prescription",
+"year": "2006",
+"author": "Pescatello",
+"key": "ref461"
+},
+{
+"key": "ref31",
+"doi-asserted-by": "crossref",
+"first-page": "460",
+"DOI": "10.1007/BF00625068",
+"article-title": "Exercise for older women: a training method and its influences on physical and cognitive performance",
+"volume": "64",
+"author": "Hassmén",
+"year": "1992",
+"journal-title": "Eur J Appl Physiol Occup Physiol"
+},
+{
+"key": "ref181",
+"doi-asserted-by": "crossref",
+"first-page": "572",
+"DOI": "10.1097/00005768-199904000-00013",
+"article-title": "Cross-validation of three jump power equations",
+"volume": "31",
+"author": "Sayers",
+"year": "1999",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref151",
+"first-page": "1",
+"article-title": "Incidence of the oxygen plateau at VO2max during exercise testing to volitional fatigue",
+"volume": "3",
+"author": "Astorino",
+"year": "2000",
+"journal-title": "J Exerc Physiol Online"
+},
+{
+"key": "ref451",
+"doi-asserted-by": "crossref",
+"first-page": "1575",
+"DOI": "10.1249/MSS.0b013e31821ece12",
+"article-title": "2011 Compendium of physical activities: a second update of codes and MET values",
+"volume": "43",
+"author": "Ainsworth",
+"year": "2011",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref51",
+"doi-asserted-by": "crossref",
+"first-page": "803",
+"DOI": "10.1139/h2012-061",
+"article-title": "Health care costs of physical inactivity in Canadian adults",
+"volume": "37",
+"author": "Janssen",
+"year": "2012",
+"journal-title": "Appl Physiol Nutr Metab"
+},
+{
+"key": "ref21",
+"doi-asserted-by": "crossref",
+"first-page": "1844",
+"DOI": "10.1002/1097-0142(19881015)62:1+<1844::AID-CNCR2820621328>3.0.CO;2-O",
+"article-title": "Mortality by relative weight and exercise",
+"volume": "62",
+"author": "Garfinkel",
+"year": "1988",
+"journal-title": "Cancer"
+},
+{
+"key": "ref361",
+"doi-asserted-by": "crossref",
+"first-page": "373",
+"DOI": "10.1007/BF00423243",
+"article-title": "A study of physical demands in riding",
+"volume": "50",
+"author": "Westerling",
+"year": "1983",
+"journal-title": "Eur J Appl Physiol Occup Physiol"
+},
+{
+"key": "ref01",
+"doi-asserted-by": "crossref",
+"first-page": "2643",
+"DOI": "10.1016/S0140-6736(17)31634-3",
+"article-title": "The effect of physical activity on mortality and cardiovascular disease in 130 000 people from 17 high-income, middle-income, and low-income countries: the pure study",
+"volume": "390",
+"author": "Lear",
+"year": "2017",
+"journal-title": "Lancet"
+},
+{
+"key": "ref441",
+"doi-asserted-by": "crossref",
+"first-page": "572",
+"DOI": "10.1097/00005768-199904000-00013",
+"article-title": "Cross-validation of three jump power equations",
+"volume": "31",
+"author": "Sayers",
+"year": "1999",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref71",
+"doi-asserted-by": "crossref",
+"first-page": "76",
+"DOI": "10.1093/oxfordjournals.aje.a115126",
+"article-title": "Leisure time physical activity in the Framingham offspring study. Description, seasonal variation, and risk factor correlates",
+"volume": "129",
+"author": "Dannenberg",
+"year": "1989",
+"journal-title": "Am J Epidemiol"
+},
+{
+"key": "ref401",
+"doi-asserted-by": "crossref",
+"first-page": "377",
+"DOI": "10.1249/00005768-198205000-00012",
+"article-title": "Psychophysical bases of perceived exertion",
+"volume": "14",
+"author": "Borg",
+"year": "1982",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref191",
+"doi-asserted-by": "crossref",
+"first-page": "1575",
+"DOI": "10.1249/MSS.0b013e31821ece12",
+"article-title": "2011 Compendium of physical activities: a second update of codes and MET values",
+"volume": "43",
+"author": "Ainsworth",
+"year": "2011",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref111",
+"doi-asserted-by": "crossref",
+"first-page": "995",
+"DOI": "10.1080/02640410600944584",
+"article-title": "Cardiopulmonary loading in motocross riding",
+"volume": "25",
+"author": "Konttinen",
+"year": "2007",
+"journal-title": "J Sports Sci"
+},
+{
+"key": "ref431",
+"doi-asserted-by": "crossref",
+"first-page": "S99",
+"DOI": "10.1097/01.JSC.0000395736.42557.bc",
+"article-title": "Hand-grip strength as a predictor of muscular strength and endurance",
+"volume": "25",
+"author": "Trosclair",
+"year": "2011",
+"journal-title": "J Strength Cond Res"
+},
+{
+"key": "ref351",
+"doi-asserted-by": "crossref",
+"first-page": "1081",
+"DOI": "10.1161/CIRCULATIONAHA.107.185649",
+"article-title": "Physical activity and public health: updated recommendation for adults from the American College of Sports Medicine and the American Heart Association",
+"volume": "116",
+"author": "Haskell",
+"year": "2007",
+"journal-title": "Circulation"
+},
+{
+"key": "ref241",
+"doi-asserted-by": "crossref",
+"first-page": "785",
+"DOI": "10.1152/jappl.1985.58.3.785",
+"article-title": "Arterial blood pressure response to heavy resistance exercise",
+"volume": "58",
+"author": "MacDougall",
+"year": "1985",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref271",
+"doi-asserted-by": "crossref",
+"first-page": "322",
+"DOI": "10.1007/s00125-003-1031-x",
+"article-title": "Occupational, commuting, and leisure-time physical activity in relation to risk for type 2 diabetes in middle-aged Finnish men and women",
+"volume": "46",
+"author": "Hu",
+"year": "2003",
+"journal-title": "Diabetologia"
+},
+{
+"key": "ref81",
+"doi-asserted-by": "crossref",
+"first-page": "808",
+"DOI": "10.1123/jpah.2012-0428",
+"article-title": "Oxygen cost of recreational horse-riding in females",
+"volume": "12",
+"author": "Beale",
+"year": "2015",
+"journal-title": "J Phys Act Heal"
+},
+{
+"key": "ref311",
+"doi-asserted-by": "crossref",
+"first-page": "803",
+"DOI": "10.1139/h2012-061",
+"article-title": "Health care costs of physical inactivity in Canadian adults",
+"volume": "37",
+"author": "Janssen",
+"year": "2012",
+"journal-title": "Appl Physiol Nutr Metab"
+},
+{
+"key": "ref41",
+"doi-asserted-by": "crossref",
+"first-page": "502",
+"DOI": "10.1111/j.1532-5415.2004.52154.x",
+"article-title": "The association between physical function and lifestyle activity and exercise in the health, aging and body composition study",
+"volume": "52",
+"author": "Brach",
+"year": "2004",
+"journal-title": "J Am Geriatr Soc"
+},
+{
+"key": "ref171",
+"doi-asserted-by": "crossref",
+"first-page": "S99",
+"DOI": "10.1097/01.JSC.0000395736.42557.bc",
+"article-title": "Hand-grip strength as a predictor of muscular strength and endurance",
+"volume": "25",
+"author": "Trosclair",
+"year": "2011",
+"journal-title": "J Strength Cond Res"
+},
+{
+"key": "ref491",
+"doi-asserted-by": "crossref",
+"first-page": "1225",
+"DOI": "10.1249/01.MSS.0000074443.17247.05",
+"article-title": "Physiological responses to indoor rock-climbing and their relationship to maximal cycle ergometry",
+"volume": "35",
+"author": "Sheel",
+"year": "2003",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref321",
+"doi-asserted-by": "crossref",
+"first-page": "1004",
+"DOI": "10.1249/01.MSS.0000069747.55950.B1",
+"article-title": "Seasonal variation in adult leisure-time physical activity",
+"volume": "35",
+"author": "Pivarnik",
+"year": "2003",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref211",
+"doi-asserted-by": "crossref",
+"first-page": "36",
+"DOI": "10.1139/H11-009",
+"article-title": "New Canadian physical activity guidelines",
+"volume": "36",
+"author": "Tremblay",
+"year": "2011",
+"journal-title": "Appl Physiol Nutr Metab"
+},
+{
+"key": "ref131",
+"doi-asserted-by": "crossref",
+"first-page": "1345",
+"DOI": "10.1249/MSS.0b013e3181cd5cd3",
+"article-title": "Physiological demands of off-road vehicle riding",
+"volume": "42",
+"author": "Burr",
+"year": "2010",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref251",
+"doi-asserted-by": "crossref",
+"first-page": "312",
+"DOI": "10.1161/HYPERTENSIONAHA.109.146282",
+"article-title": "Shear stress mediates endothelial adaptations to exercise training in humans",
+"volume": "55",
+"author": "Tinken",
+"year": "2010",
+"journal-title": "Hypertension (Dallas, Tex 1979)"
+},
+{
+"key": "ref421",
+"doi-asserted-by": "crossref",
+"first-page": "17",
+"DOI": "10.2165/00007256-200030010-00002",
+"article-title": "Energy cost calculations for exercise prescription: an update",
+"volume": "30",
+"author": "Swain",
+"year": "2000",
+"journal-title": "Sport Med"
+},
+{
+"key": "ref141",
+"doi-asserted-by": "crossref",
+"first-page": "377",
+"DOI": "10.1249/00005768-198205000-00012",
+"article-title": "Psychophysical bases of perceived exertion",
+"volume": "14",
+"author": "Borg",
+"year": "1982",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref91",
+"doi-asserted-by": "crossref",
+"first-page": "1081",
+"DOI": "10.1161/CIRCULATIONAHA.107.185649",
+"article-title": "Physical activity and public health: updated recommendation for adults from the American College of Sports Medicine and the American Heart Association",
+"volume": "116",
+"author": "Haskell",
+"year": "2007",
+"journal-title": "Circulation"
+},
+{
+"key": "ref161",
+"doi-asserted-by": "crossref",
+"first-page": "17",
+"DOI": "10.2165/00007256-200030010-00002",
+"article-title": "Energy cost calculations for exercise prescription: an update",
+"volume": "30",
+"author": "Swain",
+"year": "2000",
+"journal-title": "Sport Med"
+},
+{
+"key": "ref411",
+"first-page": "1",
+"article-title": "Incidence of the oxygen plateau at VO2max during exercise testing to volitional fatigue",
+"volume": "3",
+"author": "Astorino",
+"year": "2000",
+"journal-title": "J Exerc Physiol Online"
+},
+{
+"key": "ref61",
+"doi-asserted-by": "crossref",
+"first-page": "1004",
+"DOI": "10.1249/01.MSS.0000069747.55950.B1",
+"article-title": "Seasonal variation in adult leisure-time physical activity",
+"volume": "35",
+"author": "Pivarnik",
+"year": "2003",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref261",
+"doi-asserted-by": "crossref",
+"first-page": "2643",
+"DOI": "10.1016/S0140-6736(17)31634-3",
+"article-title": "The effect of physical activity on mortality and cardiovascular disease in 130 000 people from 17 high-income, middle-income, and low-income countries: the pure study",
+"volume": "390",
+"author": "Lear",
+"year": "2017",
+"journal-title": "Lancet"
+}
+],
+"references-count": 50
+},
+{
+"DOI": "10.1123/ijspp.2018-0399",
+"reference": [
+{
+"key": "ref111",
+"doi-asserted-by": "crossref",
+"first-page": "169",
+"DOI": "10.1007/s12192-008-0022-8",
+"article-title": "The effect of 15 consecutive days of heat-exercise acclimation on heat shock protein 70",
+"volume": "13",
+"author": "Sandström",
+"year": "2008",
+"journal-title": "Cell Stress Chaperones"
+},
+{
+"key": "ref531",
+"doi-asserted-by": "crossref",
+"first-page": "209",
+"DOI": "10.1016/0013-9351(69)90037-1",
+"article-title": "Comfort and thermal sensations and associated physiological responses during exercise at various ambient temperatures",
+"volume": "2",
+"author": "Gagge",
+"year": "1969",
+"journal-title": "Environ Res"
+},
+{
+"key": "ref271",
+"first-page": "699",
+"article-title": "Renin-aldosterone and angiotensin-converting enzyme during prolonged altitude exposure",
+"volume": "55",
+"author": "Milledge",
+"year": "1983",
+"journal-title": "J Appl Physiol Respir Environ Exerc Physiol"
+},
+{
+"key": "ref181",
+"doi-asserted-by": "crossref",
+"first-page": "531",
+"DOI": "10.1152/jappl.1964.19.3.531",
+"article-title": "A new weighting system for mean surface temperature of the human body",
+"volume": "19",
+"author": "Ramanathan",
+"year": "1964",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref151",
+"first-page": "109",
+"article-title": "A new approach to monitoring exercise training",
+"volume": "15",
+"author": "Foster",
+"year": "2001",
+"journal-title": "J Strength Cond Res"
+},
+{
+"volume-title": "Statistical Power Analysis for the Behavioral Sciences.",
+"year": "1988",
+"author": "Cohen",
+"key": "ref241"
+},
+{
+"key": "ref541",
+"doi-asserted-by": "crossref",
+"first-page": "377",
+"DOI": "10.1249/00005768-198205000-00012",
+"article-title": "Psychophysical bases of perceived exertion",
+"volume": "14",
+"author": "Borg",
+"year": "1982",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref651",
+"doi-asserted-by": "crossref",
+"first-page": "411",
+"DOI": "10.1152/japplphysiol.01254.2012",
+"article-title": "A multidisciplinary approach to overreaching detection in endurance trained athletes",
+"volume": "114",
+"author": "Le Meur",
+"year": "2013",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref11",
+"doi-asserted-by": "crossref",
+"first-page": "191",
+"DOI": "10.1152/ajpregu.00103.2017",
+"article-title": "Effects of 10 days of separate heat and hypoxic exposure on heat acclimation and temperate exercise performance",
+"volume": "313",
+"author": "Rendell",
+"year": "2017",
+"journal-title": "Am J Physiol Regul Integr Comp Physiol"
+},
+{
+"key": "ref491",
+"first-page": "109",
+"article-title": "A new approach to monitoring exercise training",
+"volume": "15",
+"author": "Foster",
+"year": "2001",
+"journal-title": "J Strength Cond Res"
+},
+{
+"key": "ref641",
+"doi-asserted-by": "crossref",
+"first-page": "39",
+"DOI": "10.1136/bjsm.27.1.39",
+"article-title": "Response of unacclimatized males to repeated weekly bouts of exercise in the heat",
+"volume": "27",
+"author": "Barnett",
+"year": "1993",
+"journal-title": "Br J Sports Med"
+},
+{
+"key": "ref461",
+"doi-asserted-by": "crossref",
+"first-page": "332",
+"DOI": "10.1097/00005768-200002000-00012",
+"article-title": "Blood volume: importance and adaptations to exercise training, environmental stresses, and trauma/sickness",
+"volume": "32",
+"author": "Sawka",
+"year": "2000",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref171",
+"first-page": "377",
+"article-title": "American college of sports medicine position stand. Exercise and fluid replacement",
+"volume": "39",
+"author": "Sawka",
+"year": "2007",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref91",
+"doi-asserted-by": "crossref",
+"first-page": "275",
+"DOI": "10.1046/j.1365-201X.2001.00906.x",
+"article-title": "Live high:train low increases muscle buffer capacity and submaximal cycling efficiency",
+"volume": "173",
+"author": "Gore",
+"year": "2001",
+"journal-title": "Acta Physiol Scand"
+},
+{
+"key": "ref401",
+"doi-asserted-by": "crossref",
+"first-page": "107",
+"DOI": "10.4161/temp.29800",
+"article-title": "Heat acclimation and cross tolerance to hypoxia: bridging the gap between cellular and systemic responses",
+"volume": "1",
+"author": "Ely",
+"year": "2014",
+"journal-title": "Temperature"
+},
+{
+"key": "ref81",
+"doi-asserted-by": "crossref",
+"first-page": "203",
+"DOI": "10.1152/japplphysiol.00808.2005",
+"article-title": "Eighteen days of “living high, training low” stimulate erythropoiesis and enhance aerobic performance in elite middle-distance runners",
+"volume": "100",
+"author": "Brugniaux",
+"year": "2006",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref201",
+"doi-asserted-by": "crossref",
+"first-page": "377",
+"DOI": "10.1249/00005768-198205000-00012",
+"article-title": "Psychophysical bases of perceived exertion",
+"volume": "14",
+"author": "Borg",
+"year": "1982",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref521",
+"doi-asserted-by": "crossref",
+"first-page": "531",
+"DOI": "10.1152/jappl.1964.19.3.531",
+"article-title": "A new weighting system for mean surface temperature of the human body",
+"volume": "19",
+"author": "Ramanathan",
+"year": "1964",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref571",
+"doi-asserted-by": "crossref",
+"first-page": "50",
+"DOI": "10.1123/ijspp.1.1.50",
+"article-title": "Making meaningful inferences about magnitudes",
+"volume": "1",
+"author": "Batterham",
+"year": "2006",
+"journal-title": "Int J Sports Physiol Perform"
+},
+{
+"key": "ref41",
+"doi-asserted-by": "crossref",
+"first-page": "409",
+"DOI": "10.1007/s40279-017-0808-x",
+"article-title": "Heat acclimation decay and re-induction: a systematic review and meta-analysis",
+"volume": "48",
+"author": "Daanen",
+"year": "2018",
+"journal-title": "Sports Med"
+},
+{
+"key": "ref481",
+"doi-asserted-by": "crossref",
+"first-page": "R1347",
+"DOI": "10.1152/ajpregu.00547.2004",
+"article-title": "Effects of menstrual cycle and physical training on heat loss responses during dynamic exercise at moderate intensity in a temperate environment",
+"volume": "288",
+"author": "Kuwahara",
+"year": "2005",
+"journal-title": "Am J Physiol Regul Integr Comp Physiol"
+},
+{
+"key": "ref551",
+"doi-asserted-by": "crossref",
+"first-page": "101",
+"DOI": "10.2165/00007256-199826020-00004",
+"article-title": "The influence of exercise-induced plasma volume changes on the interpretation of biochemical parameters used for monitoring exercise, training and sport",
+"volume": "26",
+"author": "Kargotich",
+"year": "1998",
+"journal-title": "Sports Med"
+},
+{
+"key": "ref101",
+"doi-asserted-by": "crossref",
+"first-page": "375",
+"DOI": "10.1007/s12192-011-0313-3",
+"article-title": "Plasma Hsp72 (HSPA1A) and Hsp27 (HSPB1) expression under heat stress: influence of exercise intensity",
+"volume": "17",
+"author": "Périard",
+"year": "2012",
+"journal-title": "Cell Stress Chaperones"
+},
+{
+"key": "ref631",
+"doi-asserted-by": "crossref",
+"first-page": "389",
+"DOI": "10.1007/s12192-013-0468-1",
+"article-title": "Extracellular Hsp72 concentration relates to a minimum endogenous criteria during acute exercise-heat exposure",
+"volume": "19",
+"author": "Gibson",
+"year": "2014",
+"journal-title": "Cell Stress Chaperones"
+},
+{
+"key": "ref431",
+"doi-asserted-by": "crossref",
+"first-page": "275",
+"DOI": "10.1046/j.1365-201X.2001.00906.x",
+"article-title": "Live high:train low increases muscle buffer capacity and submaximal cycling efficiency",
+"volume": "173",
+"author": "Gore",
+"year": "2001",
+"journal-title": "Acta Physiol Scand"
+},
+{
+"key": "ref471",
+"doi-asserted-by": "crossref",
+"first-page": "509",
+"DOI": "10.1249/MSS.0000000000001138",
+"article-title": "Temperate performance benefits after heat, but not combined heat and hypoxic training",
+"volume": "49",
+"author": "McCleave",
+"year": "2017",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref261",
+"doi-asserted-by": "crossref",
+"first-page": "123",
+"DOI": "10.1007/BF00714993",
+"article-title": "Vascular fluid shifts and endocrine responses to exercise in the heat",
+"volume": "55",
+"author": "Brandenberger",
+"year": "1986",
+"journal-title": "Europ J Appl Physiol Occup Physiol"
+},
+{
+"key": "ref01",
+"doi-asserted-by": "crossref",
+"first-page": "404",
+"DOI": "10.1007/s00421-005-0081-9",
+"article-title": "Linear decrease in VO2max and performance with increasing altitude in endurance athletes",
+"volume": "96",
+"author": "Wehrlin",
+"year": "2006",
+"journal-title": "Eur J Appl Physiol"
+},
+{
+"key": "ref131",
+"doi-asserted-by": "crossref",
+"first-page": "509",
+"DOI": "10.1249/MSS.0000000000001138",
+"article-title": "Temperate performance benefits after heat, but not combined heat and hypoxic training",
+"volume": "49",
+"author": "McCleave",
+"year": "2017",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref231",
+"doi-asserted-by": "crossref",
+"first-page": "50",
+"DOI": "10.1123/ijspp.1.1.50",
+"article-title": "Making meaningful inferences about magnitudes",
+"volume": "1",
+"author": "Batterham",
+"year": "2006",
+"journal-title": "Int J Sports Physiol Perform"
+},
+{
+"key": "ref61",
+"doi-asserted-by": "crossref",
+"first-page": "107",
+"DOI": "10.4161/temp.29800",
+"article-title": "Heat acclimation and cross tolerance to hypoxia: bridging the gap between cellular and systemic responses",
+"volume": "1",
+"author": "Ely",
+"year": "2014",
+"journal-title": "Temperature"
+},
+{
+"key": "ref661",
+"doi-asserted-by": "crossref",
+"first-page": "325",
+"DOI": "10.1016/j.jshs.2015.07.005",
+"article-title": "Hypoxic training methods for improving endurance exercise performance",
+"volume": "4",
+"author": "Sinex",
+"year": "2015",
+"journal-title": "J Sport Health Sci"
+},
+{
+"key": "ref281",
+"doi-asserted-by": "crossref",
+"first-page": "885",
+"DOI": "10.1007/s12192-010-0197-7",
+"article-title": "Heat and exercise acclimation increases intracellular levels of Hsp72 and inhibits exercise-induced increase in intracellular and plasma Hsp72 in humans",
+"volume": "15",
+"author": "de Magalhães",
+"year": "2010",
+"journal-title": "Cell Stress Chaperones"
+},
+{
+"key": "ref421",
+"doi-asserted-by": "crossref",
+"first-page": "203",
+"DOI": "10.1152/japplphysiol.00808.2005",
+"article-title": "Eighteen days of “living high, training low” stimulate erythropoiesis and enhance aerobic performance in elite middle-distance runners",
+"volume": "100",
+"author": "Brugniaux",
+"year": "2006",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref591",
+"doi-asserted-by": "crossref",
+"first-page": "249",
+"DOI": "10.1007/978-1-4419-8997-0_18",
+"volume-title": "Hypoxia: Through the Lifecycle",
+"author": "Minson",
+"year": "2003"
+},
+{
+"key": "ref21",
+"doi-asserted-by": "crossref",
+"first-page": "1699",
+"DOI": "10.1007/s40279-016-0538-5",
+"article-title": "The effects of heat adaptation on physiology, perception and exercise performance in the heat: a meta-analysis",
+"volume": "46",
+"author": "Tyler",
+"year": "2016",
+"journal-title": "Sports Med"
+},
+{
+"key": "ref411",
+"doi-asserted-by": "crossref",
+"first-page": "i59",
+"DOI": "10.1136/bjsports-2013-092559",
+"article-title": "Adding heat to the live-high train-low altitude model: a practical insight from professional football",
+"volume": "47",
+"author": "Buchheit",
+"year": "2013",
+"journal-title": "Br J Sports Med"
+},
+{
+"key": "ref141",
+"doi-asserted-by": "crossref",
+"first-page": "R1347",
+"DOI": "10.1152/ajpregu.00547.2004",
+"article-title": "Effects of menstrual cycle and physical training on heat loss responses during dynamic exercise at moderate intensity in a temperate environment",
+"volume": "288",
+"author": "Kuwahara",
+"year": "2005",
+"journal-title": "Am J Physiol Regul Integr Comp Physiol"
+},
+{
+"key": "ref191",
+"doi-asserted-by": "crossref",
+"first-page": "209",
+"DOI": "10.1016/0013-9351(69)90037-1",
+"article-title": "Comfort and thermal sensations and associated physiological responses during exercise at various ambient temperatures",
+"volume": "2",
+"author": "Gagge",
+"year": "1969",
+"journal-title": "Environ Res"
+},
+{
+"key": "ref251",
+"doi-asserted-by": "crossref",
+"first-page": "249",
+"DOI": "10.1007/978-1-4419-8997-0_18",
+"volume-title": "Hypoxia: Through the Lifecycle",
+"author": "Minson",
+"year": "2003"
+},
+{
+"key": "ref391",
+"doi-asserted-by": "crossref",
+"first-page": "837",
+"DOI": "10.1152/japplphysiol.00663.2013",
+"article-title": "Timing of return from altitude training for optimal sea level performance",
+"volume": "116",
+"author": "Chapman",
+"year": "2014",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref501",
+"doi-asserted-by": "crossref",
+"first-page": "810",
+"DOI": "10.1136/bjsports-2012-091227",
+"article-title": "Individual responses to short-term heat acclimatisation as predictors of football performance in a hot, dry environment",
+"volume": "46",
+"author": "Racinais",
+"year": "2012",
+"journal-title": "Br J Sports Med"
+},
+{
+"key": "ref311",
+"doi-asserted-by": "crossref",
+"first-page": "411",
+"DOI": "10.1152/japplphysiol.01254.2012",
+"article-title": "A multidisciplinary approach to overreaching detection in endurance trained athletes",
+"volume": "114",
+"author": "Le Meur",
+"year": "2013",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref291",
+"doi-asserted-by": "crossref",
+"first-page": "389",
+"DOI": "10.1007/s12192-013-0468-1",
+"article-title": "Extracellular Hsp72 concentration relates to a minimum endogenous criteria during acute exercise-heat exposure",
+"volume": "19",
+"author": "Gibson",
+"year": "2014",
+"journal-title": "Cell Stress Chaperones"
+},
+{
+"key": "ref31",
+"doi-asserted-by": "crossref",
+"first-page": "102",
+"DOI": "10.1152/jappl.1997.83.1.102",
+"article-title": "“Living high-training low”: effect of moderate-altitude acclimatization with low-altitude training on performance",
+"volume": "83",
+"author": "Levine",
+"year": "1997",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref451",
+"doi-asserted-by": "crossref",
+"first-page": "169",
+"DOI": "10.1007/s12192-008-0022-8",
+"article-title": "The effect of 15 consecutive days of heat-exercise acclimation on heat shock protein 70",
+"volume": "13",
+"author": "Sandström",
+"year": "2008",
+"journal-title": "Cell Stress Chaperones"
+},
+{
+"volume-title": "Statistical Power Analysis for the Behavioral Sciences.",
+"year": "1988",
+"author": "Cohen",
+"key": "ref581"
+},
+{
+"key": "ref611",
+"first-page": "699",
+"article-title": "Renin-aldosterone and angiotensin-converting enzyme during prolonged altitude exposure",
+"volume": "55",
+"author": "Milledge",
+"year": "1983",
+"journal-title": "J Appl Physiol Respir Environ Exerc Physiol"
+},
+{
+"key": "ref321",
+"doi-asserted-by": "crossref",
+"first-page": "325",
+"DOI": "10.1016/j.jshs.2015.07.005",
+"article-title": "Hypoxic training methods for improving endurance exercise performance",
+"volume": "4",
+"author": "Sinex",
+"year": "2015",
+"journal-title": "J Sport Health Sci"
+},
+{
+"key": "ref561",
+"doi-asserted-by": "crossref",
+"first-page": "486",
+"DOI": "10.1007/s00421-005-0050-3",
+"article-title": "The optimised CO-rebreathing method: a new tool to determine total haemoglobin mass routinely",
+"volume": "95",
+"author": "Schmidt",
+"year": "2005",
+"journal-title": "Eur J Appl Physiol"
+},
+{
+"key": "ref161",
+"doi-asserted-by": "crossref",
+"first-page": "810",
+"DOI": "10.1136/bjsports-2012-091227",
+"article-title": "Individual responses to short-term heat acclimatisation as predictors of football performance in a hot, dry environment",
+"volume": "46",
+"author": "Racinais",
+"year": "2012",
+"journal-title": "Br J Sports Med"
+},
+{
+"key": "ref301",
+"doi-asserted-by": "crossref",
+"first-page": "39",
+"DOI": "10.1136/bjsm.27.1.39",
+"article-title": "Response of unacclimatized males to repeated weekly bouts of exercise in the heat",
+"volume": "27",
+"author": "Barnett",
+"year": "1993",
+"journal-title": "Br J Sports Med"
+},
+{
+"key": "ref341",
+"doi-asserted-by": "crossref",
+"first-page": "404",
+"DOI": "10.1007/s00421-005-0081-9",
+"article-title": "Linear decrease in VO2max and performance with increasing altitude in endurance athletes",
+"volume": "96",
+"author": "Wehrlin",
+"year": "2006",
+"journal-title": "Eur J Appl Physiol"
+},
+{
+"key": "ref71",
+"doi-asserted-by": "crossref",
+"first-page": "i59",
+"DOI": "10.1136/bjsports-2013-092559",
+"article-title": "Adding heat to the live-high train-low altitude model: a practical insight from professional football",
+"volume": "47",
+"author": "Buchheit",
+"year": "2013",
+"journal-title": "Br J Sports Med"
+},
+{
+"key": "ref361",
+"doi-asserted-by": "crossref",
+"first-page": "1699",
+"DOI": "10.1007/s40279-016-0538-5",
+"article-title": "The effects of heat adaptation on physiology, perception and exercise performance in the heat: a meta-analysis",
+"volume": "46",
+"author": "Tyler",
+"year": "2016",
+"journal-title": "Sports Med"
+},
+{
+"key": "ref121",
+"doi-asserted-by": "crossref",
+"first-page": "332",
+"DOI": "10.1097/00005768-200002000-00012",
+"article-title": "Blood volume: importance and adaptations to exercise training, environmental stresses, and trauma/sickness",
+"volume": "32",
+"author": "Sawka",
+"year": "2000",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref621",
+"doi-asserted-by": "crossref",
+"first-page": "885",
+"DOI": "10.1007/s12192-010-0197-7",
+"article-title": "Heat and exercise acclimation increases intracellular levels of Hsp72 and inhibits exercise-induced increase in intracellular and plasma Hsp72 in humans",
+"volume": "15",
+"author": "de Magalhães",
+"year": "2010",
+"journal-title": "Cell Stress Chaperones"
+},
+{
+"key": "ref51",
+"doi-asserted-by": "crossref",
+"first-page": "837",
+"DOI": "10.1152/japplphysiol.00663.2013",
+"article-title": "Timing of return from altitude training for optimal sea level performance",
+"volume": "116",
+"author": "Chapman",
+"year": "2014",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref601",
+"doi-asserted-by": "crossref",
+"first-page": "123",
+"DOI": "10.1007/BF00714993",
+"article-title": "Vascular fluid shifts and endocrine responses to exercise in the heat",
+"volume": "55",
+"author": "Brandenberger",
+"year": "1986",
+"journal-title": "Europ J Appl Physiol Occup Physiol"
+},
+{
+"key": "ref381",
+"doi-asserted-by": "crossref",
+"first-page": "409",
+"DOI": "10.1007/s40279-017-0808-x",
+"article-title": "Heat acclimation decay and re-induction: a systematic review and meta-analysis",
+"volume": "48",
+"author": "Daanen",
+"year": "2018",
+"journal-title": "Sports Med"
+},
+{
+"key": "ref211",
+"doi-asserted-by": "crossref",
+"first-page": "101",
+"DOI": "10.2165/00007256-199826020-00004",
+"article-title": "The influence of exercise-induced plasma volume changes on the interpretation of biochemical parameters used for monitoring exercise, training and sport",
+"volume": "26",
+"author": "Kargotich",
+"year": "1998",
+"journal-title": "Sports Med"
+},
+{
+"key": "ref441",
+"doi-asserted-by": "crossref",
+"first-page": "375",
+"DOI": "10.1007/s12192-011-0313-3",
+"article-title": "Plasma Hsp72 (HSPA1A) and Hsp27 (HSPB1) expression under heat stress: influence of exercise intensity",
+"volume": "17",
+"author": "Périard",
+"year": "2012",
+"journal-title": "Cell Stress Chaperones"
+},
+{
+"key": "ref221",
+"doi-asserted-by": "crossref",
+"first-page": "486",
+"DOI": "10.1007/s00421-005-0050-3",
+"article-title": "The optimised CO-rebreathing method: a new tool to determine total haemoglobin mass routinely",
+"volume": "95",
+"author": "Schmidt",
+"year": "2005",
+"journal-title": "Eur J Appl Physiol"
+},
+{
+"key": "ref351",
+"doi-asserted-by": "crossref",
+"first-page": "191",
+"DOI": "10.1152/ajpregu.00103.2017",
+"article-title": "Effects of 10 days of separate heat and hypoxic exposure on heat acclimation and temperate exercise performance",
+"volume": "313",
+"author": "Rendell",
+"year": "2017",
+"journal-title": "Am J Physiol Regul Integr Comp Physiol"
+},
+{
+"key": "ref371",
+"doi-asserted-by": "crossref",
+"first-page": "102",
+"DOI": "10.1152/jappl.1997.83.1.102",
+"article-title": "“Living high-training low”: effect of moderate-altitude acclimatization with low-altitude training on performance",
+"volume": "83",
+"author": "Levine",
+"year": "1997",
+"journal-title": "J Appl Physiol"
+},
+{
+"key": "ref511",
+"first-page": "377",
+"article-title": "American college of sports medicine position stand. Exercise and fluid replacement",
+"volume": "39",
+"author": "Sawka",
+"year": "2007",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref671",
+"doi-asserted-by": "crossref",
+"first-page": "376",
+"DOI": "10.1249/MSS.0b013e3182a53594",
+"article-title": "Intravenous iron supplementation in distance runners with low or suboptimal ferritin",
+"volume": "46",
+"author": "Garvican",
+"year": "2014",
+"journal-title": "Med Sci Sports Exerc"
+},
+{
+"key": "ref331",
+"doi-asserted-by": "crossref",
+"first-page": "376",
+"DOI": "10.1249/MSS.0b013e3182a53594",
+"article-title": "Intravenous iron supplementation in distance runners with low or suboptimal ferritin",
+"volume": "46",
+"author": "Garvican",
+"year": "2014",
+"journal-title": "Med Sci Sports Exerc"
+}
+],
+"references-count": 68
+}
+]
+}

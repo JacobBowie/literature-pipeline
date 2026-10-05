@@ -1,0 +1,2908 @@
+{
+"source": "V2 raw/oa06..oa16_RESOLVE_b*.json (2026-09-25), works referenced by the core 15",
+"results": [
+{
+"id": "https://openalex.org/W101741253",
+"doi": "https://doi.org/10.1007/bf01923828",
+"display_name": "Über die Vorgänge bei der Muskelkontraktion"
+},
+{
+"id": "https://openalex.org/W116283157",
+"doi": "https://doi.org/10.1097/00005768-199610000-00045",
+"display_name": "ACSM Position Stand: Exercise and Fluid Replacement"
+},
+{
+"id": "https://openalex.org/W120288851",
+"doi": "https://doi.org/10.2340/1650197719702239298",
+"display_name": "Perceived exertion as an indicator of somatic stress"
+},
+{
+"id": "https://openalex.org/W123846273",
+"doi": null,
+"display_name": "Does heat acclimation lower the rate of metabolism elicited by muscular exercise?"
+},
+{
+"id": "https://openalex.org/W138127152",
+"doi": "https://doi.org/10.1016/s0021-9258(17)35161-x",
+"display_name": "ANALYZER FOR ACCURATE ESTIMATION OF RESPIRATORY GASES IN ONE-HALF CUBIC CENTIMETER SAMPLES"
+},
+{
+"id": "https://openalex.org/W138222839",
+"doi": "https://doi.org/10.1093/milmed/162.9.623",
+"display_name": "The Effects of Prolonged Passive Heat Exposure and Basic Military Training on Thermoregulatory and Cardiovascular Responses in Recruits from a Tropical Country"
+},
+{
+"id": "https://openalex.org/W1429222221",
+"doi": "https://doi.org/10.1152/jappl.1986.60.1.9",
+"display_name": "Heat acclimation: cardiac performance of isolated rat heart"
+},
+{
+"id": "https://openalex.org/W143609696",
+"doi": "https://doi.org/10.1007/978-1-4419-8997-0_16",
+"display_name": "Hypoxic Regulation of Blood Flow in Humans"
+},
+{
+"id": "https://openalex.org/W1482538932",
+"doi": "https://doi.org/10.1113/jphysiol.2004.063289",
+"display_name": "Sustained and generalized extracellular fluid expansion following heat acclimation"
+},
+{
+"id": "https://openalex.org/W1495226084",
+"doi": "https://doi.org/10.1007/978-1-4419-8997-0_18",
+"display_name": "Hypoxic Regulation of Blood Flow in Humans"
+},
+{
+"id": "https://openalex.org/W149851026",
+"doi": "https://doi.org/10.1037/e603462007-001",
+"display_name": "Cost and Consequences of Sedentary Living: New Battleground for an Old Enemy"
+},
+{
+"id": "https://openalex.org/W1500165070",
+"doi": "https://doi.org/10.1111/sms.12467",
+"display_name": "Consensus recommendations on training and competing in the heat"
+},
+{
+"id": "https://openalex.org/W1511452839",
+"doi": null,
+"display_name": "Evidence-informed physical activity guidelines for Canadian adults."
+},
+{
+"id": "https://openalex.org/W1513365831",
+"doi": "https://doi.org/10.1111/sms.12349",
+"display_name": "Human behavioral thermoregulation during exercise in the heat"
+},
+{
+"id": "https://openalex.org/W1522139924",
+"doi": "https://doi.org/10.1113/jphysiol.2012.248823",
+"display_name": "The evaporative requirement for heat balance determines whole‐body sweat rate during exercise under conditions permitting full evaporation"
+},
+{
+"id": "https://openalex.org/W1524830325",
+"doi": null,
+"display_name": "ACSM's guidelines for exercise testing and prescription"
+},
+{
+"id": "https://openalex.org/W1525299754",
+"doi": "https://doi.org/10.1007/s00125-003-1031-x",
+"display_name": "Occupational, commuting, and leisure-time physical activity in relation to risk for Type 2 diabetes in middle-aged Finnish men and women"
+},
+{
+"id": "https://openalex.org/W1552502560",
+"doi": null,
+"display_name": "Human Circulation: Regulation During Physical Stress"
+},
+{
+"id": "https://openalex.org/W1565122307",
+"doi": "https://doi.org/10.1016/s0735-1097(98)00098-9",
+"display_name": "Seasonal Distribution of Acute Myocardial Infarction in the Second National Registry of Myocardial Infarction 11The National Registry of Myocardial Infarction is supported by Genentech, Inc., South San Francisco, California. Genentech, Inc. reimburses ClinTrials Research, Inc. for the cost of data analysis and biostatistical services."
+},
+{
+"id": "https://openalex.org/W1566678479",
+"doi": "https://doi.org/10.1111/sms.12417",
+"display_name": "A comparison of males and females' temporal patterning to short‐ and long‐term heat acclimation"
+},
+{
+"id": "https://openalex.org/W1575488422",
+"doi": "https://doi.org/10.1111/sms.12408",
+"display_name": "Adaptations and mechanisms of human heat acclimation: Applications for competitive athletes and sports"
+},
+{
+"id": "https://openalex.org/W1579749402",
+"doi": "https://doi.org/10.1002/cphy.c100082",
+"display_name": "Integrated Physiological Mechanisms of Exercise Performance, Adaptation, and Maladaptation to Heat Stress"
+},
+{
+"id": "https://openalex.org/W1594252912",
+"doi": "https://doi.org/10.1111/j.1532-5415.2004.52154.x",
+"display_name": "The Association Between Physical Function and Lifestyle Activity and Exercise in the Health, Aging and Body Composition Study"
+},
+{
+"id": "https://openalex.org/W1594881360",
+"doi": "https://doi.org/10.1002/9780470694930.ch15",
+"display_name": "Genetic Determinants of Endurance Performance"
+},
+{
+"id": "https://openalex.org/W1594923399",
+"doi": null,
+"display_name": "Physiological Responses to Acute Exercise-Heat Stress"
+},
+{
+"id": "https://openalex.org/W1596457316",
+"doi": "https://doi.org/10.1152/jappl.1964.19.3.531",
+"display_name": "A new weighting system for mean surface temperature of the human body"
+},
+{
+"id": "https://openalex.org/W1602477505",
+"doi": "https://doi.org/10.1002/cphy.cp040109",
+"display_name": "Thermoregulatory Responses to Acute Exercise‐Heat Stress and Heat Acclimation"
+},
+{
+"id": "https://openalex.org/W1604189153",
+"doi": "https://doi.org/10.4161/temp.29800",
+"display_name": "Heat acclimation and cross tolerance to hypoxia"
+},
+{
+"id": "https://openalex.org/W1604538870",
+"doi": "https://doi.org/10.4161/temp.29752",
+"display_name": "The thermal-circulatory ratio (TCR)"
+},
+{
+"id": "https://openalex.org/W1610795244",
+"doi": "https://doi.org/10.4085/1062-6050-50.9.07",
+"display_name": "National Athletic Trainers' Association Position Statement: Exertional Heat Illnesses"
+},
+{
+"id": "https://openalex.org/W1628021677",
+"doi": null,
+"display_name": "Developing an adaptive model of thermal comfort and preference"
+},
+{
+"id": "https://openalex.org/W1664448719",
+"doi": null,
+"display_name": "Epidemiology of combat wounds in Operation Iraqi Freedom and Operation Enduring Freedom: orthopaedic burden of disease."
+},
+{
+"id": "https://openalex.org/W1743247233",
+"doi": "https://doi.org/10.1172/jci100265",
+"display_name": "STUDIES IN CONGESTIVE HEART FAILURE"
+},
+{
+"id": "https://openalex.org/W1750709483",
+"doi": "https://doi.org/10.1152/jappl.1971.30.5.708",
+"display_name": "Influence of acclimatization on sweat sodium concentration."
+},
+{
+"id": "https://openalex.org/W1754067051",
+"doi": "https://doi.org/10.2165/00007256-200434130-00003",
+"display_name": "Physiological Changes Associated with the Pre-Event Taper in Athletes"
+},
+{
+"id": "https://openalex.org/W1794063018",
+"doi": "https://doi.org/10.1152/jappl.1991.71.6.2518",
+"display_name": "Effects of cycle exercise on intestinal absorption in humans"
+},
+{
+"id": "https://openalex.org/W1808781439",
+"doi": "https://doi.org/10.1152/jappl.1967.22.1.27",
+"display_name": "Effect of acclimatization on the sweat rate-rectal temperature relationship."
+},
+{
+"id": "https://openalex.org/W1813229740",
+"doi": "https://doi.org/10.1152/jappl.1997.83.2.429",
+"display_name": "More tetanic contractions are required for activating glucose transport maximally in trained muscle"
+},
+{
+"id": "https://openalex.org/W1820692900",
+"doi": "https://doi.org/10.1152/ajpregu.1998.275.1.r129",
+"display_name": "A physiological strain index to evaluate heat stress"
+},
+{
+"id": "https://openalex.org/W1821665499",
+"doi": "https://doi.org/10.1080/15398285.2014.902284",
+"display_name": "HEART DISEASE AND STROKE STATISTICS–2014 UPDATE: A REPORT FROM THE AMERICAN HEART ASSOCIATION"
+},
+{
+"id": "https://openalex.org/W1823506148",
+"doi": "https://doi.org/10.1152/jappl.1983.54.1.18",
+"display_name": "Blood lactate threshold in some well-trained ischemic heart disease patients"
+},
+{
+"id": "https://openalex.org/W1836340090",
+"doi": "https://doi.org/10.1152/jappl.1985.59.6.1929",
+"display_name": "Skeletal muscle metabolism during exercise is influenced by heat acclimation"
+},
+{
+"id": "https://openalex.org/W1853145171",
+"doi": "https://doi.org/10.5232/ricyde2015.04104",
+"display_name": "The presence of the head coach during a small-sided game: effects on players´ internal load and technical performance. [La presencia del entrenador durante un juego reducido: efectos sobre la carga interna y rendimiento técnico]."
+},
+{
+"id": "https://openalex.org/W1864159588",
+"doi": "https://doi.org/10.1152/jappl.1994.77.4.1597",
+"display_name": "Additive effect of contractions and insulin on GLUT-4 translocation into the sarcolemma"
+},
+{
+"id": "https://openalex.org/W1875833473",
+"doi": "https://doi.org/10.1016/j.mayocp.2015.04.008",
+"display_name": "Assessing the Existing Professional Exercise Recommendations for Hypertension: A Review and Recommendations for Future Research Priorities"
+},
+{
+"id": "https://openalex.org/W1889378999",
+"doi": "https://doi.org/10.1152/jappl.1974.37.4.515",
+"display_name": "Mechanisms of thermal acclimation to exercise and heat."
+},
+{
+"id": "https://openalex.org/W1900518761",
+"doi": "https://doi.org/10.1152/jappl.2000.88.5.1650",
+"display_name": "Cardiac output during exercise by the open circuit acetylene washin method: comparison with direct Fick"
+},
+{
+"id": "https://openalex.org/W1905005421",
+"doi": "https://doi.org/10.1113/jphysiol.2010.193458",
+"display_name": "‘Cross-adaptation’: habituation to short repeated cold-water immersions affects the response to acute hypoxia in humans"
+},
+{
+"id": "https://openalex.org/W1909636187",
+"doi": "https://doi.org/10.1152/jappl.1998.84.5.1581",
+"display_name": "Effect of hypohydration on gastric emptying and intestinal absorption during exercise"
+},
+{
+"id": "https://openalex.org/W1910016456",
+"doi": "https://doi.org/10.1152/japplphysiol.00281.2015",
+"display_name": "Explained variance in the thermoregulatory responses to exercise: the independent roles of biophysical and fitness/fatness-related factors"
+},
+{
+"id": "https://openalex.org/W1913207704",
+"doi": "https://doi.org/10.1152/jappl.1996.81.5.2182",
+"display_name": "Effects of training duration on substrate turnover and oxidation during exercise"
+},
+{
+"id": "https://openalex.org/W1917326959",
+"doi": "https://doi.org/10.1093/oxfordjournals.aje.a115126",
+"display_name": "LEISURE TIME PHYSICAL ACTIVITY IN THE FRAMINGHAM OFFSPRING STUDY"
+},
+{
+"id": "https://openalex.org/W1921566650",
+"doi": "https://doi.org/10.1152/ajpendo.2006.263.6.e1134",
+"display_name": "Effect of training on insulin-mediated glucose uptake in human muscle"
+},
+{
+"id": "https://openalex.org/W1924959201",
+"doi": "https://doi.org/10.1002/cphy.c130022",
+"display_name": "Human Heat Adaptation"
+},
+{
+"id": "https://openalex.org/W1928278259",
+"doi": "https://doi.org/10.1152/jappl.1968.24.4.518",
+"display_name": "Effect of training on circulatory response to exercise."
+},
+{
+"id": "https://openalex.org/W1928947552",
+"doi": "https://doi.org/10.1152/ajpgi.1985.249.4.g501",
+"display_name": "Intestinal control of gastric tone"
+},
+{
+"id": "https://openalex.org/W1935319053",
+"doi": "https://doi.org/10.1152/jappl.1973.35.6.875",
+"display_name": "Predicting effects of heat acclimatization on heart rate and rectal temperature."
+},
+{
+"id": "https://openalex.org/W1936910750",
+"doi": "https://doi.org/10.1152/jappl.1988.64.1.404",
+"display_name": "Exercise stroke volume relative to plasma-volume expansion"
+},
+{
+"id": "https://openalex.org/W1942727159",
+"doi": "https://doi.org/10.1152/japplphysiol.00332.2015",
+"display_name": "Heat acclimation attenuates physiological strain and the HSP72, but not HSP90α, mRNA response to acute normobaric hypoxia"
+},
+{
+"id": "https://openalex.org/W1947631507",
+"doi": "https://doi.org/10.1152/jappl.1968.24.4.475",
+"display_name": "Splanchnic blood flow and metabolism in heat-stressed man."
+},
+{
+"id": "https://openalex.org/W1949544251",
+"doi": "https://doi.org/10.1152/jappl.1987.63.3.1218",
+"display_name": "Cooling different body surfaces during upper and lower body exercise"
+},
+{
+"id": "https://openalex.org/W1952463904",
+"doi": "https://doi.org/10.1152/jappl.1980.48.4.657",
+"display_name": "Role of thermal and exercise factors in the mechanism of hypervolemia"
+},
+{
+"id": "https://openalex.org/W1957524699",
+"doi": null,
+"display_name": "Biomechanical vibration of the abdominal region during running and bicycling."
+},
+{
+"id": "https://openalex.org/W1963542374",
+"doi": "https://doi.org/10.1519/jsc.0b013e3181b3dfa1",
+"display_name": "Computer Simulations Assessing the Potential Performance Benefit of a Final Increase in Training During Pre-Event Taper"
+},
+{
+"id": "https://openalex.org/W1964808737",
+"doi": "https://doi.org/10.1152/japplphysiol.00367.2010",
+"display_name": "Mechanisms of aerobic performance impairment with heat stress and dehydration"
+},
+{
+"id": "https://openalex.org/W1964853204",
+"doi": "https://doi.org/10.1021/es102947t",
+"display_name": "Does Participating in Physical Activity in Outdoor Natural Environments Have a Greater Effect on Physical and Mental Wellbeing than Physical Activity Indoors? A Systematic Review"
+},
+{
+"id": "https://openalex.org/W1964903133",
+"doi": "https://doi.org/10.1186/1471-2210-10-6",
+"display_name": "An evaluation of R2 as an inadequate measure for nonlinear models in pharmacological and biochemical research: a Monte Carlo approach"
+},
+{
+"id": "https://openalex.org/W1965539785",
+"doi": "https://doi.org/10.1155/2015/849809",
+"display_name": "Human Monocyte Heat Shock Protein 72 Responses to Acute Hypoxic Exercise after 3 Days of Exercise Heat Acclimation"
+},
+{
+"id": "https://openalex.org/W1965948458",
+"doi": "https://doi.org/10.1097/bcr.0b013e318053d312",
+"display_name": "Impaired Cutaneous Vasodilation and Sweating in Grafted Skin During Whole-Body Heating"
+},
+{
+"id": "https://openalex.org/W1966225853",
+"doi": "https://doi.org/10.1249/00005768-198410000-00012",
+"display_name": "Sensitivity of maximal aerobic power to training is genotype-dependent"
+},
+{
+"id": "https://openalex.org/W1966323961",
+"doi": "https://doi.org/10.1097/00005768-199906000-00002",
+"display_name": "Gastrointestinal symptoms during long-distance walking"
+},
+{
+"id": "https://openalex.org/W1966538433",
+"doi": "https://doi.org/10.1249/00005768-198712000-00010",
+"display_name": "The effect of fluid and carbohydrate feedings during intermittent cycling exercise"
+},
+{
+"id": "https://openalex.org/W1966542728",
+"doi": "https://doi.org/10.1046/j.1365-201x.2001.00906.x",
+"display_name": "Live high:train low increases muscle buffer capacity and submaximal cycling efficiency"
+},
+{
+"id": "https://openalex.org/W1966627745",
+"doi": "https://doi.org/10.1177/0013916591231001",
+"display_name": "Restorative Effects of Natural Environment Experiences"
+},
+{
+"id": "https://openalex.org/W1966843711",
+"doi": "https://doi.org/10.1519/1533-4287(2001)015<0109:anatme>2.0.co;2",
+"display_name": "A New Approach to Monitoring Exercise Training"
+},
+{
+"id": "https://openalex.org/W1967624550",
+"doi": "https://doi.org/10.1016/s0031-9406(10)61105-4",
+"display_name": "Endurance in Sport – The encyclopaedia of sports medicine"
+},
+{
+"id": "https://openalex.org/W1968331657",
+"doi": "https://doi.org/10.1097/00005768-200010000-00008",
+"display_name": "A polymorphism in the alpha2a-adrenoceptor gene and endurance athlete status"
+},
+{
+"id": "https://openalex.org/W1968533488",
+"doi": "https://doi.org/10.1097/bcr.0b013e3182a22915",
+"display_name": "Aerobic Fitness Is Disproportionately Low in Adult Burn Survivors Years After Injury"
+},
+{
+"id": "https://openalex.org/W1970894444",
+"doi": "https://doi.org/10.1097/bcr.0b013e3181e4ca14",
+"display_name": "Temperature Responses in Severely Burned Children During Exercise in a Hot Environment"
+},
+{
+"id": "https://openalex.org/W1971052321",
+"doi": "https://doi.org/10.1097/bcr.0b013e318053d32e",
+"display_name": "Skin Grafting Impairs Postsynaptic Cutaneous Vasodilator and Sweating Responses"
+},
+{
+"id": "https://openalex.org/W1971488427",
+"doi": "https://doi.org/10.1111/j.1572-0241.1999.01147.x",
+"display_name": "Gastrointestinal Symptoms in Long-Distance Runners, Cyclists, and Triathletes: Prevalence, Medication, and Etiology"
+},
+{
+"id": "https://openalex.org/W1972473343",
+"doi": "https://doi.org/10.1172/jci101053",
+"display_name": "LACTIC ACID PRODUCTION DURING REST AND AFTER EXERCISE IN SUBJECTS WITH VARIOUS TYPES OF HEART DISEASE WITH SPECIAL REFERENCE TO CONGENITAL HEART DISEASE 1"
+},
+{
+"id": "https://openalex.org/W1972636471",
+"doi": "https://doi.org/10.1055/s-2007-973043",
+"display_name": "Heavy Exercise, Nutrition and Immune Function: Is There a Connection?"
+},
+{
+"id": "https://openalex.org/W1972758415",
+"doi": "https://doi.org/10.1097/bcr.0b013e3181848b5d",
+"display_name": "Heat Acclimation of an Adult Female With a Large Surface Area of Grafted Skin"
+},
+{
+"id": "https://openalex.org/W1972919954",
+"doi": "https://doi.org/10.1097/bcr.0b013e3181abfd43",
+"display_name": "Sustained Impairments in Cutaneous Vasodilation and Sweating in Grafted Skin Following Long-Term Recovery"
+},
+{
+"id": "https://openalex.org/W1973353169",
+"doi": "https://doi.org/10.1113/jphysiol.1963.sp007121",
+"display_name": "Acclimatization to heat in man by controlled elevation of body temperature"
+},
+{
+"id": "https://openalex.org/W1973765080",
+"doi": "https://doi.org/10.1172/jci116747",
+"display_name": "Mechanism of enhanced insulin sensitivity in athletes. Increased blood flow, muscle glucose transport protein (GLUT-4) concentration, and glycogen synthase activity."
+},
+{
+"id": "https://openalex.org/W1974182748",
+"doi": "https://doi.org/10.1007/s00421-011-2268-6",
+"display_name": "Measurement of human energy expenditure, with particular reference to field studies: an historical perspective"
+},
+{
+"id": "https://openalex.org/W1974860317",
+"doi": "https://doi.org/10.1113/jphysiol.1993.sp019482",
+"display_name": "Human circulatory and thermoregulatory adaptations with heat acclimation and exercise in a hot, dry environment."
+},
+{
+"id": "https://openalex.org/W1974946451",
+"doi": "https://doi.org/10.2165/00007256-200333070-00004",
+"display_name": "Heart Rate Monitoring"
+},
+{
+"id": "https://openalex.org/W1974996217",
+"doi": "https://doi.org/10.2114/jpa2.25.215",
+"display_name": "Possible Biphasic Sweating Response during Short-term Heat Acclimation Protocol for Tropical Natives"
+},
+{
+"id": "https://openalex.org/W1975166496",
+"doi": "https://doi.org/10.1007/bf00418506",
+"display_name": "Faster gastric emptying for glucose-polymer and fructose solutions than for glucose in humans"
+},
+{
+"id": "https://openalex.org/W1975295938",
+"doi": "https://doi.org/10.1249/00005768-198406000-00010",
+"display_name": "Blood volume and hemoglobin concentration as determinants of maximal aerobic power"
+},
+{
+"id": "https://openalex.org/W1975308862",
+"doi": "https://doi.org/10.1113/jphysiol.1977.sp011974",
+"display_name": "Training induced adaptation of skeletal muscle and metabolism during submaximal exercise"
+},
+{
+"id": "https://openalex.org/W1978495288",
+"doi": "https://doi.org/10.1113/jphysiol.1985.sp015794",
+"display_name": "Maximal perfusion of skeletal muscle in man."
+},
+{
+"id": "https://openalex.org/W1979133364",
+"doi": "https://doi.org/10.1113/jphysiol.1990.sp018175",
+"display_name": "Glucose uptake and transport in contracting, perfused rat muscle with different pre‐contraction glycogen concentrations."
+},
+{
+"id": "https://openalex.org/W1979194590",
+"doi": "https://doi.org/10.1007/s004840050107",
+"display_name": "Exercise- and methylcholine-induced sweating responses in older and younger men: effect of heat acclimation and aerobic fitness"
+},
+{
+"id": "https://openalex.org/W1979688566",
+"doi": "https://doi.org/10.1249/01.mss.0000074443.17247.05",
+"display_name": "Physiological Responses to Indoor Rock-Climbing and Their Relationship to Maximal Cycle Ergometry"
+},
+{
+"id": "https://openalex.org/W1980911127",
+"doi": "https://doi.org/10.1007/978-1-4612-2294-1_3",
+"display_name": "Linear Mixed Models for Longitudinal Data"
+},
+{
+"id": "https://openalex.org/W1981331250",
+"doi": "https://doi.org/10.1007/s004210050493",
+"display_name": "Training theory and taper: validation in triathlon athletes"
+},
+{
+"id": "https://openalex.org/W1982390572",
+"doi": "https://doi.org/10.7326/0003-4819-90-6-913",
+"display_name": "Heat Intolerance in Former Heatstroke Patients"
+},
+{
+"id": "https://openalex.org/W1983277581",
+"doi": "https://doi.org/10.1249/00005768-199204000-00009",
+"display_name": "Erythrocyte, plasma, and blood volume of healthy young men"
+},
+{
+"id": "https://openalex.org/W1983857317",
+"doi": "https://doi.org/10.1007/s12192-010-0197-7",
+"display_name": "Heat and exercise acclimation increases intracellular levels of Hsp72 and inhibits exercise-induced increase in intracellular and plasma Hsp72 in humans"
+},
+{
+"id": "https://openalex.org/W1985202472",
+"doi": "https://doi.org/10.1016/s0002-9149(97)89153-9",
+"display_name": "Comparison of impedance cardiography with thermodilution and direct fick methods for noninvasive measurement of stroke volume and cardiac output during incremental exercise in patients with ischemic cardiomyopathy"
+},
+{
+"id": "https://openalex.org/W1986228650",
+"doi": "https://doi.org/10.1136/bjsports-2013-092559",
+"display_name": "Adding heat to the live-high train-low altitude model: a practical insight from professional football"
+},
+{
+"id": "https://openalex.org/W1986808021",
+"doi": "https://doi.org/10.1016/j.maturitas.2015.01.002",
+"display_name": "Effect of Baduanjin exercise for hypertension: A systematic review and meta-analysis of randomized controlled trials"
+},
+{
+"id": "https://openalex.org/W1989069558",
+"doi": "https://doi.org/10.1007/s12192-013-0468-1",
+"display_name": "Extracellular Hsp72 concentration relates to a minimum endogenous criteria during acute exercise-heat exposure"
+},
+{
+"id": "https://openalex.org/W1989461233",
+"doi": "https://doi.org/10.1097/00005768-199908000-00020",
+"display_name": "Responses to training in cross-country skiers"
+},
+{
+"id": "https://openalex.org/W1990240814",
+"doi": "https://doi.org/10.1007/bf01196911",
+"display_name": "Perception of temperature elevation in human seasonal heat adaptation"
+},
+{
+"id": "https://openalex.org/W1990367746",
+"doi": "https://doi.org/10.1007/s00421-011-2153-3",
+"display_name": "Effectiveness of short-term heat acclimation for highly trained athletes"
+},
+{
+"id": "https://openalex.org/W1990553102",
+"doi": "https://doi.org/10.1097/00005768-199909000-00008",
+"display_name": "Carbohydrate-electrolyte ingestion during intermittent high-intensity running"
+},
+{
+"id": "https://openalex.org/W1990600097",
+"doi": "https://doi.org/10.1097/00005768-200106000-00009",
+"display_name": "Intestinal fluid absorption during exercise: role of sport drink osmolality and [Na+]"
+},
+{
+"id": "https://openalex.org/W1992249233",
+"doi": "https://doi.org/10.1113/jphysiol.1963.sp007122",
+"display_name": "Blood flow and other thermoregulatory changes with acclimatization to heat"
+},
+{
+"id": "https://openalex.org/W1992593603",
+"doi": "https://doi.org/10.1136/bmj.295.6593.303",
+"display_name": "Faecal blood loss in response to exercise."
+},
+{
+"id": "https://openalex.org/W1995189143",
+"doi": "https://doi.org/10.2165/00007256-200029050-00004",
+"display_name": "The Thermophysiology of Uncompensable Heat Stress"
+},
+{
+"id": "https://openalex.org/W1995705380",
+"doi": "https://doi.org/10.1055/s-2008-1025756",
+"display_name": "Inheritance of Human Skeletal Muscle and Anaerobic Capacity Adaptation to High-Intensity Intermittent Training*"
+},
+{
+"id": "https://openalex.org/W1996484919",
+"doi": "https://doi.org/10.1097/01.bcr.0000155540.31879.fb",
+"display_name": "Burn Support for Operation Iraqi Freedom and Related Operations, 2003 to 2004"
+},
+{
+"id": "https://openalex.org/W1997555229",
+"doi": "https://doi.org/10.1155/2014/478965",
+"display_name": "Neural Regulation of Cardiovascular Response to Exercise: Role of Central Command and Peripheral Afferents"
+},
+{
+"id": "https://openalex.org/W1997594528",
+"doi": "https://doi.org/10.1249/mss.0b013e3181988c14",
+"display_name": "Prior Heat Stress"
+},
+{
+"id": "https://openalex.org/W1997734185",
+"doi": "https://doi.org/10.1097/00005768-200108000-00005",
+"display_name": "Effect of intermittent high-intensity exercise on gastric emptying in man"
+},
+{
+"id": "https://openalex.org/W1998045635",
+"doi": "https://doi.org/10.1007/bf00376772",
+"display_name": "Effects of training and acclimation on heat tolerance in exercising men wearing protective clothing"
+},
+{
+"id": "https://openalex.org/W1999005272",
+"doi": "https://doi.org/10.1097/00006534-198104000-00013",
+"display_name": "Heat Tolerance in Patients with Extensive Healed Burns"
+},
+{
+"id": "https://openalex.org/W1999177505",
+"doi": "https://doi.org/10.1016/j.jtherbio.2015.02.005",
+"display_name": "Isothermic and fixed intensity heat acclimation methods induce similar heat adaptation following short and long-term timescales"
+},
+{
+"id": "https://openalex.org/W2000649448",
+"doi": "https://doi.org/10.1139/apnm-2012-0492",
+"display_name": "Metabolic equivalent concept in apparently healthy men: a re-examination of the standard oxygen uptake value of 3.5 mL·kg –1 ·min –1"
+},
+{
+"id": "https://openalex.org/W2001046900",
+"doi": "https://doi.org/10.1097/bcr.0b013e3181e4ca62",
+"display_name": "Long-Term Outcomes in Patients Surviving Large Burns: The Skin"
+},
+{
+"id": "https://openalex.org/W2002004728",
+"doi": "https://doi.org/10.1007/bf00854978",
+"display_name": "Effects of 6 versus 12 days of heat acclimation on heat tolerance in lightly exercising men wearing protective clothing"
+},
+{
+"id": "https://openalex.org/W2003120687",
+"doi": "https://doi.org/10.1249/01.mss.0000074448.73931.11",
+"display_name": "Scientific Bases for Precompetition Tapering Strategies"
+},
+{
+"id": "https://openalex.org/W2003598572",
+"doi": "https://doi.org/10.1249/mss.0b013e31802ca597",
+"display_name": "Exercise and Fluid Replacement"
+},
+{
+"id": "https://openalex.org/W2004008756",
+"doi": "https://doi.org/10.1249/00005768-198205000-00012",
+"display_name": "Psychophysical bases of perceived exertion"
+},
+{
+"id": "https://openalex.org/W2004705110",
+"doi": "https://doi.org/10.1249/mss.0000000000000655",
+"display_name": "Nongrafted Skin Area Best Predicts Exercise Core Temperature Responses in Burned Humans"
+},
+{
+"id": "https://openalex.org/W2005187043",
+"doi": "https://doi.org/10.2165/00007256-199826060-00001",
+"display_name": "Aetiology of Running-Related Gastrointestinal Dysfunction"
+},
+{
+"id": "https://openalex.org/W2005188365",
+"doi": "https://doi.org/10.1097/00005768-199911000-00020",
+"display_name": "Reproducibility of maximal exercise test data in the HERITAGE Family Study"
+},
+{
+"id": "https://openalex.org/W2005815716",
+"doi": "https://doi.org/10.1001/archinte.1916.00080130010002",
+"display_name": "CLINICAL CALORIMETRY"
+},
+{
+"id": "https://openalex.org/W2006391386",
+"doi": "https://doi.org/10.1097/00006842-199601000-00005",
+"display_name": "Relationships Between Circulating Catecholamines and Low Frequency Heart Period Variability as Indices of Cardiac Sympathetic Activity During Mental Stress"
+},
+{
+"id": "https://openalex.org/W2006417958",
+"doi": "https://doi.org/10.1097/00005768-199802000-00013",
+"display_name": "Familial resemblance for ??VO2max in the sedentary state: the HERITAGE family study"
+},
+{
+"id": "https://openalex.org/W2007457192",
+"doi": "https://doi.org/10.1016/j.jtherbio.2007.04.003",
+"display_name": "Human physiological and heat shock protein 72 adaptations during the initial phase of humid-heat acclimation"
+},
+{
+"id": "https://openalex.org/W2008323463",
+"doi": "https://doi.org/10.1111/j.1475-097x.1981.tb00872.x",
+"display_name": "Availability of glycogen and plasma FFA for substrate utilization in leg muscle of man during exercise"
+},
+{
+"id": "https://openalex.org/W2008842702",
+"doi": "https://doi.org/10.1007/s00421-014-3035-2",
+"display_name": "Modeling of performance and ANS activity for predicting future responses to training"
+},
+{
+"id": "https://openalex.org/W2009094381",
+"doi": "https://doi.org/10.1016/j.physbeh.2011.02.002",
+"display_name": "The independent roles of temperature and thermal perception in the control of human thermoregulatory behavior"
+},
+{
+"id": "https://openalex.org/W2009315081",
+"doi": "https://doi.org/10.1249/mss.0b013e3181c3ac3f",
+"display_name": "Soleus Adaptation to Combined Exercise and Heat Acclimation"
+},
+{
+"id": "https://openalex.org/W2009356635",
+"doi": "https://doi.org/10.1152/japplphysiol.00725.2010",
+"display_name": "Heat acclimation improves cutaneous vascular function and sweating in trained cyclists"
+},
+{
+"id": "https://openalex.org/W2012594381",
+"doi": "https://doi.org/10.1519/jsc.0b013e3181c4d38b",
+"display_name": "Monitoring Load, Recovery, and Performance in Young Elite Soccer Players"
+},
+{
+"id": "https://openalex.org/W2012725352",
+"doi": "https://doi.org/10.1007/s40279-014-0212-8",
+"display_name": "Adaptation to Heat and Exercise Performance Under Cooler Conditions: A New Hot Topic"
+},
+{
+"id": "https://openalex.org/W2013858154",
+"doi": "https://doi.org/10.2165/00007256-200030020-00002",
+"display_name": "Detraining: Loss of Training-Induced Physiological and Performance Adaptations. Part I"
+},
+{
+"id": "https://openalex.org/W2013924679",
+"doi": "https://doi.org/10.1519/jsc.0b013e31815f5831",
+"display_name": "Cardiorespiratory and Neuromuscular Responses to Motocross Riding"
+},
+{
+"id": "https://openalex.org/W2014837514",
+"doi": "https://doi.org/10.1016/0002-9343(68)90062-4",
+"display_name": "Lung lavage (alveolar washing) in alveolar proteinosis"
+},
+{
+"id": "https://openalex.org/W2015836464",
+"doi": "https://doi.org/10.1080/00140137708931642",
+"display_name": "Role of Physical Fitness in Heat Acclimatisation, Decay and Reinduction"
+},
+{
+"id": "https://openalex.org/W2016750673",
+"doi": "https://doi.org/10.1249/00005768-198201000-00009",
+"display_name": "Effects of interval training on work-heat tolerance of young women"
+},
+{
+"id": "https://openalex.org/W2016884629",
+"doi": "https://doi.org/10.1080/02640414.2013.786183",
+"display_name": "Modelling training response in elite female gymnasts and optimal strategies of overload training and taper"
+},
+{
+"id": "https://openalex.org/W2018306595",
+"doi": "https://doi.org/10.1172/jci100123",
+"display_name": "OXYGEN CONSUMPTION, OXYGEN DEBT AND LACTIC ACID IN CIRCULATORY FAILURE 1"
+},
+{
+"id": "https://openalex.org/W2018877710",
+"doi": "https://doi.org/10.1055/s-2007-971985",
+"display_name": "Time Course of Heat Acclimation and its Decay"
+},
+{
+"id": "https://openalex.org/W2018973416",
+"doi": "https://doi.org/10.1006/bbrc.1996.0860",
+"display_name": "Exercise Induces the Translocation of GLUT4 to Transverse Tubules from an Intracellular Pool in Rat Skeletal Muscle"
+},
+{
+"id": "https://openalex.org/W2019149960",
+"doi": "https://doi.org/10.1097/00005768-199802000-00014",
+"display_name": "Reproducibility of cardiovascular, respiratory, and metabolic responses to submaximal exercise: The HERITAGE Family Study"
+},
+{
+"id": "https://openalex.org/W2019610310",
+"doi": "https://doi.org/10.1007/s004210050498",
+"display_name": "Gastric gas and fluid emptying assessed by magnetic resonance imaging"
+},
+{
+"id": "https://openalex.org/W2020581092",
+"doi": "https://doi.org/10.2165/00007256-198704050-00002",
+"display_name": "The Effects of Consuming Carbohydrate-Electrolyte Beverages on Gastric Emptying and Fluid Absorption During and Following Exercise"
+},
+{
+"id": "https://openalex.org/W2021904559",
+"doi": "https://doi.org/10.2165/00007256-199112050-00003",
+"display_name": "The Induction and Decay of Heat Acclimatisation in Trained Athletes"
+},
+{
+"id": "https://openalex.org/W2022270652",
+"doi": "https://doi.org/10.1063/1.331730",
+"display_name": "On a new type of negative deuterium ion source using a silicon semiconductor"
+},
+{
+"id": "https://openalex.org/W2022588497",
+"doi": "https://doi.org/10.1055/s-0034-1368724",
+"display_name": "Does Heat Acclimation Improve Exercise Capacity at Altitude? A Cross-tolerance Model"
+},
+{
+"id": "https://openalex.org/W2022966433",
+"doi": "https://doi.org/10.1172/jci105484",
+"display_name": "Reductions in cardiac output, central blood volume, and stroke volume with thermal stress in normal men during exercise."
+},
+{
+"id": "https://openalex.org/W2023309618",
+"doi": "https://doi.org/10.1113/jphysiol.1954.sp005161",
+"display_name": "Motor unit activity in the voluntary contraction of human muscle"
+},
+{
+"id": "https://openalex.org/W2024018334",
+"doi": "https://doi.org/10.1016/0002-9610(59)90492-1",
+"display_name": "A simplified chart for estimating burn areas"
+},
+{
+"id": "https://openalex.org/W2024375394",
+"doi": "https://doi.org/10.1152/japplphysiol.00197.2009",
+"display_name": "Comparison of regional patch collection vs. whole body washdown for measuring sweat sodium and potassium loss during exercise"
+},
+{
+"id": "https://openalex.org/W2024679886",
+"doi": "https://doi.org/10.1016/j.apmr.2007.09.009",
+"display_name": "Barriers to Return to Work After Burn Injuries"
+},
+{
+"id": "https://openalex.org/W2026922947",
+"doi": "https://doi.org/10.1519/14853.1",
+"display_name": "Modeling the Residual Effects and Threshold Saturation of Training: A Case Study of Olympic Swimmers"
+},
+{
+"id": "https://openalex.org/W2027072654",
+"doi": "https://doi.org/10.1113/expphysiol.1996.sp003969",
+"display_name": "Blunting the rise in body temperature reduces muscle glycogenolysis during exercise in humans"
+},
+{
+"id": "https://openalex.org/W2027924416",
+"doi": "https://doi.org/10.1249/00005768-199311000-00003",
+"display_name": "Gastrointestinal problems as a function of carbohydrate supplements and mode of exercise"
+},
+{
+"id": "https://openalex.org/W2029002521",
+"doi": "https://doi.org/10.1136/gut.29.6.816",
+"display_name": "Effect of moderate exercise on salt and water transport in the human jejunum."
+},
+{
+"id": "https://openalex.org/W2029176720",
+"doi": "https://doi.org/10.1109/tsmc.1976.5409179",
+"display_name": "A Systems Model of the Effects of Training on Physical Performance"
+},
+{
+"id": "https://openalex.org/W2030038755",
+"doi": "https://doi.org/10.2114/jpa2.29.1",
+"display_name": "Thermoregulatory Efficiency is Increased after Heat Acclimation in Tropical Natives"
+},
+{
+"id": "https://openalex.org/W2031755281",
+"doi": "https://doi.org/10.1097/01.hjh.0000244941.49793.f9",
+"display_name": "Combined effect of blood pressure and physical activity on cardiovascular mortality"
+},
+{
+"id": "https://openalex.org/W2033676311",
+"doi": "https://doi.org/10.2165/00007256-200131030-00005",
+"display_name": "Reliability of Power in Physical Performance Tests"
+},
+{
+"id": "https://openalex.org/W2034293178",
+"doi": "https://doi.org/10.1016/j.ypmed.2014.12.041",
+"display_name": "The effect of walking on risk factors for cardiovascular disease: An updated systematic review and meta-analysis of randomised control trials"
+},
+{
+"id": "https://openalex.org/W2034756498",
+"doi": "https://doi.org/10.1007/s12192-008-0022-8",
+"display_name": "The effect of 15 consecutive days of heat–exercise acclimation on heat shock protein 70"
+},
+{
+"id": "https://openalex.org/W2035183892",
+"doi": "https://doi.org/10.5040/9781492596837",
+"display_name": "Growth, Maturation, and Physical Activity"
+},
+{
+"id": "https://openalex.org/W2036403636",
+"doi": "https://doi.org/10.1249/mss.0b013e3181cd5cd3",
+"display_name": "Physiological Demands of Off-Road Vehicle Riding"
+},
+{
+"id": "https://openalex.org/W2037768170",
+"doi": "https://doi.org/10.1097/hjh.0b013e3283544669",
+"display_name": "The impact of physical activity on mortality in patients with high blood pressure"
+},
+{
+"id": "https://openalex.org/W2037951051",
+"doi": "https://doi.org/10.1097/00005768-199908000-00014",
+"display_name": "Investigation of the side pain \"stitch\" induced by running after fluid ingestion"
+},
+{
+"id": "https://openalex.org/W2037986685",
+"doi": "https://doi.org/10.1080/02640410701716782",
+"display_name": "A model study of optimal training reduction during pre-event taper in elite swimmers"
+},
+{
+"id": "https://openalex.org/W2038175489",
+"doi": "https://doi.org/10.1249/01.mss.0000177461.94156.4b",
+"display_name": "A Theoretical Study of Taper Characteristics to Optimize Performance"
+},
+{
+"id": "https://openalex.org/W2038408310",
+"doi": "https://doi.org/10.1007/s004210050232",
+"display_name": "Sweat distribution before and after repeated heat exposure"
+},
+{
+"id": "https://openalex.org/W2038585328",
+"doi": "https://doi.org/10.1152/japplphysiol.01312.2013",
+"display_name": "Selecting the correct exercise intensity for unbiased comparisons of thermoregulatory responses between groups of different mass and surface area"
+},
+{
+"id": "https://openalex.org/W2038883840",
+"doi": "https://doi.org/10.1249/01.mss.0000058441.94520.32",
+"display_name": "The Yo-Yo Intermittent Recovery Test: Physiological Response, Reliability, and Validity"
+},
+{
+"id": "https://openalex.org/W2040994642",
+"doi": "https://doi.org/10.1097/00005768-200204000-00025",
+"display_name": "Carbohydrates and physical/mental performance during intermittent exercise to fatigue"
+},
+{
+"id": "https://openalex.org/W2041798430",
+"doi": "https://doi.org/10.1097/md.0000000000000352",
+"display_name": "Qigong for Hypertension"
+},
+{
+"id": "https://openalex.org/W2042897451",
+"doi": "https://doi.org/10.1113/jphysiol.1993.sp019833",
+"display_name": "GLUT 4 and insulin receptor binding and kinase activity in trained human muscle."
+},
+{
+"id": "https://openalex.org/W2043679548",
+"doi": "https://doi.org/10.1111/j.1748-1716.1965.tb04088.x",
+"display_name": "On the Competition between Metabolic Vasodilatation and Neurogenic Vasoconstriction in Skeletal Muscle1"
+},
+{
+"id": "https://openalex.org/W2045977346",
+"doi": "https://doi.org/10.1001/jama.294.23.2981",
+"display_name": "Prevalence and Cardiovascular Disease Correlates of Low Cardiorespiratory Fitness in Adolescents and Adults"
+},
+{
+"id": "https://openalex.org/W2046368604",
+"doi": "https://doi.org/10.1152/ajpregu.00475.2007",
+"display_name": "Effects of muscle metabolites on responses of muscle sympathetic nerve activity to mechanoreceptor(s) stimulation in healthy humans"
+},
+{
+"id": "https://openalex.org/W2047219789",
+"doi": "https://doi.org/10.1152/japplphysiol.00663.2013",
+"display_name": "Timing of return from altitude training for optimal sea level performance"
+},
+{
+"id": "https://openalex.org/W2048146521",
+"doi": "https://doi.org/10.1080/15438629109511936",
+"display_name": "The quantitative periodization of athletic training: A model study"
+},
+{
+"id": "https://openalex.org/W2048318390",
+"doi": "https://doi.org/10.1007/bf00422841",
+"display_name": "Influence of heat stress and acclimation on maximal aerobic power"
+},
+{
+"id": "https://openalex.org/W2048991373",
+"doi": "https://doi.org/10.1007/bf00846030",
+"display_name": "Influence of fluid intake on endurance running performance"
+},
+{
+"id": "https://openalex.org/W2050081819",
+"doi": "https://doi.org/10.1111/j.1365-2982.1995.tb00203.x",
+"display_name": "Inhibition of gastric motility induced by intestinal glucose in awake rats: role of Na+‐glucose co‐transporter"
+},
+{
+"id": "https://openalex.org/W2050289166",
+"doi": "https://doi.org/10.1007/bf00839160",
+"display_name": "Evaluation of a temperate-environment test of heat tolerance in prior heatstroke patients and controls"
+},
+{
+"id": "https://openalex.org/W2050701887",
+"doi": "https://doi.org/10.2165/00007256-199520020-00002",
+"display_name": "Gastrointestinal Symptoms During Exercise"
+},
+{
+"id": "https://openalex.org/W2050972278",
+"doi": "https://doi.org/10.1001/jama.1987.03400220116052",
+"display_name": "Human Circulation: Regulation During Physical Stress"
+},
+{
+"id": "https://openalex.org/W2054006565",
+"doi": "https://doi.org/10.1097/00008483-198612000-00002",
+"display_name": "Effect of Endurance Training and Heat Acclimation on Perceived Exertion During Exercise"
+},
+{
+"id": "https://openalex.org/W2054038456",
+"doi": "https://doi.org/10.2307/1267800",
+"display_name": "Regression Analysis and Its Application: A Data-Oriented Approach"
+},
+{
+"id": "https://openalex.org/W2054796764",
+"doi": "https://doi.org/10.1136/bmj.b1665",
+"display_name": "Use of blood pressure lowering drugs in the prevention of cardiovascular disease: meta-analysis of 147 randomised trials in the context of expectations from prospective epidemiological studies"
+},
+{
+"id": "https://openalex.org/W2055621179",
+"doi": "https://doi.org/10.1080/02701367.2000.11082782",
+"display_name": "Objective Monitoring of Physical Activity Using Motion Sensors and Heart Rate"
+},
+{
+"id": "https://openalex.org/W2056450854",
+"doi": "https://doi.org/10.1097/00005768-199602000-00015",
+"display_name": "Modeled responses to training and taper in competitive swimmers"
+},
+{
+"id": "https://openalex.org/W2057264876",
+"doi": "https://doi.org/10.1249/00005768-198612000-00015",
+"display_name": "Heredity and muscle adaptation to endurance training"
+},
+{
+"id": "https://openalex.org/W2057646172",
+"doi": "https://doi.org/10.1055/s-2007-1024774",
+"display_name": "Maximal Oxygen Uptake Relative to Plasma Volume Expansion"
+},
+{
+"id": "https://openalex.org/W2058397330",
+"doi": "https://doi.org/10.1007/s00421-005-0050-3",
+"display_name": "The optimised CO-rebreathing method: a new tool to determine total haemoglobin mass routinely"
+},
+{
+"id": "https://openalex.org/W2058880189",
+"doi": "https://doi.org/10.1249/01.mss.0000074465.13621.37",
+"display_name": "Variable Dose-Response Relationship between Exercise Training and Performance"
+},
+{
+"id": "https://openalex.org/W2059079558",
+"doi": "https://doi.org/10.2466/pms.1986.62.1.211",
+"display_name": "Perceptual and Physiological Responses during Exercise in Cool and Cold Water"
+},
+{
+"id": "https://openalex.org/W2059369629",
+"doi": "https://doi.org/10.1007/s00421-010-1743-9",
+"display_name": "Does summer in a humid continental climate elicit an acclimatization of human thermoregulatory responses?"
+},
+{
+"id": "https://openalex.org/W2060519312",
+"doi": "https://doi.org/10.1002/1097-0142(19881015)62:1+<1844::aid-cncr2820621328>3.0.co;2-o",
+"display_name": "Mortality by relative weight and exercise"
+},
+{
+"id": "https://openalex.org/W2061196754",
+"doi": "https://doi.org/10.1007/s004240050361",
+"display_name": "Acute and adaptive responses in humans to exercise in a warm, humid environment"
+},
+{
+"id": "https://openalex.org/W2061298681",
+"doi": "https://doi.org/10.3357/asem.3241.2012",
+"display_name": "Heat Acclimation and Performance in Hypoxic Conditions"
+},
+{
+"id": "https://openalex.org/W2063511102",
+"doi": "https://doi.org/10.1097/00005768-199904000-00013",
+"display_name": "Cross-validation of three jump power equations"
+},
+{
+"id": "https://openalex.org/W2063923149",
+"doi": "https://doi.org/10.1249/00005768-199012000-00010",
+"display_name": "Effects of dehydration on gastric emptying and gastrointestinal distress while running"
+},
+{
+"id": "https://openalex.org/W2065141646",
+"doi": "https://doi.org/10.1080/19438150903378425",
+"display_name": "The health benefits of walking in greenspaces of high natural and heritage value"
+},
+{
+"id": "https://openalex.org/W2065630037",
+"doi": "https://doi.org/10.1007/bf02330701",
+"display_name": "Effects of fluid, electrolyte and substrate ingestion on endurance capacity"
+},
+{
+"id": "https://openalex.org/W2065814188",
+"doi": "https://doi.org/10.1113/expphysiol.1990.sp003419",
+"display_name": "Effects of exercise intensity on absorption of ingested fluids in man"
+},
+{
+"id": "https://openalex.org/W2066199637",
+"doi": "https://doi.org/10.1249/mss.0b013e3182a53594",
+"display_name": "Intravenous Iron Supplementation in Distance Runners with Low or Suboptimal Ferritin"
+},
+{
+"id": "https://openalex.org/W2067182162",
+"doi": "https://doi.org/10.1111/j.1748-3743.2009.00191.x",
+"display_name": "Psychosocial group rehabilitation for lonely older people: favourable processes and mediating factors of the intervention leading to alleviated loneliness"
+},
+{
+"id": "https://openalex.org/W2067822215",
+"doi": "https://doi.org/10.1016/0013-9351(69)90037-1",
+"display_name": "Comfort and thermal sensations and associated physiological responses during exercise at various ambient temperatures"
+},
+{
+"id": "https://openalex.org/W2068517962",
+"doi": "https://doi.org/10.1016/j.jtherbio.2013.09.005",
+"display_name": "Refining the distinction between heat tolerant and intolerant individuals during a Heat tolerance test"
+},
+{
+"id": "https://openalex.org/W2069213784",
+"doi": "https://doi.org/10.1249/00003677-199900270-00008",
+"display_name": "6 Influence of Body Water and Blood Volume on Thermoregulation and Exercise Performance in the Heat"
+},
+{
+"id": "https://openalex.org/W2069566256",
+"doi": "https://doi.org/10.1063/1.360358",
+"display_name": "Dislocations in lattice-mismatched wide-gap II-VI/GaAs heterostructures as laser light scatterers: Experiment and theory"
+},
+{
+"id": "https://openalex.org/W2069975529",
+"doi": "https://doi.org/10.1097/00005792-195509000-00002",
+"display_name": "MECHANISMS OF ACCLIMATIZATION TO HEAT IN MAN"
+},
+{
+"id": "https://openalex.org/W2070703786",
+"doi": "https://doi.org/10.1007/bf00417764",
+"display_name": "Evaluation of a temperate environment test to predict heat tolerance"
+},
+{
+"id": "https://openalex.org/W2070818223",
+"doi": "https://doi.org/10.2165/00007256-199826020-00004",
+"display_name": "The Influence of Exercise-Induced Plasma Volume Changes on the Interpretation of Biochemical Parameters Used for Monitoring Exercise, Training and Sport"
+},
+{
+"id": "https://openalex.org/W2071878387",
+"doi": "https://doi.org/10.2165/00007256-200232010-00003",
+"display_name": "The Scientific Basis for High-Intensity Interval Training"
+},
+{
+"id": "https://openalex.org/W2072212362",
+"doi": "https://doi.org/10.1152/ajpregu.00257.2011",
+"display_name": "Large differences in peak oxygen uptake do not independently alter changes in core temperature and sweating during exercise"
+},
+{
+"id": "https://openalex.org/W2072594154",
+"doi": "https://doi.org/10.1016/b978-0-12-457950-7.x5001-3",
+"display_name": "A Flexible System of Enzymatic Analysis"
+},
+{
+"id": "https://openalex.org/W2073017533",
+"doi": "https://doi.org/10.1016/0002-9149(64)90012-8",
+"display_name": "Detecting the threshold of anaerobic metabolism in cardiac patients during exercise"
+},
+{
+"id": "https://openalex.org/W2073045353",
+"doi": "https://doi.org/10.1249/00005768-199210000-00012",
+"display_name": "Effects of taper on swim power, stroke distance, and performance"
+},
+{
+"id": "https://openalex.org/W2073144889",
+"doi": "https://doi.org/10.1053/j.mpmed.2006.07.001",
+"display_name": "The management of alcohol withdrawal"
+},
+{
+"id": "https://openalex.org/W2073208535",
+"doi": "https://doi.org/10.1055/s-2007-972607",
+"display_name": "Carbohydrate-Electrolyte Feedings Improve 1 h Time Trial Cycling Performance"
+},
+{
+"id": "https://openalex.org/W2074276081",
+"doi": "https://doi.org/10.1249/mss.0b013e31821ece12",
+"display_name": "2011 Compendium of Physical Activities"
+},
+{
+"id": "https://openalex.org/W2075181949",
+"doi": "https://doi.org/10.1007/bf00421090",
+"display_name": "Effect of hidromeiosis on sweat drippage during acclimation to humid heat"
+},
+{
+"id": "https://openalex.org/W2075508902",
+"doi": "https://doi.org/10.1007/bf00423243",
+"display_name": "A study of physical demands in riding"
+},
+{
+"id": "https://openalex.org/W2077383958",
+"doi": null,
+"display_name": "Genetics of aerobic and anaerobic performances."
+},
+{
+"id": "https://openalex.org/W2079295808",
+"doi": "https://doi.org/10.1016/0306-4565(93)90097-d",
+"display_name": "Plasticity of response to equal quantities of endurance training separated by non-training in humans"
+},
+{
+"id": "https://openalex.org/W2080546149",
+"doi": "https://doi.org/10.1113/jphysiol.1993.sp019823",
+"display_name": "Skeletal muscle substrate utilization during submaximal exercise in man: effect of endurance training."
+},
+{
+"id": "https://openalex.org/W2080579780",
+"doi": "https://doi.org/10.1519/13993.1",
+"display_name": "The Interval Shuttle Run Test for Intermittent Sport Players: Evaluation of Reliability"
+},
+{
+"id": "https://openalex.org/W2081015738",
+"doi": "https://doi.org/10.1097/bcr.0b013e31826c32c0",
+"display_name": "Effect of Human Skin Grafts on Whole-Body Heat Loss During Exercise Heat Stress"
+},
+{
+"id": "https://openalex.org/W2081729036",
+"doi": "https://doi.org/10.1016/s0022-2828(86)80916-6",
+"display_name": "Alterations in cardiac myosin isoenzymes distribution as an adaptation to chronic environmental heat stress in the rat"
+},
+{
+"id": "https://openalex.org/W2082196122",
+"doi": "https://doi.org/10.1007/s40279-013-0065-6",
+"display_name": "Increasing Physical Activity for the Treatment of Hypertension: A Systematic Review and Meta-Analysis"
+},
+{
+"id": "https://openalex.org/W2083633008",
+"doi": "https://doi.org/10.1139/h96-010",
+"display_name": "Reliability and Validity of a Portable Metabolic Measurement System"
+},
+{
+"id": "https://openalex.org/W2083878264",
+"doi": "https://doi.org/10.1063/1.373866",
+"display_name": "Enhancement of diamond nucleation using the solid-liquid-gas interface energy"
+},
+{
+"id": "https://openalex.org/W2084640232",
+"doi": "https://doi.org/10.1249/01.mss.0000069747.55950.b1",
+"display_name": "Seasonal Variation in Adult Leisure-Time Physical Activity"
+},
+{
+"id": "https://openalex.org/W2084933340",
+"doi": "https://doi.org/10.1055/s-0032-1316355",
+"display_name": "The Use of Ratios and Percentage Changes in Sports Medicine: Time for a Rethink?·"
+},
+{
+"id": "https://openalex.org/W2085067988",
+"doi": "https://doi.org/10.4324/9780203843130",
+"display_name": "Applied Multivariate Statistics for the Social Sciences"
+},
+{
+"id": "https://openalex.org/W2085679956",
+"doi": null,
+"display_name": "The HERITAGE family study. Aims, design, and measurement protocol."
+},
+{
+"id": "https://openalex.org/W2086400493",
+"doi": "https://doi.org/10.4103/0301-4738.71699",
+"display_name": "A simple nomogram for sample size for estimating sensitivity and specificity of medical tests"
+},
+{
+"id": "https://openalex.org/W2087242240",
+"doi": "https://doi.org/10.1097/00000637-197803000-00007",
+"display_name": "Quantitation of Thermoregulatory Impairment in Patients with Healed Burns"
+},
+{
+"id": "https://openalex.org/W2087338980",
+"doi": "https://doi.org/10.5271/sjweh.2304",
+"display_name": "Cardiovascular responses to static exercise."
+},
+{
+"id": "https://openalex.org/W2088063590",
+"doi": "https://doi.org/10.1097/00005768-199709000-00018",
+"display_name": "Effects of ambient temperature on the capacity to perform prolonged cycle exercise in man"
+},
+{
+"id": "https://openalex.org/W2088164458",
+"doi": "https://doi.org/10.1249/00003677-197300010-00010",
+"display_name": "The Quantification of Endurance Training Programs"
+},
+{
+"id": "https://openalex.org/W2088375343",
+"doi": "https://doi.org/10.1016/j.mayocp.2013.10.030",
+"display_name": "Isometric Exercise Training for Blood Pressure Management: A Systematic Review and Meta-analysis"
+},
+{
+"id": "https://openalex.org/W2089804373",
+"doi": "https://doi.org/10.1001/archinte.164.19.2126",
+"display_name": "The Prevalence of Prehypertension and Hypertension Among US Adults According to the New Joint National Committee Guidelines"
+},
+{
+"id": "https://openalex.org/W2089901353",
+"doi": "https://doi.org/10.1161/jaha.112.004473",
+"display_name": "Exercise Training for Blood Pressure: A Systematic Review and Meta‐analysis"
+},
+{
+"id": "https://openalex.org/W2089990022",
+"doi": "https://doi.org/10.1249/00005768-198406000-00004",
+"display_name": "Effect of carbohydrate feedings on muscle glycogen utilization and exercise performance"
+},
+{
+"id": "https://openalex.org/W2090479720",
+"doi": "https://doi.org/10.1097/00005768-200002000-00012",
+"display_name": "Blood volume: importance and adaptations to exercise training, environmental stresses, and trauma/sickness"
+},
+{
+"id": "https://openalex.org/W2092239906",
+"doi": "https://doi.org/10.1016/j.bbi.2005.03.005",
+"display_name": "Heat stress, cytokines, and the immune response to exercise"
+},
+{
+"id": "https://openalex.org/W2092678169",
+"doi": "https://doi.org/10.1097/01.hjh.0000199800.72563.26",
+"display_name": "Lifestyle interventions to reduce raised blood pressure: a systematic review of randomized controlled trials"
+},
+{
+"id": "https://openalex.org/W2093600287",
+"doi": "https://doi.org/10.1007/s00421-005-0081-9",
+"display_name": "Linear decrease in $$\\dot V\\hbox{O}_{2\\max}$$ and performance with increasing altitude in endurance athletes"
+},
+{
+"id": "https://openalex.org/W2093855315",
+"doi": "https://doi.org/10.1055/s-2007-1024871",
+"display_name": "Plasma Cortisol, Renin, and Aldosterone During an Intense Heat Acclimation Program"
+},
+{
+"id": "https://openalex.org/W2093991226",
+"doi": "https://doi.org/10.1055/s-2007-973045",
+"display_name": "Acute Hormonal Responses to Heavy Resistance Exercise in Men and Women at Different Ages"
+},
+{
+"id": "https://openalex.org/W2094265147",
+"doi": "https://doi.org/10.1007/s00421-004-1055-z",
+"display_name": "The effect of mental stress on heart rate variability and blood pressure during computer work"
+},
+{
+"id": "https://openalex.org/W2094296022",
+"doi": "https://doi.org/10.1097/01.sla.0000219645.88867.b7",
+"display_name": "Comparison Between Civilian Burns and Combat Burns From Operation Iraqi Freedom and Operation Enduring Freedom"
+},
+{
+"id": "https://openalex.org/W2095861624",
+"doi": "https://doi.org/10.1152/ajpregu.00359.2003",
+"display_name": "Humid heat acclimation does not elicit a preferential sweat redistribution toward the limbs"
+},
+{
+"id": "https://openalex.org/W2096099325",
+"doi": "https://doi.org/10.1152/jappl.1981.50.3.597",
+"display_name": "Blood volume and plasma protein responses to heat acclimatization in humans"
+},
+{
+"id": "https://openalex.org/W2097653510",
+"doi": "https://doi.org/10.1152/jappl.1984.57.6.1857",
+"display_name": "Time course of loss of adaptations after stopping prolonged intense endurance training"
+},
+{
+"id": "https://openalex.org/W2097677476",
+"doi": "https://doi.org/10.1097/jes.0b013e318168ec1f",
+"display_name": "Metabolic Adaptations to Short-term High-Intensity Interval Training"
+},
+{
+"id": "https://openalex.org/W2097802920",
+"doi": "https://doi.org/10.1123/ijsn.5.2.151",
+"display_name": "Periodic Carbohydrate Replacement during 50 Min of High-Intensity Cycling Improves Subsequent Sprint Performance"
+},
+{
+"id": "https://openalex.org/W2098322486",
+"doi": "https://doi.org/10.1249/00005768-199307000-00015",
+"display_name": "Overtraining in endurance athletes: a brief review"
+},
+{
+"id": "https://openalex.org/W2101043265",
+"doi": "https://doi.org/10.1152/japplphysiol.01254.2012",
+"display_name": "A multidisciplinary approach to overreaching detection in endurance trained athletes"
+},
+{
+"id": "https://openalex.org/W2101783872",
+"doi": "https://doi.org/10.1007/s00421-007-0563-z",
+"display_name": "Quantification of the decay and re-induction of heat acclimation in dry-heat following 12 and 26 days without exposure to heat stress"
+},
+{
+"id": "https://openalex.org/W2102199851",
+"doi": "https://doi.org/10.1085/jgp.44.1.33",
+"display_name": "The Mechanochemistry of Muscular Contraction"
+},
+{
+"id": "https://openalex.org/W2102598021",
+"doi": "https://doi.org/10.1152/jappl.1986.61.3.967",
+"display_name": "Plasma aldosterone and sweat sodium concentrations after exercise and heat acclimation"
+},
+{
+"id": "https://openalex.org/W2103245514",
+"doi": "https://doi.org/10.1136/bjsm.2007.034207",
+"display_name": "A heat acclimation protocol for team sports"
+},
+{
+"id": "https://openalex.org/W2104476914",
+"doi": "https://doi.org/10.1152/ajpendo.1990.259.6.e778",
+"display_name": "Effect of endurance training on glucose transport capacity and glucose transporter expression in rat skeletal muscle"
+},
+{
+"id": "https://openalex.org/W2105579058",
+"doi": "https://doi.org/10.1161/hypertensionaha.113.01965",
+"display_name": "Physical Activity and Risk of Hypertension"
+},
+{
+"id": "https://openalex.org/W2105950035",
+"doi": "https://doi.org/10.1249/mss.0b013e31802fa199",
+"display_name": "Exertional Heat Illness during Training and Competition"
+},
+{
+"id": "https://openalex.org/W2105994630",
+"doi": "https://doi.org/10.1007/bf00625068",
+"display_name": "Exercise for older women: a training method and its influences on physical and cognitive performance"
+},
+{
+"id": "https://openalex.org/W2106057198",
+"doi": "https://doi.org/10.1161/01.hyp.0000142248.54761.56",
+"display_name": "The Burden of Adult Hypertension in the United States 1999 to 2000"
+},
+{
+"id": "https://openalex.org/W2106464617",
+"doi": "https://doi.org/10.1002/gepi.1370120208",
+"display_name": "General purpose model and a computer program for combined segregation and path analysis (SEGPATH): Automatically creating computer programs from symbolic language model specifications"
+},
+{
+"id": "https://openalex.org/W2106612315",
+"doi": "https://doi.org/10.1046/j.1365-201x.1996.561311000.x",
+"display_name": "An evaluation of the role of skin temperature during heat adaptation"
+},
+{
+"id": "https://openalex.org/W2108283463",
+"doi": "https://doi.org/10.1113/expphysiol.2010.054213",
+"display_name": "Cardiovascular strain impairs prolonged self-paced exercise in the heat"
+},
+{
+"id": "https://openalex.org/W2109200395",
+"doi": "https://doi.org/10.1186/2046-7648-1-7",
+"display_name": "A case for combined environmental stressor studies"
+},
+{
+"id": "https://openalex.org/W2110487758",
+"doi": "https://doi.org/10.1123/jsr.16.3.215",
+"display_name": "The Heat Tolerance Test: An Efficient Screening Tool for Evaluating Susceptibility to Heat"
+},
+{
+"id": "https://openalex.org/W2110812411",
+"doi": "https://doi.org/10.1152/jappl.1990.68.3.990",
+"display_name": "Endurance training decreases plasma glucose turnover and oxidation during moderate-intensity exercise in men"
+},
+{
+"id": "https://openalex.org/W2110837902",
+"doi": "https://doi.org/10.1123/ijsn.6.3.272",
+"display_name": "Diet and Muscle Glycogen Concentration in Relation to Physical Performance in Swedish Elite Ice Hockey Players"
+},
+{
+"id": "https://openalex.org/W2111667020",
+"doi": "https://doi.org/10.1113/jphysiol.1966.sp008110",
+"display_name": "Activity of the human eccrine sweat gland during exercise in a hot humid environment before and after acclimatization"
+},
+{
+"id": "https://openalex.org/W2111704340",
+"doi": "https://doi.org/10.1080/02640414.2010.545427",
+"display_name": "High-intensity interval running is perceived to be more enjoyable than moderate-intensity continuous exercise: Implications for exercise adherence"
+},
+{
+"id": "https://openalex.org/W2111878205",
+"doi": "https://doi.org/10.1152/jappl.1997.82.5.1685",
+"display_name": "Modeling of adaptations to physical training by using a recursive least squares algorithm"
+},
+{
+"id": "https://openalex.org/W2112289462",
+"doi": "https://doi.org/10.1139/h2012-061",
+"display_name": "Health care costs of physical inactivity in Canadian adults"
+},
+{
+"id": "https://openalex.org/W2113508144",
+"doi": "https://doi.org/10.1111/j.1753-4887.2012.00523.x",
+"display_name": "Hydration for recreational sport and physical activity"
+},
+{
+"id": "https://openalex.org/W2114810155",
+"doi": "https://doi.org/10.1152/japplphysiol.00808.2005",
+"display_name": "Eighteen days of “living high, training low” stimulate erythropoiesis and enhance aerobic performance in elite middle-distance runners"
+},
+{
+"id": "https://openalex.org/W2116067746",
+"doi": "https://doi.org/10.1152/japplphysiol.00495.2010",
+"display_name": "Heat acclimation improves exercise performance"
+},
+{
+"id": "https://openalex.org/W2117355521",
+"doi": "https://doi.org/10.1016/j.jtherbio.2008.11.006",
+"display_name": "Peripheral sweat gland function is improved with humid heat acclimation"
+},
+{
+"id": "https://openalex.org/W2118183228",
+"doi": "https://doi.org/10.1080/026404197367344",
+"display_name": "Modelling training and overtraining"
+},
+{
+"id": "https://openalex.org/W2118410993",
+"doi": "https://doi.org/10.1136/bjsports-2015-094915",
+"display_name": "Consensus recommendations on training and competing in the heat"
+},
+{
+"id": "https://openalex.org/W2118900499",
+"doi": "https://doi.org/10.3945/ajcn.112.051763",
+"display_name": "Breaking prolonged sitting reduces postprandial glycemia in healthy, normal-weight adults: a randomized crossover trial"
+},
+{
+"id": "https://openalex.org/W2119472711",
+"doi": "https://doi.org/10.1093/oxfordjournals.bja.a013376",
+"display_name": "Effects of changes in packed cell volume on the specific heat capacity of blood: implications for studies measuring heat exchange in extracorporeal circuits"
+},
+{
+"id": "https://openalex.org/W2119527242",
+"doi": "https://doi.org/10.1152/ajpregu.1983.245.2.r203",
+"display_name": "Individual variations in structure and function of human eccrine sweat gland"
+},
+{
+"id": "https://openalex.org/W2119790985",
+"doi": "https://doi.org/10.1186/1471-2288-7-10",
+"display_name": "Development of AMSTAR: a measurement tool to assess the methodological quality of systematic reviews"
+},
+{
+"id": "https://openalex.org/W2120527047",
+"doi": "https://doi.org/10.1073/pnas.1510459112",
+"display_name": "Nature experience reduces rumination and subgenual prefrontal cortex activation"
+},
+{
+"id": "https://openalex.org/W2121011703",
+"doi": "https://doi.org/10.1123/ijspp.1.4.400",
+"display_name": "Using Mathematical Modeling in Training Planning"
+},
+{
+"id": "https://openalex.org/W2121801986",
+"doi": "https://doi.org/10.1097/hjr.0b013e3280128bbb",
+"display_name": "Effect of exercise on blood pressure control in hypertensive patients"
+},
+{
+"id": "https://openalex.org/W2122081798",
+"doi": "https://doi.org/10.1152/jappl.1990.69.1.376",
+"display_name": "Determination of esophageal probe insertion length based on standing and sitting height"
+},
+{
+"id": "https://openalex.org/W2122246435",
+"doi": "https://doi.org/10.1152/jappl.1972.33.3.351",
+"display_name": "Oxygen uptake kinetics for various intensities of constant-load work."
+},
+{
+"id": "https://openalex.org/W2122312210",
+"doi": "https://doi.org/10.1152/ajplegacy.1950.163.3.585",
+"display_name": "THERMAL REGULATION DURING ACCLIMATIZATION IN A HOT, DRY (DESERT TYPE) ENVIRONMENT"
+},
+{
+"id": "https://openalex.org/W2122369154",
+"doi": "https://doi.org/10.1136/bjsm.27.1.39",
+"display_name": "Response of unacclimatized males to repeated weekly bouts of exercise in the heat."
+},
+{
+"id": "https://openalex.org/W2122488312",
+"doi": "https://doi.org/10.1152/ajpendo.1997.272.4.e649",
+"display_name": "Role of glycogen concentration and epinephrine on glucose uptake in rat epitrochlearis muscle"
+},
+{
+"id": "https://openalex.org/W2123277780",
+"doi": "https://doi.org/10.1016/j.burns.2004.05.012",
+"display_name": "Outcome measures in burn care"
+},
+{
+"id": "https://openalex.org/W2124013021",
+"doi": "https://doi.org/10.1001/jama.288.15.1882",
+"display_name": "Primary Prevention of Hypertension Clinical and Public Health Advisory From the National High Blood Pressure Education Program"
+},
+{
+"id": "https://openalex.org/W2124672131",
+"doi": "https://doi.org/10.1007/s10557-005-1048-0",
+"display_name": "Comparison of Impedance Cardiography and Thermodilution-Derived Measurements of Stroke Volume and Cardiac Output at Rest and During Exercise Testing"
+},
+{
+"id": "https://openalex.org/W2125117738",
+"doi": "https://doi.org/10.1080/026404100750017805",
+"display_name": "Seasonal training and performance of competitive swimmers"
+},
+{
+"id": "https://openalex.org/W2125901366",
+"doi": "https://doi.org/10.1152/jappl.1993.75.4.1477",
+"display_name": "Carbohydrate supplementation spares muscle glycogen during variable-intensity exercise"
+},
+{
+"id": "https://openalex.org/W2125920947",
+"doi": "https://doi.org/10.1177/0363546507305013",
+"display_name": "Heat-Related Illness in Athletes"
+},
+{
+"id": "https://openalex.org/W2126329037",
+"doi": "https://doi.org/10.1123/ijspp.2012-0335",
+"display_name": "The 30–15 Intermittent Fitness Test Versus the Yo-Yo Intermittent Recovery Test Level 1: Relationship and Sensitivity to Training"
+},
+{
+"id": "https://openalex.org/W2126651813",
+"doi": "https://doi.org/10.1161/hypertensionaha.111.177071",
+"display_name": "Impact of Resistance Training on Blood Pressure and Other Cardiovascular Risk Factors"
+},
+{
+"id": "https://openalex.org/W2128394280",
+"doi": "https://doi.org/10.1093/qjmed/os-16.62.135",
+"display_name": "Muscular Exercise, Lactic Acid, and the Supply and Utilization of Oxygen"
+},
+{
+"id": "https://openalex.org/W2131029957",
+"doi": "https://doi.org/10.1152/ajpendo.1994.267.6.e934",
+"display_name": "Fat metabolism during low-intensity exercise in endurance-trained and untrained men"
+},
+{
+"id": "https://openalex.org/W2131915711",
+"doi": "https://doi.org/10.1152/jappl.1983.55.1.230",
+"display_name": "Carbohydrate feeding during prolonged strenuous exercise can delay fatigue"
+},
+{
+"id": "https://openalex.org/W2132828255",
+"doi": "https://doi.org/10.1152/ajpregu.00364.2001",
+"display_name": "Aging and assessment of physiological strain during exercise-heat stress"
+},
+{
+"id": "https://openalex.org/W2133406706",
+"doi": "https://doi.org/10.1079/bjn19740060",
+"display_name": "Body fat assessed from total body density and its estimation from skinfold thickness: measurements on 481 men and women aged from 16 to 72 Years"
+},
+{
+"id": "https://openalex.org/W2133768260",
+"doi": "https://doi.org/10.1098/rspb.1924.0037",
+"display_name": "Muscular exercise, lactic acid, and the supply and utilisation of oxygen.—Parts ӏ-ӏӏӏ"
+},
+{
+"id": "https://openalex.org/W2133903449",
+"doi": "https://doi.org/10.1080/02640419508732241",
+"display_name": "Influence of ingesting a carbohydrate‐electrolyte solution on endurance capacity during intermittent, high‐intensity shuttle running"
+},
+{
+"id": "https://openalex.org/W2134185512",
+"doi": "https://doi.org/10.1152/jappl.1976.40.5.768",
+"display_name": "Acclimatization in a hot, humid environment: energy exchange, body temperature, and sweating"
+},
+{
+"id": "https://openalex.org/W2134530798",
+"doi": "https://doi.org/10.1123/ijspp.5.4.535",
+"display_name": "Partial Heat Acclimation in Cricketers Using a 4-Day High Intensity Cycling Protocol"
+},
+{
+"id": "https://openalex.org/W2135342641",
+"doi": "https://doi.org/10.1152/ajpendo.1992.262.6.e791",
+"display_name": "Increased plasma FFA uptake and oxidation during prolonged exercise in trained vs. untrained humans"
+},
+{
+"id": "https://openalex.org/W2135375808",
+"doi": "https://doi.org/10.1161/circulationaha.107.185649",
+"display_name": "Physical Activity and Public Health"
+},
+{
+"id": "https://openalex.org/W2137418727",
+"doi": "https://doi.org/10.3389/fphys.2014.00073",
+"display_name": "Monitoring training status with HR measures: do all roads lead to Rome?"
+},
+{
+"id": "https://openalex.org/W2138328362",
+"doi": "https://doi.org/10.1152/jappl.1998.84.5.1731",
+"display_name": "Heat acclimation, aerobic fitness, and hydration effects on tolerance during uncompensable heat stress"
+},
+{
+"id": "https://openalex.org/W2138700089",
+"doi": "https://doi.org/10.1152/jappl.1989.66.2.876",
+"display_name": "Effect of exercise on insulin action in human skeletal muscle"
+},
+{
+"id": "https://openalex.org/W2138862719",
+"doi": "https://doi.org/10.1152/japplphysiol.00342.2006",
+"display_name": "Increased serum erythropoietin but not red cell production after 4 wk of intermittent hypobaric hypoxia (4,000–5,500 m)"
+},
+{
+"id": "https://openalex.org/W2140026025",
+"doi": "https://doi.org/10.7205/milmed-d-10-00010",
+"display_name": "The Interaction of Body Armor, Low-Intensity Exercise, and Hot-Humid Conditions on Physiological Strain and Cognitive Function"
+},
+{
+"id": "https://openalex.org/W2140107888",
+"doi": "https://doi.org/10.1080/17461390200072201",
+"display_name": "Modeling and prediction of competitive performance in swimming upon neural networks"
+},
+{
+"id": "https://openalex.org/W2140166450",
+"doi": "https://doi.org/10.1038/nrneph.2011.14",
+"display_name": "Classification and staging of acute kidney injury: beyond the RIFLE and AKIN criteria"
+},
+{
+"id": "https://openalex.org/W2140531373",
+"doi": "https://doi.org/10.1152/jappl.1997.83.1.102",
+"display_name": "“Living high-training low”: effect of moderate-altitude acclimatization with low-altitude training on performance"
+},
+{
+"id": "https://openalex.org/W2140826108",
+"doi": "https://doi.org/10.1007/s12192-011-0313-3",
+"display_name": "Plasma Hsp72 (HSPA1A) and Hsp27 (HSPB1) expression under heat stress: influence of exercise intensity"
+},
+{
+"id": "https://openalex.org/W2141275828",
+"doi": "https://doi.org/10.1249/mss.0b013e318279a10a",
+"display_name": "Prevention, Diagnosis, and Treatment of the Overtraining Syndrome"
+},
+{
+"id": "https://openalex.org/W2141917625",
+"doi": "https://doi.org/10.1080/17461390100071202",
+"display_name": "PerPot: A metamodel for simulation of load performance interaction"
+},
+{
+"id": "https://openalex.org/W2142635246",
+"doi": "https://doi.org/10.1109/tac.1974.1100705",
+"display_name": "A new look at the statistical model identification"
+},
+{
+"id": "https://openalex.org/W2142710921",
+"doi": "https://doi.org/10.2307/2965730",
+"display_name": "Nonlinear Models for Repeated Measurement Data"
+},
+{
+"id": "https://openalex.org/W2142820144",
+"doi": "https://doi.org/10.1016/j.amjhyper.2007.07.015",
+"display_name": "Occupational, Commuting, and Leisure-Time Physical Activity in Relation to Cardiovascular Mortality Among Finnish Subjects With Hypertension"
+},
+{
+"id": "https://openalex.org/W2142839533",
+"doi": "https://doi.org/10.1123/ijsn.2.1.48",
+"display_name": "Gastrointestinal Complaints in Relation to Dietary Intake in Triathletes"
+},
+{
+"id": "https://openalex.org/W2143954917",
+"doi": "https://doi.org/10.1161/01.hyp.0000107251.49515.c2",
+"display_name": "Seventh Report of the Joint National Committee on Prevention, Detection, Evaluation, and Treatment of High Blood Pressure"
+},
+{
+"id": "https://openalex.org/W2144553814",
+"doi": "https://doi.org/10.1152/jappl.1985.58.3.785",
+"display_name": "Arterial blood pressure response to heavy resistance exercise"
+},
+{
+"id": "https://openalex.org/W2146996845",
+"doi": "https://doi.org/10.1037/0278-6133.22.2.178",
+"display_name": "Physical activity and sedentary behavior: A population-based study of barriers, enjoyment, and preference."
+},
+{
+"id": "https://openalex.org/W2147623166",
+"doi": "https://doi.org/10.1152/jappl.1993.74.6.2875",
+"display_name": "Recovery of muscle power after high-intensity short-term exercise: comparing boys and men"
+},
+{
+"id": "https://openalex.org/W2149145130",
+"doi": "https://doi.org/10.1081/cbi-120004227",
+"display_name": "A comparison of the suitabilities of rectal, gut, and insulated axilla temperatures for measurement of the circadian rhythm of core temperature in field studies"
+},
+{
+"id": "https://openalex.org/W2150117715",
+"doi": "https://doi.org/10.1123/ijspp.2013-0453",
+"display_name": "Improving the Value of Fitness Testing for Football"
+},
+{
+"id": "https://openalex.org/W2150268870",
+"doi": "https://doi.org/10.1123/japa.10.4.364",
+"display_name": "Development and Evaluation of “Aging Well and Healthily”: A Health-Education and Exercise Program for Community-Living Older Adults"
+},
+{
+"id": "https://openalex.org/W2151480762",
+"doi": "https://doi.org/10.1016/j.jsams.2010.04.003",
+"display_name": "Soccer-specific accuracy and validity of the local position measurement (LPM) system"
+},
+{
+"id": "https://openalex.org/W2152889408",
+"doi": "https://doi.org/10.1123/ijspp.2013-0340",
+"display_name": "Measuring Acceleration and Deceleration in Soccer-Specific Movements Using a Local Position Measurement (LPM) System"
+},
+{
+"id": "https://openalex.org/W2153735795",
+"doi": "https://doi.org/10.1249/mss.0b013e31806010e0",
+"display_name": "Effects of Tapering on Performance"
+},
+{
+"id": "https://openalex.org/W2155687107",
+"doi": "https://doi.org/10.1136/bjsports-2012-091227",
+"display_name": "Individual responses to short-term heat acclimatisation as predictors of football performance in a hot, dry environment"
+},
+{
+"id": "https://openalex.org/W2156092737",
+"doi": "https://doi.org/10.1111/sms.12526",
+"display_name": "Effect of short‐term heat acclimation with permissive dehydration on thermoregulation and temperate exercise performance"
+},
+{
+"id": "https://openalex.org/W2156200209",
+"doi": "https://doi.org/10.1016/j.jtherbio.2012.01.008",
+"display_name": "Effects of heat acclimatisation on work tolerance and thermoregulation in trained tropical natives"
+},
+{
+"id": "https://openalex.org/W2156264660",
+"doi": "https://doi.org/10.1161/hypertensionaha.109.146282",
+"display_name": "Shear Stress Mediates Endothelial Adaptations to Exercise Training in Humans"
+},
+{
+"id": "https://openalex.org/W2156345542",
+"doi": "https://doi.org/10.1152/japplphysiol.00422.2014",
+"display_name": "Heat acclimation memory: do the kinetics of the deacclimated transcriptome predispose to rapid reacclimation and cytoprotection?"
+},
+{
+"id": "https://openalex.org/W2157716201",
+"doi": "https://doi.org/10.1109/10.250579",
+"display_name": "On-line determination of pulmonary blood flow using respiratory inert gas analysis"
+},
+{
+"id": "https://openalex.org/W2158859101",
+"doi": "https://doi.org/10.1152/jappl.1974.37.2.247",
+"display_name": "Calculation of percentage changes in volumes of blood, plasma, and red cells in dehydration."
+},
+{
+"id": "https://openalex.org/W2159517277",
+"doi": "https://doi.org/10.1123/jpah.2012-0428",
+"display_name": "Oxygen Cost of Recreational Horse-Riding in Females"
+},
+{
+"id": "https://openalex.org/W2161374186",
+"doi": "https://doi.org/10.1186/2046-4053-4-1",
+"display_name": "Preferred reporting items for systematic review and meta-analysis protocols (PRISMA-P) 2015 statement"
+},
+{
+"id": "https://openalex.org/W2161520320",
+"doi": "https://doi.org/10.1123/ijspp.1.1.50",
+"display_name": "Making Meaningful Inferences About Magnitudes"
+},
+{
+"id": "https://openalex.org/W2161774578",
+"doi": "https://doi.org/10.1152/advan.00078.2011",
+"display_name": "Rationale and resources for teaching the mathematical modeling of athletic training and performance"
+},
+{
+"id": "https://openalex.org/W2163846328",
+"doi": "https://doi.org/10.1080/02640410600944584",
+"display_name": "Cardiopulmonary loading in motocross riding"
+},
+{
+"id": "https://openalex.org/W2164013208",
+"doi": "https://doi.org/10.1139/h11-009",
+"display_name": "New Canadian Physical Activity Guidelines"
+},
+{
+"id": "https://openalex.org/W2166212589",
+"doi": "https://doi.org/10.1097/00003677-200410000-00011",
+"display_name": "Role of Gastrointestinal Permeability in Exertional Heatstroke"
+},
+{
+"id": "https://openalex.org/W2168150973",
+"doi": "https://doi.org/10.5604/20831862.1127284",
+"display_name": "The Yo-Yo intermittent recovery test level 1 is reliable in young high-level soccer players"
+},
+{
+"id": "https://openalex.org/W2168371313",
+"doi": "https://doi.org/10.2165/00007256-200030010-00002",
+"display_name": "Energy Cost Calculations for Exercise Prescription"
+},
+{
+"id": "https://openalex.org/W2168788704",
+"doi": "https://doi.org/10.1007/s00421-015-3279-5",
+"display_name": "What is the metabolic and energy cost of sitting, standing and sit/stand transitions?"
+},
+{
+"id": "https://openalex.org/W2169987553",
+"doi": "https://doi.org/10.1152/jappl.1977.43.1.133",
+"display_name": "Skin blood flow and sweating changes following exercise training and heat acclimation"
+},
+{
+"id": "https://openalex.org/W2172167163",
+"doi": "https://doi.org/10.1152/ajpregu.00338.2006",
+"display_name": "A three-compartment thermometry model for the improved estimation of changes in body heat content"
+},
+{
+"id": "https://openalex.org/W2173304038",
+"doi": "https://doi.org/10.1152/jappl.1962.17.1.47",
+"display_name": "Use of respiratory quotients in assessment of aerobic work capacity"
+},
+{
+"id": "https://openalex.org/W2174216800",
+"doi": null,
+"display_name": "Index for the assessment of heat tolerance."
+},
+{
+"id": "https://openalex.org/W2177016730",
+"doi": "https://doi.org/10.1152/jappl.1986.61.1.165",
+"display_name": "Muscle glycogen utilization during prolonged strenuous exercise when fed carbohydrate"
+},
+{
+"id": "https://openalex.org/W2180410064",
+"doi": "https://doi.org/10.1152/jappl.1990.69.3.1171",
+"display_name": "Modeling human performance in running"
+},
+{
+"id": "https://openalex.org/W2186726930",
+"doi": "https://doi.org/10.1152/jappl.1991.71.5.2044",
+"display_name": "Adequacy of a systems structure in the modeling of training effects on performance"
+},
+{
+"id": "https://openalex.org/W2187170438",
+"doi": "https://doi.org/10.1152/ajplegacy.1943.140.2.168",
+"display_name": "RAPID ACCLIMATIZATION TO WORK IN HOT CLIMATES"
+},
+{
+"id": "https://openalex.org/W2188867302",
+"doi": null,
+"display_name": "Incidence Of The Oxygen Plateau at VO2max During Exercise Testing To Volitional Fatigue"
+},
+{
+"id": "https://openalex.org/W2191254243",
+"doi": "https://doi.org/10.1111/sms.12638",
+"display_name": "Post‐exercise hot water immersion induces heat acclimation and improves endurance exercise performance in the heat"
+},
+{
+"id": "https://openalex.org/W2201261093",
+"doi": "https://doi.org/10.1152/ajpendo.1993.264.2.e270",
+"display_name": "Glucose transport and transporters in muscle giant vesicles: differential effects of insulin and contractions"
+},
+{
+"id": "https://openalex.org/W2211211741",
+"doi": "https://doi.org/10.1152/jappl.1994.76.6.2386",
+"display_name": "Effect of training on interaction between insulin and exercise in human muscle"
+},
+{
+"id": "https://openalex.org/W2217675618",
+"doi": "https://doi.org/10.1152/jappl.1994.77.3.1565",
+"display_name": "Skeletal muscle GLUT-4 and glucose uptake during exercise in humans"
+},
+{
+"id": "https://openalex.org/W2222277795",
+"doi": "https://doi.org/10.1152/ajpendo.1993.265.3.e419",
+"display_name": "Effects of exercise training on muscle GLUT-4 protein content and translocation in obese Zucker rats"
+},
+{
+"id": "https://openalex.org/W2228909892",
+"doi": "https://doi.org/10.1152/jappl.1995.78.1.138",
+"display_name": "Adaptations in muscle metabolism to prolonged voluntary exercise and training"
+},
+{
+"id": "https://openalex.org/W2230594972",
+"doi": "https://doi.org/10.1152/jappl.1961.16.4.606",
+"display_name": "Respiratory quotient during exercise"
+},
+{
+"id": "https://openalex.org/W2233156946",
+"doi": "https://doi.org/10.1152/japplphysiol.00906.2015",
+"display_name": "A comparison of thermoregulatory responses to exercise between mass-matched groups with large differences in body fat"
+},
+{
+"id": "https://openalex.org/W2246750959",
+"doi": null,
+"display_name": "A formula to estimate the approximate surface area if height and weight be known. 1916."
+},
+{
+"id": "https://openalex.org/W2249373339",
+"doi": "https://doi.org/10.1152/ajplegacy.1933.106.3.689",
+"display_name": "THE POSSIBLE MECHANISMS OF CONTRACTING AND PAYING THE OXYGEN DEBT AND THE RÔLE OF LACTIC ACID IN MUSCULAR CONTRACTION"
+},
+{
+"id": "https://openalex.org/W2249964552",
+"doi": "https://doi.org/10.1152/jappl.1968.25.5.586",
+"display_name": "Changes in central circulation and body fluid spaces during acclimatization to heat."
+},
+{
+"id": "https://openalex.org/W2256833960",
+"doi": "https://doi.org/10.1152/jappl.1994.76.2.589",
+"display_name": "Muscle metabolism during exercise and heat stress in trained men: effect of acclimation"
+},
+{
+"id": "https://openalex.org/W2265129520",
+"doi": "https://doi.org/10.1152/jappl.1973.34.1.128",
+"display_name": "On-line computer analysis and breath-by-breath graphical display of exercise function tests."
+},
+{
+"id": "https://openalex.org/W2265238633",
+"doi": "https://doi.org/10.1016/j.autneu.2016.02.002",
+"display_name": "Cardiovascular adaptations supporting human exercise-heat acclimation"
+},
+{
+"id": "https://openalex.org/W2265449349",
+"doi": "https://doi.org/10.1152/jappl.1964.19.4.644",
+"display_name": "Continuous measurement of ventilatory exchange ratio during exercise"
+},
+{
+"id": "https://openalex.org/W2266206779",
+"doi": "https://doi.org/10.1152/jappl.1982.53.4.1019",
+"display_name": "Thermoregulatory responses of patients with extensive healed burns"
+},
+{
+"id": "https://openalex.org/W2268432766",
+"doi": "https://doi.org/10.1152/jappl.1991.71.3.1151",
+"display_name": "Optimizing athletic performance by influence curves"
+},
+{
+"id": "https://openalex.org/W2271303148",
+"doi": null,
+"display_name": "Optimal exposure time for development of acclimatization to heat."
+},
+{
+"id": "https://openalex.org/W2272245299",
+"doi": "https://doi.org/10.1152/jappl.1983.55.3.699",
+"display_name": "Renin-aldosterone and angiotensin-converting enzyme during prolonged altitude exposure"
+},
+{
+"id": "https://openalex.org/W2276189818",
+"doi": "https://doi.org/10.1152/jappl.1993.75.2.849",
+"display_name": "Differences in cardiovascular adaptations to endurance exercise training between older men and women"
+},
+{
+"id": "https://openalex.org/W2278312781",
+"doi": "https://doi.org/10.1152/ajpendo.1991.261.6.e795",
+"display_name": "Exercise-induced translocation of skeletal muscle glucose transporters"
+},
+{
+"id": "https://openalex.org/W2278414788",
+"doi": "https://doi.org/10.3389/fphys.2016.00078",
+"display_name": "Cross Acclimation between Heat and Hypoxia: Heat Acclimation Improves Cellular Tolerance and Exercise Performance in Acute Normobaric Hypoxia"
+},
+{
+"id": "https://openalex.org/W2282675767",
+"doi": "https://doi.org/10.1080/02522667.1987.10698887",
+"display_name": "Effect of Sample Size on the Size of the Coefficient of Determination in Simple Linear Regression"
+},
+{
+"id": "https://openalex.org/W2282879560",
+"doi": "https://doi.org/10.1152/ajpendo.1996.270.1.e197",
+"display_name": "Exercise-induced increase in glucose transport, GLUT-4, and VAMP-2 in plasma membrane from human muscle"
+},
+{
+"id": "https://openalex.org/W2285556835",
+"doi": "https://doi.org/10.1152/ajpendo.1990.258.4.e667",
+"display_name": "Contractile activity increases plasma membrane glucose transporters in absence of insulin"
+},
+{
+"id": "https://openalex.org/W2285921488",
+"doi": "https://doi.org/10.1152/jappl.1987.62.3.999",
+"display_name": "Substrate utilization and enzymes in skeletal muscle of extremely endurance-trained men"
+},
+{
+"id": "https://openalex.org/W2285993898",
+"doi": "https://doi.org/10.1123/ijsn.9.3.263",
+"display_name": "A Comparison of the Gastric Emptying Characteristics of Selected Sports Drinks"
+},
+{
+"id": "https://openalex.org/W2291108370",
+"doi": "https://doi.org/10.1016/j.autneu.2016.03.001",
+"display_name": "Biophysical aspects of human thermoregulation during heat stress"
+},
+{
+"id": "https://openalex.org/W2291613837",
+"doi": "https://doi.org/10.1152/jappl.1992.73.5.2142",
+"display_name": "Intestinal water absorption from select carbohydrate solutions in humans"
+},
+{
+"id": "https://openalex.org/W2297647483",
+"doi": "https://doi.org/10.1186/s12966-016-0361-2",
+"display_name": "Does duration of physical activity bouts matter for adiposity and metabolic syndrome? A cross-sectional study of older British men"
+},
+{
+"id": "https://openalex.org/W23026265",
+"doi": null,
+"display_name": "Periodisation of training stress--a review."
+},
+{
+"id": "https://openalex.org/W2313092007",
+"doi": "https://doi.org/10.1097/hjh.0000000000000097",
+"display_name": "Methodological quality of meta-analyses on the blood pressure response to exercise"
+},
+{
+"id": "https://openalex.org/W2314275962",
+"doi": "https://doi.org/10.1249/jsr.0b013e3182a630ac",
+"display_name": "Back to Play of Athletes after Exertional Heat Stroke"
+},
+{
+"id": "https://openalex.org/W2314391470",
+"doi": "https://doi.org/10.1007/bf00714993",
+"display_name": "Vascular fluid shifts and endocrine responses to exercise in the heat"
+},
+{
+"id": "https://openalex.org/W2319090737",
+"doi": "https://doi.org/10.1249/mss.0000000000000401",
+"display_name": "Whole-Body Heat Exchange during Heat Acclimation and Its Decay"
+},
+{
+"id": "https://openalex.org/W2319449493",
+"doi": "https://doi.org/10.1016/s0162-0908(08)70206-x",
+"display_name": "American College of Sports Medicine Position Stand: Exercise and Fluid Replacement"
+},
+{
+"id": "https://openalex.org/W232296390",
+"doi": "https://doi.org/10.1080/00913847.1987.11702083",
+"display_name": "Exercise-Associated Symptoms in Triathletes"
+},
+{
+"id": "https://openalex.org/W2323121668",
+"doi": "https://doi.org/10.1249/jsr.0b013e3182874d27",
+"display_name": "Exertional Heat Illness"
+},
+{
+"id": "https://openalex.org/W2332013580",
+"doi": "https://doi.org/10.1515/jbcpp.1993.4.1-2.139",
+"display_name": "MECHANICAL AND METABOLIC PERFORMANCE OF THE RAT HEART: EFFECTS OF COMBINED STRESS OF HEAT ACCLIMATION AND SWIMMING TRAINING"
+},
+{
+"id": "https://openalex.org/W2336387681",
+"doi": "https://doi.org/10.1152/jappl.1979.47.6.1194",
+"display_name": "Influence of air velocity and heat acclimation on human skin wettedness and sweating efficiency"
+},
+{
+"id": "https://openalex.org/W2337599157",
+"doi": "https://doi.org/10.1007/s40279-016-0538-5",
+"display_name": "The Effects of Heat Adaptation on Physiology, Perception and Exercise Performance in the Heat: A Meta-Analysis"
+},
+{
+"id": "https://openalex.org/W2337740858",
+"doi": "https://doi.org/10.1152/ajpendo.1997.272.3.e385",
+"display_name": "Progressive increase in glucose transport and GLUT-4 in human sarcolemmal vesicles during moderate exercise"
+},
+{
+"id": "https://openalex.org/W2338252498",
+"doi": "https://doi.org/10.1152/ajpcell.1993.264.3.c727",
+"display_name": "Effects of exercise training on skeletal muscle glucose uptake and transport"
+},
+{
+"id": "https://openalex.org/W2347133030",
+"doi": "https://doi.org/10.1007/s00421-016-3366-2",
+"display_name": "Isometric exercise training lowers resting blood pressure and improves local brachial artery flow-mediated dilation equally in men and women"
+},
+{
+"id": "https://openalex.org/W23607853",
+"doi": "https://doi.org/10.2165/00007256-199418060-00004",
+"display_name": "Energetics of Competitive Swimming"
+},
+{
+"id": "https://openalex.org/W2381102728",
+"doi": "https://doi.org/10.1152/jappl.1958.12.2.186",
+"display_name": "Comparison of Blood Volume During Physical Conditioning, Heat Acclimatization and Sedentary Living"
+},
+{
+"id": "https://openalex.org/W2397872804",
+"doi": "https://doi.org/10.1152/ajpendo.1987.253.5.e489",
+"display_name": "Improved insulin action in muscle, liver, and adipose tissue in physically trained human subjects"
+},
+{
+"id": "https://openalex.org/W2398011335",
+"doi": "https://doi.org/10.1152/ajpendo.1994.266.1.e136",
+"display_name": "Ten days of exercise training reduces glucose production and utilization during moderate-intensity exercise"
+},
+{
+"id": "https://openalex.org/W2403116617",
+"doi": null,
+"display_name": "Modeling the Relationship between Training and Performance - A Comparison of Two Antagonistic Concepts."
+},
+{
+"id": "https://openalex.org/W2404457384",
+"doi": "https://doi.org/10.1152/jappl.1973.34.4.443",
+"display_name": "Effects of acute alterations of Vo2 max on endurance capacity of men."
+},
+{
+"id": "https://openalex.org/W2406774131",
+"doi": "https://doi.org/10.1152/ajpendo.1991.260.3.e411",
+"display_name": "Regulation of glucose utilization in human skeletal muscle during moderate dynamic exercise"
+},
+{
+"id": "https://openalex.org/W2408664252",
+"doi": null,
+"display_name": "The relationship between gas exchange and changes in blood lactate concentrations during exercise."
+},
+{
+"id": "https://openalex.org/W2410146802",
+"doi": "https://doi.org/10.1152/jappl.1995.78.3.1203",
+"display_name": "Glucose kinetics during high-intensity exercise in endurance-trained and untrained humans"
+},
+{
+"id": "https://openalex.org/W2416531557",
+"doi": "https://doi.org/10.1152/ajpheart.1997.272.5.h2085",
+"display_name": "Chronic heat improves mechanical and metabolic response of trained rat heart on ischemia and reperfusion"
+},
+{
+"id": "https://openalex.org/W2416957969",
+"doi": "https://doi.org/10.1152/jappl.1967.22.1.21",
+"display_name": "Rate of loss of acclimatization in summer and winter."
+},
+{
+"id": "https://openalex.org/W2417833887",
+"doi": "https://doi.org/10.1152/ajpendo.1996.271.3.e547",
+"display_name": "Effect of overexpressing GLUT-1 and GLUT-4 on insulin- and contraction-stimulated glucose transport in muscle"
+},
+{
+"id": "https://openalex.org/W2418173782",
+"doi": null,
+"display_name": "Exercise in the Heat. II. Critical Concepts in Rehydration, Exertional Heat Illnesses, and Maximizing Athletic Performance."
+},
+{
+"id": "https://openalex.org/W2437311636",
+"doi": "https://doi.org/10.23736/s0022-4707.16.06239-3",
+"display_name": "One single bout of low-intensity isometric handgrip exercise reduces blood pressure in healthy pre- and hypertensive individuals"
+},
+{
+"id": "https://openalex.org/W2462306686",
+"doi": "https://doi.org/10.1519/jsc.0000000000001521",
+"display_name": "Power Relative to Body Mass Best Predicts Change in Core Temperature During Exercise-Heat Stress"
+},
+{
+"id": "https://openalex.org/W246404362",
+"doi": null,
+"display_name": "Physiological Systems and Their Responses to Conditions of Heat and Cold"
+},
+{
+"id": "https://openalex.org/W2465230276",
+"doi": "https://doi.org/10.1123/ijspp.2015-0331",
+"display_name": "Training Load and Player Monitoring in High-Level Football: Current Practice and Perceptions"
+},
+{
+"id": "https://openalex.org/W2466046646",
+"doi": null,
+"display_name": "The role of oxygen, carbon dioxide and lactic acid in the ventilatory response to exercise in patients with mitral stenosis."
+},
+{
+"id": "https://openalex.org/W2467477310",
+"doi": null,
+"display_name": "The discriminative power of the Interval Shuttle Run Test and the Maximal Multistage Shuttle Run Test for playing level of soccer."
+},
+{
+"id": "https://openalex.org/W2468996569",
+"doi": "https://doi.org/10.1016/j.jclinepi.2009.06.005",
+"display_name": "Preferred Reporting Items for Systematic Reviews and Meta-Analyses: The PRISMA Statement"
+},
+{
+"id": "https://openalex.org/W2469401346",
+"doi": "https://doi.org/10.1016/j.ijcard.2016.06.182",
+"display_name": "Effect of dance therapy on blood pressure and exercise capacity of individuals with hypertension: A systematic review and meta-analysis"
+},
+{
+"id": "https://openalex.org/W2469989504",
+"doi": "https://doi.org/10.1152/jappl.1975.38.5.913",
+"display_name": "Pulmonary blood flow determined by continuous analysis of pulmonary N2O exchange"
+},
+{
+"id": "https://openalex.org/W2471837728",
+"doi": "https://doi.org/10.1152/ajplegacy.1938.123.2.412",
+"display_name": "CHANGES IN COMPOSITION OF SWEAT DURING ACCLIMATIZATION TO HEAT"
+},
+{
+"id": "https://openalex.org/W2481693615",
+"doi": "https://doi.org/10.1249/mss.0000000000001056",
+"display_name": "Is Concurrent Training Efficacious Antihypertensive Therapy? A Meta-analysis"
+},
+{
+"id": "https://openalex.org/W2493586185",
+"doi": "https://doi.org/10.1016/s0140-6736(16)30383-x",
+"display_name": "The economic burden of physical inactivity: a global analysis of major non-communicable diseases"
+},
+{
+"id": "https://openalex.org/W2495906475",
+"doi": "https://doi.org/10.1108/s1479-8387(2009)0000005004",
+"display_name": "On the use and misuse of ratios in strategic management research"
+},
+{
+"id": "https://openalex.org/W2495909918",
+"doi": "https://doi.org/10.1177/2047487316664147",
+"display_name": "The blood pressure-lowering effect of a single bout of resistance exercise: A systematic review and meta-analysis of randomised controlled trials"
+},
+{
+"id": "https://openalex.org/W2517483047",
+"doi": null,
+"display_name": "The relationship between the interval shuttle run test and maximal oxygen uptake in soccer players"
+},
+{
+"id": "https://openalex.org/W2519186147",
+"doi": "https://doi.org/10.1161/hypertensionaha.116.07905",
+"display_name": "Research Needs to Improve Hypertension Treatment and Control in African Americans"
+},
+{
+"id": "https://openalex.org/W2526414743",
+"doi": "https://doi.org/10.1161/jaha.116.003231",
+"display_name": "Dynamic Resistance Training as Stand‐Alone Antihypertensive Lifestyle Therapy: A Meta‐Analysis"
+},
+{
+"id": "https://openalex.org/W2545617659",
+"doi": "https://doi.org/10.1249/mss.0000000000001138",
+"display_name": "Temperate Performance Benefits after Heat, but Not Combined Heat and Hypoxic Training"
+},
+{
+"id": "https://openalex.org/W2548516428",
+"doi": "https://doi.org/10.1136/bjsports-2016-096579",
+"display_name": "Strategies and factors associated with preparing for competing in the heat: a cohort study at the 2015 IAAF World Athletics Championships"
+},
+{
+"id": "https://openalex.org/W2553639433",
+"doi": "https://doi.org/10.3389/fphys.2016.00564",
+"display_name": "Effect of Permissive Dehydration on Induction and Decay of Heat Acclimation, and Temperate Exercise Performance"
+},
+{
+"id": "https://openalex.org/W2560229991",
+"doi": "https://doi.org/10.1097/jom.0000000000000902",
+"display_name": "Influence of Chronic Heat Acclimatization on Occupational Thermal Strain in Tropical Field Conditions"
+},
+{
+"id": "https://openalex.org/W2565002767",
+"doi": "https://doi.org/10.1097/md.0000000000005791",
+"display_name": "The efficacy of isometric resistance training utilizing handgrip exercise for blood pressure management"
+},
+{
+"id": "https://openalex.org/W2572865069",
+"doi": "https://doi.org/10.1038/srep40422",
+"display_name": "From an indirect response pharmacodynamic model towards a secondary signal model of dose-response relationship between exercise training and physical performance"
+},
+{
+"id": "https://openalex.org/W2586324856",
+"doi": "https://doi.org/10.3390/sports5010012",
+"display_name": "Seasonal Variation of Agility, Speed and Endurance Performance in Young Elite Soccer Players"
+},
+{
+"id": "https://openalex.org/W2587948330",
+"doi": "https://doi.org/10.1503/cmaj.161064",
+"display_name": "Association between quantity and duration of snowfall and risk of myocardial infarction"
+},
+{
+"id": "https://openalex.org/W2588445210",
+"doi": "https://doi.org/10.4085/1062-6050-52.2.10",
+"display_name": "Validity of Core Temperature Measurements at 3 Rectal Depths During Rest, Exercise, Cold-Water Immersion, and Recovery"
+},
+{
+"id": "https://openalex.org/W2602706681",
+"doi": "https://doi.org/10.1186/s12888-017-1262-x",
+"display_name": "Loneliness in the general population: prevalence, determinants and relations to mental health"
+},
+{
+"id": "https://openalex.org/W2604695266",
+"doi": "https://doi.org/10.1007/s40279-017-0717-z",
+"display_name": "Cross-Adaptation: Heat and Cold Adaptation to Improve Physiological and Cellular Responses to Hypoxia"
+},
+{
+"id": "https://openalex.org/W2605921120",
+"doi": "https://doi.org/10.1089/acm.2016.0234",
+"display_name": "Blood Pressure Response to Meditation and Yoga: A Systematic Review and Meta-Analysis"
+},
+{
+"id": "https://openalex.org/W2605998461",
+"doi": "https://doi.org/10.1139/apnm-2017-0059",
+"display_name": "Measurement of sodium concentration in sweat samples: comparison of 5 analytical techniques"
+},
+{
+"id": "https://openalex.org/W2620805077",
+"doi": "https://doi.org/10.3389/fphys.2017.00419",
+"display_name": "Short-Term, Low-Volume Training Improves Heat Acclimatization in an Operational Context"
+},
+{
+"id": "https://openalex.org/W2622480062",
+"doi": "https://doi.org/10.1152/ajpregu.00103.2017",
+"display_name": "Effects of 10 days of separate heat and hypoxic exposure on heat acclimation and temperate exercise performance"
+},
+{
+"id": "https://openalex.org/W2626300993",
+"doi": "https://doi.org/10.4172/2324-9080.1000262",
+"display_name": "Effect of Verbal Coach Encouragement on Small Sided Games Intensity and Perceived Enjoyment in Youth Soccer Players"
+},
+{
+"id": "https://openalex.org/W2725107222",
+"doi": "https://doi.org/10.7205/milmed-d-16-00251",
+"display_name": "Thermoregulatory Response to Exercise After Exertional Heat Stroke"
+},
+{
+"id": "https://openalex.org/W2734896048",
+"doi": "https://doi.org/10.1161/hypertensionaha.116.08994",
+"display_name": "Dose–Response Association Between Physical Activity and Incident Hypertension"
+},
+{
+"id": "https://openalex.org/W2735811510",
+"doi": "https://doi.org/10.1123/ijspp.2017-0214",
+"display_name": "Small-Sided Games in Elite Soccer: Does One Size Fit All?"
+},
+{
+"id": "https://openalex.org/W2736499685",
+"doi": "https://doi.org/10.1515/bhk-2017-0013",
+"display_name": "A nonlinear model for the characterization and optimization of athletic training and performance"
+},
+{
+"id": "https://openalex.org/W2744135537",
+"doi": "https://doi.org/10.1055/s-0043-115739",
+"display_name": "Standardized MET Value Underestimates the Energy Cost of Treadmill Running in Men"
+},
+{
+"id": "https://openalex.org/W2758276259",
+"doi": "https://doi.org/10.1016/s0140-6736(17)31634-3",
+"display_name": "The effect of physical activity on mortality and cardiovascular disease in 130 000 people from 17 high-income, middle-income, and low-income countries: the PURE study"
+},
+{
+"id": "https://openalex.org/W2761879108",
+"doi": "https://doi.org/10.1249/mss.0000000000001439",
+"display_name": "Maximum Skin Wettedness after Aerobic Training with and without Heat Acclimation"
+},
+{
+"id": "https://openalex.org/W2764070433",
+"doi": "https://doi.org/10.3389/fphys.2017.00811",
+"display_name": "Heat and Hypoxic Acclimation Increase Monocyte Heat Shock Protein 72 but Do Not Attenuate Inflammation following Hypoxic Exercise"
+},
+{
+"id": "https://openalex.org/W2768045576",
+"doi": "https://doi.org/10.1007/s40279-017-0808-x",
+"display_name": "Heat Acclimation Decay and Re-Induction: A Systematic Review and Meta-Analysis"
+},
+{
+"id": "https://openalex.org/W2772264491",
+"doi": "https://doi.org/10.1007/s40279-017-0830-z",
+"display_name": "The Relationships Between Internal and External Measures of Training Load and Intensity in Team Sports: A Meta-Analysis"
+},
+{
+"id": "https://openalex.org/W2773114947",
+"doi": "https://doi.org/10.1515/ijcss-2017-0010",
+"display_name": "Performance Estimation using the Fitness-Fatigue Model with Kalman Filter Feedback"
+},
+{
+"id": "https://openalex.org/W2773393639",
+"doi": "https://doi.org/10.3389/fphys.2017.01062",
+"display_name": "Hemodynamic Responses during Enduro-Motorcycling Performance"
+},
+{
+"id": "https://openalex.org/W2774165907",
+"doi": "https://doi.org/10.1016/j.jtherbio.2017.12.001",
+"display_name": "Heat acclimation causes a linear decrease in sweat sodium ion concentration"
+},
+{
+"id": "https://openalex.org/W2782215249",
+"doi": "https://doi.org/10.1371/journal.pone.0190033",
+"display_name": "Association of loneliness with all-cause mortality: A meta-analysis"
+},
+{
+"id": "https://openalex.org/W2787209148",
+"doi": "https://doi.org/10.1080/24733938.2018.1432885",
+"display_name": "Quantifying the relationship between internal and external work in team sports: development of a novel training efficiency index"
+},
+{
+"id": "https://openalex.org/W2788677345",
+"doi": "https://doi.org/10.1016/j.cyto.2018.01.018",
+"display_name": "Effects of acute or chronic heat exposure, exercise and dehydration on plasma cortisol, IL-6 and CRP levels in trained males"
+},
+{
+"id": "https://openalex.org/W2788930055",
+"doi": "https://doi.org/10.1177/2515245918770963",
+"display_name": "Equivalence Testing for Psychological Research: A Tutorial"
+},
+{
+"id": "https://openalex.org/W2794834206",
+"doi": "https://doi.org/10.1123/ijspp.2017-0565",
+"display_name": "The Same Story or a Unique Novel? Within-Participant Principal-Component Analysis of Measures of Training Load in Professional Rugby Union Skills Training"
+},
+{
+"id": "https://openalex.org/W2799316205",
+"doi": "https://doi.org/10.1123/ijspp.2018-0026",
+"display_name": "Monitoring Players’ Readiness Using Predicted Heart-Rate Responses to Soccer Drills"
+},
+{
+"id": "https://openalex.org/W2801918947",
+"doi": "https://doi.org/10.3389/fphys.2018.00639",
+"display_name": "Heart Rate Monitoring in Team Sports—A Conceptual Framework for Contextualizing Heart Rate Measures for Training and Recovery Prescription"
+},
+{
+"id": "https://openalex.org/W2803064439",
+"doi": "https://doi.org/10.1249/mss.0000000000001643",
+"display_name": "Heat Loss Is Impaired in Older Men on the Day after Prolonged Work in the Heat"
+},
+{
+"id": "https://openalex.org/W2803887158",
+"doi": "https://doi.org/10.1080/24733938.2018.1476775",
+"display_name": "Reliability of heart rate responses both during and following a 6 min Yo-Yo IR1 test in highly trained youth soccer players"
+},
+{
+"id": "https://openalex.org/W2803924820",
+"doi": "https://doi.org/10.3390/sports6020044",
+"display_name": "The Validity of External:Internal Training Load Ratios in Rested and Fatigued Soccer Players"
+},
+{
+"id": "https://openalex.org/W2804107396",
+"doi": "https://doi.org/10.4085/1062-6050-519-16",
+"display_name": "Probability of Heat Intolerance: Standardized Interpretation of Heat-Tolerance Testing Results Versus Specialist Judgment"
+},
+{
+"id": "https://openalex.org/W2807070286",
+"doi": "https://doi.org/10.1123/ijspp.2018-0093",
+"display_name": "An Integrated, Multifactorial Approach to Periodization for Optimal Performance in Individual and Team Sports"
+},
+{
+"id": "https://openalex.org/W2808258323",
+"doi": "https://doi.org/10.14814/phy2.13734",
+"display_name": "Impact of acuteversusprolonged exercise and dehydration on kidney function and injury"
+},
+{
+"id": "https://openalex.org/W2808558429",
+"doi": "https://doi.org/10.1097/01.jsc.0000395736.42557.bc",
+"display_name": "Hand-Grip Strength as a Predictor of Muscular Strength and Endurance"
+},
+{
+"id": "https://openalex.org/W2810114041",
+"doi": "https://doi.org/10.1080/02640414.2018.1494909",
+"display_name": "Modelling performance and skeletal muscle adaptations with exponential growth functions during resistance training"
+},
+{
+"id": "https://openalex.org/W28371050",
+"doi": "https://doi.org/10.1023/a:1026473003318",
+"display_name": "Insulin-stimulated Glut 4 translocation in human skeletal muscle: a quantitative confocal microscopical assessment"
+},
+{
+"id": "https://openalex.org/W2887053622",
+"doi": "https://doi.org/10.1080/02640414.2018.1504375",
+"display_name": "Systems model and individual simulations of training strategies in elite short-track speed skaters"
+},
+{
+"id": "https://openalex.org/W2888447428",
+"doi": "https://doi.org/10.1016/j.jtherbio.2018.08.017",
+"display_name": "Uncoupling psychological from physiological markers of heat acclimatization in a military context"
+},
+{
+"id": "https://openalex.org/W2890695304",
+"doi": "https://doi.org/10.1016/s2214-109x(18)30357-7",
+"display_name": "Worldwide trends in insufficient physical activity from 2001 to 2016: a pooled analysis of 358 population-based surveys with 1·9 million participants"
+},
+{
+"id": "https://openalex.org/W2899562932",
+"doi": "https://doi.org/10.1080/24733938.2018.1532659",
+"display_name": "Performance analysis in elite football: all in the game?"
+},
+{
+"id": "https://openalex.org/W290019285",
+"doi": "https://doi.org/10.5040/9781718243859",
+"display_name": "Advanced Cardiovascular Exercise Physiology"
+},
+{
+"id": "https://openalex.org/W2905106967",
+"doi": "https://doi.org/10.1113/ep087268",
+"display_name": "Heat acclimation does not affect maximal aerobic power in thermoneutral normoxic or hypoxic conditions"
+},
+{
+"id": "https://openalex.org/W2905492083",
+"doi": "https://doi.org/10.1519/jsc.0000000000002978",
+"display_name": "A Match-Derived Relative Pitch Area Facilitates the Tactical Representativeness of Small-Sided Games for the Official Soccer Match"
+},
+{
+"id": "https://openalex.org/W2905900509",
+"doi": "https://doi.org/10.14814/phy2.13936",
+"display_name": "Once- and twice-daily heat acclimation confer similar heat adaptations, inflammatory responses and exercise tolerance improvements"
+},
+{
+"id": "https://openalex.org/W2908304785",
+"doi": "https://doi.org/10.1123/ijspp.2018-0935",
+"display_name": "Internal and External Training Load: 15 Years On"
+},
+{
+"id": "https://openalex.org/W2911277396",
+"doi": "https://doi.org/10.3389/fphys.2019.00071",
+"display_name": "Efficacy of Heat Mitigation Strategies on Core Temperature and Endurance Exercise: A Meta-Analysis"
+},
+{
+"id": "https://openalex.org/W2912186356",
+"doi": "https://doi.org/10.1080/23328940.2019.1574199",
+"display_name": "Use of the heat tolerance test to assess recovery from exertional heat stroke"
+},
+{
+"id": "https://openalex.org/W2913642967",
+"doi": "https://doi.org/10.1123/ijspp.2018-0537",
+"display_name": "Impairment of Cycling Capacity in the Heat in Well-Trained Endurance Athletes After High-Intensity Short-Term Heat Acclimation"
+},
+{
+"id": "https://openalex.org/W2921642240",
+"doi": "https://doi.org/10.1007/s11538-019-00588-y",
+"display_name": "An Improved Version of the Classical Banister Model to Predict Changes in Physical Condition"
+},
+{
+"id": "https://openalex.org/W2923919911",
+"doi": "https://doi.org/10.1080/00031305.2018.1529625",
+"display_name": "Valid P -Values Behave Exactly as They Should: Some Misleading Criticisms of P -Values and Their Resolution With S -Values"
+},
+{
+"id": "https://openalex.org/W2938552120",
+"doi": "https://doi.org/10.1289/ehp4163",
+"display_name": "The Association between Mandated Preseason Heat Acclimatization Guidelines and Exertional Heat Illness during Preseason High School American Football Practices"
+},
+{
+"id": "https://openalex.org/W2943279851",
+"doi": "https://doi.org/10.1016/j.jsams.2019.04.010",
+"display_name": "Variation in renal responses to exercise in the heat with progressive acclimatisation"
+},
+{
+"id": "https://openalex.org/W2945312767",
+"doi": "https://doi.org/10.1123/ijspp.2018-0707",
+"display_name": "Differing Physiological Adaptations Induced by Dry and Humid Short-Term Heat Acclimation"
+},
+{
+"id": "https://openalex.org/W2946323822",
+"doi": "https://doi.org/10.3389/fphys.2019.00539",
+"display_name": "Nine-, but Not Four-Days Heat Acclimation Improves Self-Paced Endurance Performance in Females"
+},
+{
+"id": "https://openalex.org/W2946347315",
+"doi": "https://doi.org/10.1080/24733938.2019.1617432",
+"display_name": "The perceptions of elite professional footballers on the International Match Calendar: a cross-sectional study"
+},
+{
+"id": "https://openalex.org/W2956089910",
+"doi": "https://doi.org/10.1123/ijspp.2018-0668",
+"display_name": "The Temporal Relationship Between Exercise, Recovery Processes, and Changes in Performance"
+},
+{
+"id": "https://openalex.org/W2969612518",
+"doi": "https://doi.org/10.2478/ijcss-2019-0007",
+"display_name": "Including the Past: Performance Modeling Using a Preload Concept by Means of the Fitness-Fatigue Model"
+},
+{
+"id": "https://openalex.org/W2970691094",
+"doi": "https://doi.org/10.1007/s00421-019-04218-2",
+"display_name": "The time course of adaptations in thermoneutral maximal oxygen consumption following heat acclimation"
+},
+{
+"id": "https://openalex.org/W2971391494",
+"doi": "https://doi.org/10.3390/nu11092087",
+"display_name": "The Potential for Renal Injury Elicited by Physical Work in the Heat"
+},
+{
+"id": "https://openalex.org/W2972435231",
+"doi": "https://doi.org/10.1080/23328940.2019.1666624",
+"display_name": "Heat alleviation strategies for athletic performance: A review and practitioner guidelines"
+},
+{
+"id": "https://openalex.org/W2976437160",
+"doi": "https://doi.org/10.1152/japplphysiol.00452.2019",
+"display_name": "Controversies in exertional heat stroke diagnosis, prevention, and treatment"
+},
+{
+"id": "https://openalex.org/W2986403368",
+"doi": null,
+"display_name": "Physical activity of Canadian children and youth, 2007 to 2015."
+},
+{
+"id": "https://openalex.org/W2987010440",
+"doi": "https://doi.org/10.1177/1747954119887721",
+"display_name": "The effects of measurement error and testing frequency on the fitness-fatigue model applied to resistance training: A simulation approach"
+},
+{
+"id": "https://openalex.org/W2989582073",
+"doi": "https://doi.org/10.3389/fphys.2019.01485",
+"display_name": "Heat Adaptation in Military Personnel: Mitigating Risk, Maximizing Performance"
+},
+{
+"id": "https://openalex.org/W2990338677",
+"doi": "https://doi.org/10.1007/s00421-019-04269-5",
+"display_name": "Short-term isothermic heat acclimation elicits beneficial adaptations but medium-term elicits a more complete adaptation"
+},
+{
+"id": "https://openalex.org/W2990711760",
+"doi": "https://doi.org/10.3389/fphys.2019.01448",
+"display_name": "Performance Changes Following Heat Acclimation and the Factors That Influence These Changes: Meta-Analysis and Meta-Regression"
+},
+{
+"id": "https://openalex.org/W3000184824",
+"doi": "https://doi.org/10.3390/sports8010008",
+"display_name": "Modelling Training Adaptation in Swimming Using Artificial Neural Network Geometric Optimisation"
+},
+{
+"id": "https://openalex.org/W3002736524",
+"doi": "https://doi.org/10.1080/17461391.2020.1719211",
+"display_name": "The impact of different training load quantification and modelling methodologies on performance predictions in elite swimmers"
+},
+{
+"id": "https://openalex.org/W3007783763",
+"doi": "https://doi.org/10.1093/milmed/usz214",
+"display_name": "Low Incidence of Death and Renal Failure in United States Military Service Members Hospitalized with Exertional Heat Stroke: A Retrospective Cohort Study"
+},
+{
+"id": "https://openalex.org/W3026336058",
+"doi": "https://doi.org/10.1152/ajpregu.00048.2020",
+"display_name": "Effect of 8 days of exercise-heat acclimation on aerobic exercise performance of men in hypobaric hypoxia"
+},
+{
+"id": "https://openalex.org/W3037650463",
+"doi": "https://doi.org/10.31236/osf.io/pn9s3",
+"display_name": "Magnitude Based Inference in Relation to One-sided Hypotheses Testing Procedures"
+},
+{
+"id": "https://openalex.org/W3043829800",
+"doi": null,
+"display_name": "ACSM's guidelines for exercise testing and prescription"
+},
+{
+"id": "https://openalex.org/W3081936912",
+"doi": null,
+"display_name": "Diarrhea and associated illness characteristics and risk factors among British active duty service members at Askari Storm training exercise, Nanyuki, Kenya, January-June 2014."
+},
+{
+"id": "https://openalex.org/W3082320856",
+"doi": "https://doi.org/10.1016/j.jtherbio.2020.102697",
+"display_name": "Sweat rate and sweat composition during heat acclimation"
+},
+{
+"id": "https://openalex.org/W3090588945",
+"doi": "https://doi.org/10.1113/ep088486",
+"display_name": "The sweat glands’ maximum ion reabsorption rates following heat acclimation in healthy older adults"
+},
+{
+"id": "https://openalex.org/W3092497960",
+"doi": "https://doi.org/10.1123/ijspp.2019-0973",
+"display_name": "Running at Increasing Intensities in the Heat Induces Transient Gut Perturbations"
+},
+{
+"id": "https://openalex.org/W3093777756",
+"doi": "https://doi.org/10.3390/ijerph17217795",
+"display_name": "Fundamental Concepts of Human Thermoregulation and Adaptation to Heat: A Review in the Context of Global Warming"
+},
+{
+"id": "https://openalex.org/W3107859969",
+"doi": "https://doi.org/10.1080/17461391.2020.1856935",
+"display_name": "The effect of medium‐term heat acclimation on endurance performance in a temperate environment"
+},
+{
+"id": "https://openalex.org/W3116882775",
+"doi": "https://doi.org/10.1371/journal.pone.0244412",
+"display_name": "Monitoring training and recovery responses with heart rate measures during standardized warm-up in elite badminton players"
+},
+{
+"id": "https://openalex.org/W3134374705",
+"doi": "https://doi.org/10.1007/s40279-021-01445-6",
+"display_name": "Effects of Heat Acclimation and Acclimatisation on Maximal Aerobic Capacity Compared to Exercise Alone in Both Thermoneutral and Hot Environments: A Meta-Analysis and Meta-Regression"
+},
+{
+"id": "https://openalex.org/W3139937405",
+"doi": "https://doi.org/10.1152/physrev.00038.2020",
+"display_name": "Exercise under heat stress: thermoregulation, hydration, performance implications, and mitigation strategies"
+},
+{
+"id": "https://openalex.org/W3163139700",
+"doi": "https://doi.org/10.1016/j.jsams.2021.05.008",
+"display_name": "A comparison of heat acclimation by post-exercise hot water immersion and exercise in the heat"
+},
+{
+"id": "https://openalex.org/W3164439712",
+"doi": "https://doi.org/10.1080/02640414.2021.1933351",
+"display_name": "Modelling performance with exponential functions in elite short-track speed skaters"
+},
+{
+"id": "https://openalex.org/W3184231620",
+"doi": "https://doi.org/10.1038/s41598-021-94814-0",
+"display_name": "Sauna dehydration as a new physiological challenge model for intestinal barrier function"
+},
+{
+"id": "https://openalex.org/W3211239976",
+"doi": null,
+"display_name": "American College of Sports Medicine position stand"
+},
+{
+"id": "https://openalex.org/W32655960",
+"doi": "https://doi.org/10.2165/00007256-199723030-00004",
+"display_name": "Interactions of Physical Training and Heat Acclimation"
+},
+{
+"id": "https://openalex.org/W37552897",
+"doi": "https://doi.org/10.1172/jci100266",
+"display_name": "STUDIES IN CONGESTIVE HEART FAILURE"
+},
+{
+"id": "https://openalex.org/W4200550032",
+"doi": "https://doi.org/10.1007/s40279-021-01611-w",
+"display_name": "Comment on “Effects of Heat Acclimation and Acclimatisation on Maximal Aerobic Capacity Compared to Exercise Alone in Both Thermoneutral and Hot Environments: A Meta-Analysis and Meta-Regression”"
+},
+{
+"id": "https://openalex.org/W4206651290",
+"doi": "https://doi.org/10.1123/ijspp.2021-0451",
+"display_name": "Defining Training and Performance Caliber: A Participant Classification Framework"
+},
+{
+"id": "https://openalex.org/W4210365327",
+"doi": "https://doi.org/10.1038/s41598-022-05392-8",
+"display_name": "Training load responses modelling and model generalisation in elite sports"
+},
+{
+"id": "https://openalex.org/W4213286632",
+"doi": "https://doi.org/10.31219/osf.io/ry3pu",
+"display_name": "Submaximal Fitness Tests in Team Sports: A Theoretical Framework for Evaluating Physiological State"
+},
+{
+"id": "https://openalex.org/W4214839337",
+"doi": "https://doi.org/10.1186/s40798-022-00426-x",
+"display_name": "The Use of Fitness-Fatigue Models for Sport Performance Modelling: Conceptual Issues and Contributions from Machine-Learning"
+},
+{
+"id": "https://openalex.org/W4220965683",
+"doi": "https://doi.org/10.1123/ijspp.2021-0494",
+"display_name": "The Fitness–Fatigue Model: What’s in the Numbers?"
+},
+{
+"id": "https://openalex.org/W4235412292",
+"doi": "https://doi.org/10.1016/0003-6870(92)90318-p",
+"display_name": "Aviat space environ med"
+},
+{
+"id": "https://openalex.org/W4237081404",
+"doi": "https://doi.org/10.1037/0021-9010.84.2.234",
+"display_name": "Testing the hypothesis that treatments have negligible effects: Minimum-effect tests in the general linear model."
+},
+{
+"id": "https://openalex.org/W4239096779",
+"doi": "https://doi.org/10.1161/hyp.0000000000000066",
+"display_name": "2017 ACC/AHA/AAPA/ABC/ACPM/AGS/APhA/ASH/ASPC/NMA/PCNA Guideline for the Prevention, Detection, Evaluation, and Management of High Blood Pressure in Adults: Executive Summary: A Report of the American College of Cardiology/American Heart Association Task Force on Clinical Practice Guidelines"
+},
+{
+"id": "https://openalex.org/W4239202739",
+"doi": "https://doi.org/10.1016/0003-6870(92)90338-v",
+"display_name": "Aviat space environ med"
+},
+{
+"id": "https://openalex.org/W4240288471",
+"doi": "https://doi.org/10.1249/00005768-199809000-00018",
+"display_name": "Borg's Perceived Exertion and Pain Scales"
+},
+{
+"id": "https://openalex.org/W4282942131",
+"doi": null,
+"display_name": "Update: Heat illness, active component, U.S. Armed Forces, 2021."
+},
+{
+"id": "https://openalex.org/W4285030210",
+"doi": "https://doi.org/10.1007/s40279-022-01712-0",
+"display_name": "Submaximal Fitness Tests in Team Sports: A Theoretical Framework for Evaluating Physiological State"
+},
+{
+"id": "https://openalex.org/W4292691146",
+"doi": "https://doi.org/10.1249/00005768-199505000-00015",
+"display_name": "Aims, design, and measurement protocol"
+},
+{
+"id": "https://openalex.org/W4294576684",
+"doi": "https://doi.org/10.1249/00003677-199200200-00002",
+"display_name": "2"
+},
+{
+"id": "https://openalex.org/W4295885595",
+"doi": "https://doi.org/10.1152/ajpregu.00339.2021",
+"display_name": "Cross-adaptation between heat and hypoxia: mechanistic insights into aerobic exercise performance"
+},
+{
+"id": "https://openalex.org/W4300870773",
+"doi": "https://doi.org/10.2307/1270020",
+"display_name": "Statistical Power Analysis for the Behavioral Sciences"
+},
+{
+"id": "https://openalex.org/W4307039775",
+"doi": "https://doi.org/10.1016/j.jtherbio.2022.103373",
+"display_name": "Individual variability in achievement of short-term heat acclimation during a fixed intensity protocol"
+},
+{
+"id": "https://openalex.org/W4387472523",
+"doi": "https://doi.org/10.1007/s00421-023-05329-7",
+"display_name": "Changes in surrogate markers of intestinal epithelial injury and microbial translocation in young and older men during prolonged occupational heat stress in temperate and hot conditions"
+},
+{
+"id": "https://openalex.org/W4389543535",
+"doi": "https://doi.org/10.1249/mss.0000000000003355",
+"display_name": "Improvements in Orthostatic Tolerance with Exercise Are Augmented by Heat Acclimation: A Randomized Controlled Trial"
+},
+{
+"id": "https://openalex.org/W4409091273",
+"doi": "https://doi.org/10.1002/j.2040-4603.2011.tb00385.x",
+"display_name": "Integrated Physiological Mechanisms of Exercise Performance, Adaptation, and Maladaptation to Heat Stress"
+},
+{
+"id": "https://openalex.org/W4409116429",
+"doi": "https://doi.org/10.1002/j.2040-4603.2014.tb00547.x",
+"display_name": "Human Heat Adaptation"
+},
+{
+"id": "https://openalex.org/W5250905",
+"doi": "https://doi.org/10.1152/jappl.1976.40.5.786",
+"display_name": "Acclimatization in a hot, humid environment: body fluid adjustments"
+},
+{
+"id": "https://openalex.org/W566492277",
+"doi": "https://doi.org/10.1152/ajpregu.00547.2004",
+"display_name": "Effects of menstrual cycle and physical training on heat loss responses during dynamic exercise at moderate intensity in a temperate environment"
+},
+{
+"id": "https://openalex.org/W621877707",
+"doi": null,
+"display_name": "Human performance physiology and environmental medicine at terrestrial extremes"
+},
+{
+"id": "https://openalex.org/W898828",
+"doi": "https://doi.org/10.2165/00007256-200232030-00003",
+"display_name": "The Unknown Mechanism of the Overtraining Syndrome"
+},
+{
+"id": "https://openalex.org/W969371002",
+"doi": "https://doi.org/10.1016/j.jshs.2015.07.005",
+"display_name": "Hypoxic training methods for improving endurance exercise performance"
+},
+{
+"id": "https://openalex.org/W99599904",
+"doi": "https://doi.org/10.1152/jappl.1987.63.1.31",
+"display_name": "Substrate utilization in leg muscle of men after heat acclimation"
+}
+],
+"dangling": [
+"W2060731330",
+"W2333053592",
+"W4206927092",
+"W4285719527",
+"W6600891728",
+"W6608459562",
+"W6609287529",
+"W6638574516",
+"W6641847985",
+"W6659172915",
+"W6678864984",
+"W6687223217",
+"W6694184159",
+"W6725413518",
+"W6799608230",
+"W7073721326"
+]
+}

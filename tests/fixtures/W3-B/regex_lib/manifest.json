@@ -1,0 +1,68 @@
+{
+ "2020_NumDot": {
+  "doi": "10.5555/seed.0001",
+  "printed": 8
+ },
+ "2020_NumBracket": {
+  "doi": "10.5555/seed.0002",
+  "printed": 8
+ },
+ "2020_TitleHeader": {
+  "doi": "10.5555/seed.0003",
+  "printed": 10
+ },
+ "2020_JPhys": {
+  "doi": "10.5555/seed.0004",
+  "printed": 8
+ },
+ "2020_TandF": {
+  "doi": "10.5555/seed.0005",
+  "printed": 8
+ },
+ "2020_APA": {
+  "doi": "10.5555/seed.0006",
+  "printed": 8
+ },
+ "2020_OCR": {
+  "doi": "10.5555/seed.0007",
+  "printed": 8
+ },
+ "2020_LineNum": {
+  "doi": "10.5555/seed.0008",
+  "printed": 8
+ },
+ "2020_Blank": {
+  "doi": "10.5555/seed.0009",
+  "printed": 4
+ },
+ "2020_Sidecar": {
+  "doi": "10.5555/seed.0010",
+  "printed": 3,
+  "sidecar": {
+   "doi": "10.5555/seed.0010",
+   "references": [
+    {
+     "first_author": "Smith",
+     "year": 2001,
+     "title": "A structured reference one",
+     "doi": "10.5555/side.0001",
+     "text": "Smith J. A structured reference one. J Test 2001."
+    },
+    {
+     "first_author": "Jones",
+     "year": 2002,
+     "title": "A structured reference two",
+     "doi": "",
+     "text": "Jones K. A structured reference two. J Test 2002."
+    },
+    {
+     "first_author": "Brown",
+     "year": "2003",
+     "title": "A structured reference three",
+     "doi": "10.5555/SIDE.0003",
+     "text": "Brown L. A structured reference three. J Test 2003."
+    }
+   ]
+  }
+ }
+}

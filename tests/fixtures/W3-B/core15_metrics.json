@@ -1,0 +1,178 @@
+{
+ "source": "V2 raw/metrics.json per_paper (core) and aggregates.core15",
+ "per_paper": {
+  "10.1152/jappl.1973.35.2.236": {
+   "publisher": "APS",
+   "n_printed_used": 19,
+   "den_src": "split",
+   "n_openalex": 22,
+   "n_openalex_dangling": 0,
+   "n_openalex_with_doi": 20,
+   "cov_oa": 1.158,
+   "cov_oa_doi": 1.053,
+   "s2_referenceCount": 28
+  },
+  "10.1152/ajpendo.1998.274.1.e89": {
+   "publisher": "APS",
+   "n_printed_used": 38,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 38,
+   "n_openalex_dangling": 0,
+   "n_openalex_with_doi": 38,
+   "cov_oa": 1.0,
+   "cov_oa_doi": 1.0,
+   "s2_referenceCount": 36
+  },
+  "10.1152/japplphysiol.00775.2024": {
+   "publisher": "APS",
+   "n_printed_used": 101,
+   "den_src": "split",
+   "n_openalex": 96,
+   "n_openalex_dangling": 0,
+   "n_openalex_with_doi": 96,
+   "cov_oa": 0.95,
+   "cov_oa_doi": 0.95,
+   "s2_referenceCount": 100
+  },
+  "10.1152/jappl.1999.87.3.1003": {
+   "publisher": "APS",
+   "n_printed_used": 14,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 16,
+   "n_openalex_dangling": 0,
+   "n_openalex_with_doi": 14,
+   "cov_oa": 1.143,
+   "cov_oa_doi": 1.0,
+   "s2_referenceCount": 14
+  },
+  "10.1152/japplphysiol.00176.2015": {
+   "publisher": "APS",
+   "n_printed_used": 61,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 59,
+   "n_openalex_dangling": 0,
+   "n_openalex_with_doi": 55,
+   "cov_oa": 0.967,
+   "cov_oa_doi": 0.902,
+   "s2_referenceCount": 57
+  },
+  "10.1152/japplphysiol.00495.2010": {
+   "publisher": "APS",
+   "n_printed_used": 42,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 49,
+   "n_openalex_dangling": 0,
+   "n_openalex_with_doi": 44,
+   "cov_oa": 1.167,
+   "cov_oa_doi": 1.048,
+   "s2_referenceCount": 48
+  },
+  "10.1123/ijspp.2022-0026": {
+   "publisher": "HK",
+   "n_printed_used": 41,
+   "den_src": "fallback_s2rc",
+   "n_openalex": 41,
+   "n_openalex_dangling": 1,
+   "n_openalex_with_doi": 38,
+   "cov_oa": 1.0,
+   "cov_oa_doi": 0.927,
+   "s2_referenceCount": 41
+  },
+  "10.1123/ijsnem.14.6.673": {
+   "publisher": "HK",
+   "n_printed_used": 44,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 39,
+   "n_openalex_dangling": 1,
+   "n_openalex_with_doi": 37,
+   "cov_oa": 0.886,
+   "cov_oa_doi": 0.841,
+   "s2_referenceCount": 46
+  },
+  "10.1123/jpah.2018-0627": {
+   "publisher": "HK",
+   "n_printed_used": 22,
+   "den_src": "fallback_s2rc",
+   "n_openalex": 68,
+   "n_openalex_dangling": 2,
+   "n_openalex_with_doi": 61,
+   "cov_oa": 3.091,
+   "cov_oa_doi": 2.773,
+   "s2_referenceCount": 22
+  },
+  "10.1123/ijspp.2018-0399": {
+   "publisher": "HK",
+   "n_printed_used": 36,
+   "den_src": "split",
+   "n_openalex": 38,
+   "n_openalex_dangling": 3,
+   "n_openalex_with_doi": 35,
+   "cov_oa": 1.056,
+   "cov_oa_doi": 0.972,
+   "s2_referenceCount": 28
+  },
+  "10.1249/mss.0000000000002991": {
+   "publisher": "LWW/ACSM",
+   "n_printed_used": 50,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 56,
+   "n_openalex_dangling": 6,
+   "n_openalex_with_doi": 48,
+   "cov_oa": 1.12,
+   "cov_oa_doi": 0.96,
+   "s2_referenceCount": 50
+  },
+  "10.1249/mss.0000000000001943": {
+   "publisher": "LWW/ACSM",
+   "n_printed_used": 44,
+   "den_src": "fallback_s2rc",
+   "n_openalex": 32,
+   "n_openalex_dangling": 0,
+   "n_openalex_with_doi": 32,
+   "cov_oa": 0.727,
+   "cov_oa_doi": 0.727,
+   "s2_referenceCount": 44
+  },
+  "10.1249/mss.0000000000002545": {
+   "publisher": "LWW/ACSM",
+   "n_printed_used": 20,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 23,
+   "n_openalex_dangling": 1,
+   "n_openalex_with_doi": 18,
+   "cov_oa": 1.15,
+   "cov_oa_doi": 0.9,
+   "s2_referenceCount": 20
+  },
+  "10.1249/mss.0000000000003139": {
+   "publisher": "LWW/ACSM",
+   "n_printed_used": 46,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 41,
+   "n_openalex_dangling": 2,
+   "n_openalex_with_doi": 38,
+   "cov_oa": 0.891,
+   "cov_oa_doi": 0.826,
+   "s2_referenceCount": 46
+  },
+  "10.1249/01.mss.0000065004.05033.42": {
+   "publisher": "LWW/ACSM",
+   "n_printed_used": 30,
+   "den_src": "split+1(first-ref drop)",
+   "n_openalex": 25,
+   "n_openalex_dangling": 0,
+   "n_openalex_with_doi": 24,
+   "cov_oa": 0.833,
+   "cov_oa_doi": 0.8,
+   "s2_referenceCount": 31
+  }
+ },
+ "aggregates": {
+  "n_papers": 15,
+  "median_cov_oa": 1.0,
+  "median_cov_oa_doi": 0.95,
+  "sum_dangling": 16,
+  "sum_oa": 643,
+  "sum_oa_doi": 598
+ }
+}
