@@ -514,7 +514,7 @@ def test_dead_oa_link_is_not_available_and_transport_is_transient(web, tmp_path)
 
     net._TRANSPORTS["requests"] = flaky
     _, rep, _ = run_stage(tmp_path, [{"doi": "10.1152/h.1"}, {"doi": "10.1152/h.2"}])
-    assert rep["10.1152/h.1"]["outcome"] == "NOT_AVAILABLE" and rep["10.1152/h.1"]["error"] == "HTTP_404"
+    assert rep["10.1152/h.1"]["outcome"] == "NOT_AVAILABLE" and rep["10.1152/h.1"]["error"].startswith("HTTP_404")
     assert rep["10.1152/h.2"]["outcome"] == "TRANSPORT"
 
 

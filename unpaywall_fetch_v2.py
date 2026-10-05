@@ -55,7 +55,7 @@ from litpipe import doi as _doi
 from litpipe import identity as _identity
 from litpipe import ledger, net, preflight
 from litpipe.hosts import ProhibitedHost
-from litpipe.outcomes import Kind, Outcome
+from litpipe.outcomes import Kind, Outcome, from_legacy
 
 lit_util.utf8_stdout()
 
@@ -341,6 +341,9 @@ def _occupant_is(path, doi):
     want = lit_util.normalize_doi(doi)
     if not want:
         return False
+    ids = _read_identity_sidecar(path)
+    if ids and not _sidecar_doi(path) and _doi.normalise(ids.get("queue_doi") or "") == _doi.normalise(doi):
+        return True          # our own earlier copy for this DOI (a flag included): rewrite it in place
     if os.path.exists(path):
         return _doi_of_existing(path) == want
     d = _sidecar_doi(path)                       # an orphan sidecar waiting for its PDF
@@ -653,8 +656,8 @@ def _legacy_status(o, validator_detail=""):
     if o.status is None:
         if o.kind is Kind.REFUSED:
             return "HOST_REFUSED" if o.attempts == 0 else "REDIRECT_BLOCKED"
-        if o.kind is Kind.DEFERRED:
-            return "DEFERRED"
+        if o.kind in (Kind.DEFERRED, Kind.TRANSPORT):
+            return str(o.kind)
         return "ERROR"
     if o.status == 200:
         if "HTML" in validator_detail:
@@ -792,7 +795,7 @@ def try_download(url, dest, timeout=30):
         return "TOO_LARGE", f">{a.size}B"
     if a.status.startswith("HTTP_") or a.status in ("EMPTY", "NOT_PDF", "HTML"):
         return a.status, ""
-    return "ERROR" if a.status in ("ERROR", "HOST_REFUSED", "REDIRECT_BLOCKED", "DEFERRED") else a.status, a.detail
+    return "ERROR" if a.status in ("ERROR", "TRANSPORT", "HOST_REFUSED", "REDIRECT_BLOCKED", "DEFERRED") else a.status, a.detail
 
 
 def _write_bytes(dest, content):
@@ -951,7 +954,7 @@ def download_row(stage, cands, doi, title):
             landing, ho = stage.resolve_landing(url)
             if not landing:
                 attempts.append(Attempt(host_type or "None", version or "None", ledger.redact(url),
-                                        "NO_LANDING" if ho is None or ho.ok else f"HANDLE_{ho.kind}",
+                                        "NO_LANDING" if ho is None or ho.ok else f"HANDLE:{ho.kind}",
                                         Kind.ERROR if ho is None or ho.ok else ho.kind,
                                         host="doi.org", http_status=getattr(ho, "status", None),
                                         sent=bool(ho and ho.attempts), field_=field_,
@@ -1043,6 +1046,9 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
                "identity": "", "doc_kind": ""}
 
         def done(kind, route, error="", detail=""):
+            # legacy readers (sweep, migrate) map `error` through from_legacy: make it name `kind`
+            if error and kind not in (Kind.OK, Kind.ERROR) and from_legacy(error, "unpaywall") is not kind:
+                error = f"{error} [{kind}]"
             out.update(outcome=str(kind), route=route, error=error, detail=detail)
             results.append(out)
 
@@ -1118,7 +1124,7 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
         counts["oa"] += 1
         if not cands:
             counts["oa_no_url"] += 1
-            done(Kind.NOT_AVAILABLE, "api", "", "OA record without a URL")
+            done(Kind.NOT_AVAILABLE, "api", "OA_NO_URL", "OA record without a URL")
             print(f"  [{i:>3}] {doi[:55]:<55} OA-no-URL")
             continue
 
@@ -1137,7 +1143,7 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
 
         if dry_run:
             out["winning_url"] = cands[0][2]
-            done(Kind.SKIPPED, "dry_run", "", "dry run: nothing downloaded")
+            done(Kind.SKIPPED, "dry_run", "DRY", "dry run: nothing downloaded")
             print(f"  [{i:>3}] {fn[:60]:<60} OA: {len(cands)} cand, [0]={cands[0][2][:60]}")
             continue
 
@@ -1151,7 +1157,7 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
             # first_status: the root cause's HTTP status, not the last fallback's (blank: not sent)
             out["first_status"] = decisive.http_status if decisive and decisive.sent and \
                 decisive.http_status else ""
-            error = attempts[-1].status if attempts else "no candidates"
+            error = decisive.status if decisive else "no candidates"
             detail = f"{decisive.host}: {decisive.status} {decisive.detail}".strip() if decisive else ""
             done(kind, decisive.host_type if decisive else "none", error, detail)
             print(f"  [{i:>3}] {fn[:65]:<65} FAIL ({len(attempts)} tries: {error}; {kind})")

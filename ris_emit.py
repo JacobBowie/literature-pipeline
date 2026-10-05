@@ -240,7 +240,7 @@ def _get_json(url, source, *, params=None, headers=None, timeout=None, validate=
             return out.payload.json()
         except ValueError:
             raise MetadataUnavailable(source, out, "body is not JSON") from None
-    if out.kind is Kind.NO_MATCH:
+    if out.kind in (Kind.NO_MATCH, Kind.NOT_AVAILABLE):   # 404/410, a CN 204, a CN 406 (d16149d)
         return None
     raise MetadataUnavailable(source, out)
 
@@ -537,7 +537,7 @@ def _expect_csl(p):
 
 def csl_by_doi(doi, timeout=None):
     """CSL-JSON for `doi` through DOI content negotiation (doi.org redirects to the agency's
-    metadata service; litpipe.net follows only its https allow-list). None for 404 or 204;
+    metadata service; litpipe.net follows only its https allow-list). None for 404, 204 or 406;
     MetadataUnavailable otherwise (including a redirect it would not follow)."""
     d = _doi.normalise(doi) if doi else None
     if not d:

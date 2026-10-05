@@ -125,6 +125,10 @@ def redact(text):
     s = _PARAM_RE.sub(lambda m: m.group(1) + PLACEHOLDER, s)
     s = _EMAIL_PARAM_RE.sub(EMAIL_TOKEN, s)
     s = _MAILTO_RE.sub(MAILTO_TOKEN, s)
+    for name in ("S2_API_KEY", "OPENALEX_API_KEY"):        # preflight.KEY_ENVS
+        secret = (os.environ.get(name) or "").strip()
+        if len(secret) >= 8:
+            s = s.replace(secret, PLACEHOLDER)
     for email in _configured_emails():
         for form in _literal_forms(email):
             s = re.sub(re.escape(form), PLACEHOLDER, s, flags=re.IGNORECASE)

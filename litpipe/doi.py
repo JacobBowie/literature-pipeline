@@ -176,11 +176,11 @@ def _capture(text: str, start: int, end: int):
     i = end
     while i < n:
         c = text[i]
-        head = "".join(body[:17])
+        head = "".join(body[:19])           # ISSN(8-digit date): 1097-0142(20000915)
         # SICI: Wiley's "(sici)" marker, or the bare ISSN(date) form NSCA, AMS and others registered
         # (10.1519/1533-4287(1990)004<0047:rbrasp>2.3.co;2); 25 of 30 index SICI DOIs lack the marker
         sici = "(sici)" in head[:8].lower() or bool(_SICI_ISSN_DATE.match(head))
-        if _BODY.match(c) or (sici and c in _SICI_EXTRA):
+        if _BODY.match(c) or (sici and c in _SICI_EXTRA and text[i:i + 2] != "</"):
             body.append(c)
             i += 1
             continue
