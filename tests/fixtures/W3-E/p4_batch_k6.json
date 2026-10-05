@@ -1,0 +1,91 @@
+{
+ "_source": "notes/2026-09-23_s2_probes/P4_raw/batch_c01.json (S2 probe, 2026-09-23); 5 of 500 positions, fields trimmed to paperId, externalIds, abstract, openAccessPdf, citationCount, referenceCount, abstracts cut at 400 chars",
+ "picked": [
+  "null",
+  "elided_upper",
+  "closed_abstract",
+  "heading_oa",
+  "markup"
+ ],
+ "ids": [
+  "DOI:10.9999/not-a-real-doi-1",
+  "DOI:10.1001/archinte.167.20.ioi70147",
+  "DOI:10.1001/jama.2026.6696",
+  "DOI:10.1002/ajim.70013",
+  "DOI:10.1016/j.envres.2018.10.020"
+ ],
+ "body": [
+  null,
+  {
+   "paperId": "f7ae1d02311762f8e556b1ffbc4ad368de399697",
+   "externalIds": {
+    "MAG": "2120179426",
+    "DOI": "10.1001/ARCHINTE.167.20.IOI70147",
+    "CorpusId": 41138018,
+    "PubMed": "17698677"
+   },
+   "abstract": null,
+   "openAccessPdf": {
+    "url": "",
+    "status": "CLOSED",
+    "license": null,
+    "disclaimer": "Notice: The following paper fields have been elided by the publisher: {'abstract'}. Paper or abstract available at https://api.unpaywall.org/v2/10.1001/ARCHINTE.167.20.IOI70147?email=<INSERT_YOUR_EMAIL> or https://doi.org/10.1001/ARCHINTE.167.20.IOI70147, which is subject to the license by the author or copyright owner provided with this content. Please go to the source to verify the license and copyright information for your use."
+   },
+   "citationCount": 308,
+   "referenceCount": 30
+  },
+  {
+   "paperId": "3691e7768d58924326de0fc1180e85b59b90ed10",
+   "externalIds": {
+    "DOI": "10.1001/jama.2026.6696",
+    "CorpusId": 288237299,
+    "PubMed": "42126836"
+   },
+   "abstract": "\n This Viewpoint discusses the importance of evidence-based dietary guidelines for the health of children and adolescents, summarizes the strengths of the 2025-2030 Dietary Guidelines for Americans as well as concerns and challenges, and suggests government policy actions needed from the perspective of pediatric health care professionals and researchers.\n",
+   "openAccessPdf": {
+    "url": "",
+    "status": "CLOSED",
+    "license": null,
+    "disclaimer": "Notice: Paper or abstract available at https://api.unpaywall.org/v2/10.1001/jama.2026.6696?email=<INSERT_YOUR_EMAIL> or https://doi.org/10.1001/jama.2026.6696, which is subject to the license by the author or copyright owner provided with this content. Please go to the source to verify the license and copyright information for your use."
+   },
+   "citationCount": 0,
+   "referenceCount": 3
+  },
+  {
+   "paperId": "2ff4fbf61901792371858ab298c5a3c11cbd4bdc",
+   "externalIds": {
+    "PubMedCentral": "12512068",
+    "DOI": "10.1002/ajim.70013",
+    "CorpusId": 281102098,
+    "PubMed": "40903435"
+   },
+   "abstract": "ABSTRACT Rationale Industry guidelines recommend work‐rest allocations to limit increases in core temperature (Tcore; > 38.0°C or > Δ1.0°C above resting) during work in the heat. However, the initial duration of permissible work before implementing these allocations is not specified (initial stay time [IST]) and individual factors such as sex and age affecting thermoregulation are not considered. ",
+   "openAccessPdf": {
+    "url": "https://onlinelibrary.wiley.com/doi/pdfdirect/10.1002/ajim.70013",
+    "status": "HYBRID",
+    "license": "CCBYNCND",
+    "disclaimer": "Notice: Paper or abstract available at https://pmc.ncbi.nlm.nih.gov/articles/PMC12512068, which is subject to the license by the author or copyright owner provided with this content. Please go to the source to verify the license and copyright information for your use."
+   },
+   "citationCount": 4,
+   "referenceCount": 56
+  },
+  {
+   "paperId": "baa3b68f7ea2b8a44f956f03def9a0ff8b300b9d",
+   "externalIds": {
+    "MAG": "2896381278",
+    "DOI": "10.1016/j.envres.2018.10.020",
+    "CorpusId": 58587769,
+    "PubMed": "30641370"
+   },
+   "abstract": "Background: Heat illness (HI) is a growing global concern; its incidence has risen dramatically across the world in recent years. The individual factors whereby elevated core temperature produces HI are not well‐understood. Given known physiological differences between men and women pertaining to temperature regulation, we hypothesized that women would be at increased risk of HI than men. Objectiv",
+   "openAccessPdf": {
+    "url": "https://www.research.ed.ac.uk/en/publications/d36c1cc5-73b5-4438-9cb2-4ab78fa7a4a5",
+    "status": "GREEN",
+    "license": "other-oa",
+    "disclaimer": "Notice: Paper or abstract available at https://api.unpaywall.org/v2/10.1016/j.envres.2018.10.020?email=<INSERT_YOUR_EMAIL> or https://doi.org/10.1016/j.envres.2018.10.020, which is subject to the license by the author or copyright owner provided with this content. Please go to the source to verify the license and copyright information for your use."
+   },
+   "citationCount": 79,
+   "referenceCount": 100
+  }
+ ]
+}
