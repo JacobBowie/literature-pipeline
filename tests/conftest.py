@@ -54,6 +54,7 @@ def _litpipe_net_isolation(tmp_path_factory, monkeypatch):
     # state.DB_PATH = None itself (tests/test_litpipe_state.py's isolated_state does).
     from litpipe import state as _state
     monkeypatch.setattr(_state, "DB_PATH", tmp_path_factory.mktemp("state") / _state.DB_NAME)
+    monkeypatch.setattr("litpipe.walk.CACHE_PATH", tmp_path_factory.mktemp("walk") / "s2_cache.duckdb")
     # No live network (dispatch 0.2), with or without net_env: a transport asked for any host but
     # the loopback mocks fails the test instead of sending. Tests that stub a transport replace
     # these entries and never reach the guard.

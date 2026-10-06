@@ -40,11 +40,15 @@ def citer(i, seed):
 
 
 class S2Stub:
-    """Semantic Scholar on a stub transport. papers: DOI -> {"count": int, "rows": n or list}.
-    `fail(doi, status, times=None)` makes that seed's citations answer `status` (`times` times,
-    else always); `fail_after = (n, status)` makes every citations call after the n-th answer it;
-    `batch_status` fails POST /paper/batch; `interrupt_on` (a paperId) raises KeyboardInterrupt
-    mid-run, as a kill would."""
+    """Semantic Scholar on a stub transport. papers: DOI -> {"count": int, "rows": n or list}
+    (an int `rows` is generated lazily, page by page). POST /paper/batch answers the metadata pass
+    and, when `fields` names `citations.*`, a nested batch (W3-A): the nested list in the same call
+    as citationCount, unwrapped as S2 sends it. `fail(doi, status, times=None)` makes that seed's
+    citations answer `status` (`times` times, else always): a nested batch then gives it an empty
+    list, so the client re-fetches it by paged GET, where the failure applies; `fail_after =
+    (n, status)` makes every citations call (paged GET or nested batch) after the n-th answer it;
+    `batch_status` fails every POST /paper/batch; `interrupt_on` (a paperId) raises
+    KeyboardInterrupt mid-run, as a kill would."""
 
     def __init__(self):
         self.papers = {}
@@ -57,8 +61,7 @@ class S2Stub:
 
     def add(self, doi, count, rows=None):
         rows = count if rows is None else rows
-        self.papers[doi] = {"count": count, "rows": [citer(i, doi) for i in range(rows)] if isinstance(rows, int)
-                            else rows, "pid": pid_of(doi)}
+        self.papers[doi] = {"count": count, "rows": rows, "pid": pid_of(doi), "doi": doi}
         return self
 
     def fail(self, doi, status, times=None):
@@ -68,8 +71,32 @@ class S2Stub:
     def by_pid(self, pid):
         return next((p for p in self.papers.values() if p["pid"] == pid), None)
 
+    @staticmethod
+    def n_rows(p):
+        return p["rows"] if isinstance(p["rows"], int) else len(p["rows"])
+
+    @staticmethod
+    def rows(p, off, lim):
+        if isinstance(p["rows"], int):
+            return [citer(i, p["doi"]) for i in range(off, min(off + lim, p["rows"]))]
+        return p["rows"][off:off + lim]
+
     def citation_paths(self):
         return [r["path"] for r in self.sent if r["path"].endswith("/citations")]
+
+    def nested_calls(self):
+        return [r for r in self.sent if r["path"] == "/graph/v1/paper/batch"
+                and "citations." in r["params"].get("fields", "")]
+
+    def metadata_calls(self):
+        return [r for r in self.sent if r["path"] == "/graph/v1/paper/batch"
+                and "citations." not in r["params"].get("fields", "")]
+
+    def _throttled(self):
+        self.n_citation_calls += 1
+        if self.fail_after is not None and self.n_citation_calls > self.fail_after[0]:
+            return _raw(self.fail_after[1], {"message": "Too Many Requests"})
+        return None
 
     def __call__(self, method, url, hdrs, body, timeout, max_bytes):
         parts = urlsplit(url)
@@ -80,18 +107,36 @@ class S2Stub:
         if path == "/graph/v1/paper/batch":
             if self.batch_status:
                 return _raw(self.batch_status, {"message": "scripted"})
+            if "citations." in q.get("fields", ""):                  # a nested batch
+                if any(self.interrupt_on == i for i in js["ids"]):
+                    raise KeyboardInterrupt("scripted kill")
+                hit = self._throttled()
+                if hit is not None:
+                    return hit
+                out = []
+                for i in js["ids"]:
+                    p = self.by_pid(i) or self.papers.get(i[len("DOI:"):])
+                    if p is None:
+                        out.append(None)
+                        continue
+                    f = self.failing.get(p["pid"])
+                    short = f and (f[1] is None or f[1] > 0)
+                    out.append({"paperId": p["pid"], "citationCount": p["count"],
+                                "citations": [] if short else [c["citingPaper"] for c in self.rows(p, 0, self.n_rows(p))]})
+                return _raw(200, out)
             out = []
             for i in js["ids"]:
                 p = self.papers.get(i[len("DOI:"):])
-                out.append(None if p is None else {"paperId": p["pid"], "citationCount": p["count"]})
+                out.append(None if p is None else {"paperId": p["pid"], "citationCount": p["count"],
+                                                   "externalIds": {"DOI": p["doi"]}, "year": 2010})
             return _raw(200, out)
         if path.endswith("/citations"):
             pid = path.split("/")[-2]
-            self.n_citation_calls += 1
             if self.interrupt_on == pid:
                 raise KeyboardInterrupt("scripted kill")
-            if self.fail_after is not None and self.n_citation_calls > self.fail_after[0]:
-                return _raw(self.fail_after[1], {"message": "Too Many Requests"})
+            hit = self._throttled()
+            if hit is not None:
+                return hit
             f = self.failing.get(pid)
             if f and (f[1] is None or f[1] > 0):
                 if f[1] is not None:
@@ -103,8 +148,8 @@ class S2Stub:
             off, lim = int(q["offset"]), int(q["limit"])
             if lim > 1000 or off + lim >= 10000:
                 return _raw(400, {"error": "offset + limit must be < 10000"})
-            page = {"offset": off, "data": p["rows"][off:off + lim]}
-            if off + lim < len(p["rows"]):
+            page = {"offset": off, "data": self.rows(p, off, lim)}
+            if off + lim < self.n_rows(p):
                 page["next"] = off + lim
             return _raw(200, page)
         return _raw(404, {"error": f"no route {path}"})
@@ -189,8 +234,9 @@ def test_one_session_counts_every_request(stub, tmp_path):
     for d in ds:
         stub.add(d, 3)
     res = fc.run(lib_dir=str(make_lib(tmp_path, ds)))
-    assert res["s2"]["calls"] == len(stub.sent) == 1 + 4                    # one batch, one page per seed
-    assert res["s2"]["attempts"] == 5
+    # W3-A: one metadata batch plus one nested batch for the four <= 1,000-citer seeds (was 1 + 4 pages)
+    assert res["s2"]["calls"] == len(stub.sent) == 1 + 1
+    assert res["s2"]["attempts"] == 2
 
 
 def test_seeds_are_resolved_by_batch_not_one_call_each(stub, tmp_path):
@@ -198,9 +244,9 @@ def test_seeds_are_resolved_by_batch_not_one_call_each(stub, tmp_path):
     for d in ds:
         stub.add(d, 1)
     fc.run(lib_dir=str(make_lib(tmp_path, ds)))
-    batches = [r for r in stub.sent if r["path"] == "/graph/v1/paper/batch"]
+    batches = stub.metadata_calls()                                        # W3-A: nested batches excluded
     assert len(batches) == 1 and len(batches[0]["json"]["ids"]) == 12
-    assert batches[0]["params"]["fields"] == "paperId,citationCount"
+    assert batches[0]["params"]["fields"] == "paperId,citationCount,externalIds,year"
 
 
 # ================================================================ zero citers and unresolved
@@ -276,7 +322,7 @@ def test_throttled_walk_429s_exhausted_aborts_keeps_report_and_writes_degraded(s
     trips -> exit 3; the published CSV is byte-identical and the result goes to .degraded.csv."""
     ds = dois(8)
     for d in ds:
-        stub.add(d, 3)
+        stub.add(d, 1001)                       # W3-A: paged seeds (one walk each; was 3, now nested)
     stub.fail_after = (0, 429)
     lib = make_lib(tmp_path, ds)
     prior = write_prior(lib, {d: 2 for d in ds})
@@ -297,24 +343,26 @@ def test_budget_spent_is_exit_3(stub, s2env, tmp_path):
     s2env.write_config(s2={"max_requests_per_run": 3})
     ds = dois(6)
     for d in ds:
-        stub.add(d, 1)
+        stub.add(d, 1001)                       # W3-A: 2 pages each (a nested batch would take them all in 1)
     res = fc.run(lib_dir=str(make_lib(tmp_path, ds)))
     assert res["exit_code"] == 3 and res["aborted"] == "budget"
     assert len(stub.sent) == 3 and res["s2"]["attempts"] == 3
 
 
 def test_a_library_bigger_than_the_budget_is_walked_over_two_runs(stub, s2env, tmp_path):
-    s2env.write_config(s2={"max_requests_per_run": 3})
+    # W3-A: paged seeds of 1,001 (2 pages each) and a budget of 5 = metadata + 2 seeds (was 2-citer
+    # seeds, one page each, budget 3); the resume contract is unchanged.
+    s2env.write_config(s2={"max_requests_per_run": 5})
     ds = dois(4)
     for d in ds:
-        stub.add(d, 2)
+        stub.add(d, 1001)
     lib = make_lib(tmp_path, ds)
     first = fc.run(lib_dir=str(lib))
     assert first["exit_code"] == 3 and first["answered"] == 2 and not (lib / "_forward_citations.csv").exists()
     stub.sent.clear()
     second = fc.run(lib_dir=str(lib))
-    assert second["exit_code"] == 0 and second["resumed"] == 2 and len(stub.sent) == 3
-    assert len(read_csv(lib / "_forward_citations.csv")) == 8
+    assert second["exit_code"] == 0 and second["resumed"] == 2 and len(stub.sent) == 5
+    assert len(read_csv(lib / "_forward_citations.csv")) == 4 * 1001
 
 
 def test_main_returns_the_exit_code(stub, tmp_path):
@@ -323,7 +371,8 @@ def test_main_returns_the_exit_code(stub, tmp_path):
     lib = make_lib(tmp_path, ds)
     assert fc.main(["--lib-dir", str(lib)]) == 0
     stub.fail_after = (0, 429)
-    assert fc.main(["--lib-dir", str(lib), "--restart"]) == 2               # both failed: 100 % (no abort at 2)
+    # W3-A: --refresh, or the count gate keeps both cached seeds and nothing is walked
+    assert fc.main(["--lib-dir", str(lib), "--restart", "--refresh"]) == 2  # both failed: 100 % (no abort at 2)
     assert fc.main([]) == 1
     assert fc.main(["--lib-dir", str(tmp_path / "missing")]) == 1
 
@@ -370,7 +419,7 @@ def test_limit_walks_the_first_seeds_and_keeps_the_others_published_rows(stub, t
 def test_killed_walk_resumes_from_the_last_complete_seed(stub, tmp_path):
     ds = dois(6)
     for d in ds:
-        stub.add(d, 2)
+        stub.add(d, 1001)                       # W3-A: paged seeds, so each seed is its own walk
     lib = make_lib(tmp_path, ds)
     out = lib / "_forward_citations.csv"
     stub.interrupt_on = pid_of(ds[3])
@@ -390,8 +439,8 @@ def test_killed_walk_resumes_from_the_last_complete_seed(stub, tmp_path):
     assert batch[0]["json"]["ids"] == [f"DOI:{d}" for d in ds[3:]]          # finished seeds not re-resolved
     walked = stub.citation_paths()
     assert not any(pid_of(d) in p for d in ds[:3] for p in walked)          # nor re-walked
-    assert len(walked) == 3
-    assert len(read_csv(out)) == 12 and not j.exists()
+    assert len(walked) == 3 * 2                                             # W3-A: 2 pages per seed
+    assert len(read_csv(out)) == 6 * 1001 and not j.exists()
 
 
 def test_resume_retries_failed_seeds_only(stub, tmp_path):
@@ -404,7 +453,10 @@ def test_resume_retries_failed_seeds_only(stub, tmp_path):
     stub.sent.clear()
     res = fc.run(lib_dir=str(lib))
     assert res["exit_code"] == 0 and res["resumed"] == 9
-    assert [p for p in stub.citation_paths()] == [f"/graph/v1/paper/{pid_of(ds[4])}/citations"]
+    # W3-A: the retried seed (1 citer) goes in a nested batch now, not a paged GET
+    assert [r["json"]["ids"] for r in stub.metadata_calls()] == [[f"DOI:{ds[4]}"]]
+    assert [r["json"]["ids"] for r in stub.nested_calls()] == [[pid_of(ds[4])]]
+    assert stub.citation_paths() == []
 
 
 def test_foreign_journals_and_restart_are_not_resumed_an_old_one_is(stub, tmp_path, capsys):
@@ -441,7 +493,9 @@ def test_count_mismatch_is_failed_counted_apart_and_keeps_prior_rows(stub, tmp_p
     res = fc.run(lib_dir=str(lib))
     assert res["count_mismatch"] == 1 and res["failed_citations"] == 1 and res["transport_failures"] == 0
     assert res["recounted"] == 0                                           # count unchanged: no re-walk
-    assert [r["path"] for r in stub.sent].count("/graph/v1/paper/batch") == 2  # the one recount batch
+    # W3-A: metadata, the nested batch, then the one recount batch (was 2: no nested batch)
+    assert [r["path"] for r in stub.sent].count("/graph/v1/paper/batch") == 3
+    assert len(stub.metadata_calls()) == 2
     assert res["exit_code"] == 2                                            # 1 of 2 seeds
     deg = read_csv(fc.degraded_path(lib / "_forward_citations.csv"))
     assert sum(1 for r in deg if r["seed_doi"] == ds[0]) == 3              # partial rows never used
@@ -449,19 +503,20 @@ def test_count_mismatch_is_failed_counted_apart_and_keeps_prior_rows(stub, tmp_p
 
 def test_count_drift_during_the_run_is_rechecked_and_rewalked(stub, tmp_path):
     ds = dois(1)
-    stub.add(ds[0], 5, rows=6)                     # one citer arrived after the batch read 5
+    # W3-A: a paged seed (a nested batch reads the count in the same call, so it cannot drift there)
+    stub.add(ds[0], 1005, rows=1006)               # one citer arrived after the batch read 1,005
     calls = {"n": 0}
     real = stub.__call__
 
     def drifting(method, url, *a, **k):
         if urlsplit(url).path == "/graph/v1/paper/batch":
             calls["n"] += 1
-            stub.papers[ds[0]]["count"] = 5 if calls["n"] == 1 else 6
+            stub.papers[ds[0]]["count"] = 1005 if calls["n"] == 1 else 1006
         return real(method, url, *a, **k)
     net._TRANSPORTS["requests"] = net._TRANSPORTS["urllib"] = drifting
     res = fc.run(lib_dir=str(make_lib(tmp_path, ds)))
     assert res["exit_code"] == 0 and res["count_mismatch"] == 0 and res["recounted"] == 1
-    assert res["total_rows"] == 6
+    assert res["total_rows"] == 1006
 
 
 # ================================================================ flags, key and source rules
@@ -501,7 +556,8 @@ def test_project_resolution_and_config_errors(stub, tmp_path, monkeypatch):
     stub.add(ds[0], 1)
     make_lib(root / "teaching_x", ds)
     reg = tmp_path / "registry.json"
-    reg.write_text(json.dumps({"projects": {"teaching_x": {"lib_dir": "literature"}}}), encoding="utf-8")
+    reg.write_text(json.dumps({"state_dir": str(tmp_path / "state"),                 # W3-A amendment 1
+                               "projects": {"teaching_x": {"lib_dir": "literature"}}}), encoding="utf-8")
     monkeypatch.setattr(fc, "CONFIG_PATH", reg)
     monkeypatch.setattr(lit_util, "PROJECTS_ROOT", root)
     assert fc.run(project="teaching_x")["exit_code"] == 0
@@ -545,7 +601,9 @@ def test_replay_0916_throttled_second_walk_is_degraded_and_publishes_nothing(stu
     the breaker trips, nothing is published and the report keeps its 222 seeds."""
     ds = dois(237)
     for i, d in enumerate(ds):
-        stub.add(d, 0 if i >= 222 else 3)
+        # W3-A: paged seeds (2 pages each), so the walk is still 141+ calls long and throttled part-way;
+        # 3-citer seeds would now go in one nested batch
+        stub.add(d, 0 if i >= 222 else 1001)
     lib = make_lib(tmp_path, ds)
     prior = write_prior(lib, {d: 2 for d in ds[:222]})
     before = sha(prior)

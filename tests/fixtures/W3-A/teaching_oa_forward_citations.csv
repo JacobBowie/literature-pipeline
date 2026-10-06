@@ -1,0 +1,12 @@
+seed_doi,seed_label,seed_chapter,citing_paper_id,citing_doi,citing_title,citing_year,citing_authors,citing_venue,citing_cited_by,citing_abstract,source,citing_oa,seed_n_cites
+10.5555/oa.seed.1,Seed 1,Ch01,W1,10.5555/oa.c1,Closed but cited most,2020,A One,J A,900,,openalex,false,3
+10.5555/oa.seed.2,Seed 2,Ch01,W1,10.5555/oa.c1,Closed but cited most,2020,A One,J A,900,,openalex,false,1
+10.5555/oa.seed.1,Seed 1,Ch01,W2,10.5555/oa.c2,Open and cited least,2018,B Two,J B,5,,openalex,true,3
+10.5555/oa.seed.2,Seed 2,Ch01,W2,10.5555/oa.c2,Open and cited least,2018,B Two,J B,5,,openalex,true,1
+10.5555/oa.seed.1,Seed 1,Ch01,p3,10.5555/oa.c3,Unknown OA middle,2021,C Three,J C,50,,s2,,3
+10.5555/oa.seed.2,Seed 2,Ch01,p3,10.5555/oa.c3,Unknown OA middle,2021,C Three,J C,50,,s2,,1
+10.5555/oa.seed.1,Seed 1,Ch01,W4,10.5555/oa.c4,Single seed open,2022,D Four,J D,1,,openalex,true,3
+10.5555/oa.seed.3,Seed 3,Ch02,W5,10.5555/oa.c5,Single seed closed highly cited,2019,E Five,J E,5000,,openalex,false,
+10.5555/oa.seed.3,Seed 3,Ch02,p6,10.5555/oa.c6,Open on one source unknown on another,2017,F Six,J F,2,,s2,,
+10.5555/oa.seed.1,Seed 1,Ch01,W6,10.5555/oa.c6,Open on one source unknown on another,2017,F Six,J F,2,,openalex,true,3
+10.5555/oa.seed.3,Seed 3,Ch02,,,No DOI citer,2016,G Seven,J G,7,,s2,,

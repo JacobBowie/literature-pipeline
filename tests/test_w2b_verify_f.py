@@ -68,6 +68,22 @@ def page_reply(doi, n):
     return Reply(200, json.dumps({"offset": 0, "data": [citer(i, doi) for i in range(n)]}), JSON_H)
 
 
+def nested_reply(rows):
+    """A nested POST /paper/batch answer (W3-A: seeds of <= 1,000 citers): rows is a list of
+    (doi, citationCount, n listed) in the order the client packs them (first-fit decreasing by count,
+    stable). Listing fewer than the count is S2's silent nested truncation; the client re-fetches
+    that seed by paged GET."""
+    body = [{"paperId": pid_of(d), "citationCount": c, "citations": [citer(i, d)["citingPaper"] for i in range(n)]}
+            for d, c, n in rows]
+    return Reply(200, json.dumps(body), JSON_H)
+
+
+def pages_1001(doi):
+    """The two paged GET answers of a 1,001-citer seed (W3-A: seeds over 1,000 are paged)."""
+    return (Reply(200, json.dumps({"offset": 0, "next": 1000, "data": [citer(i, doi) for i in range(1000)]}), JSON_H),
+            Reply(200, json.dumps({"offset": 1000, "data": [citer(1000, doi)]}), JSON_H))
+
+
 def make_lib(root, dois, name="literature"):
     lib = Path(root) / name
     lib.mkdir(parents=True, exist_ok=True)
@@ -154,7 +170,8 @@ def test_real_clean_walk_publishes_zero_citer_and_unresolved_are_not_failures(wo
     srv, env, sdir = world
     ds = ["10.5555/vf.c001", "10.5555/vf.c002", "10.5555/vf.c003", "10.5555/vf.c004"]
     lib = make_lib(tmp_path / "root", ds)
-    srv.script(BATCH, batch_reply([(ds[0], 2), (ds[1], 0), (ds[2], 1), (ds[3], None)]))
+    srv.script(BATCH, batch_reply([(ds[0], 2), (ds[1], 0), (ds[2], 1), (ds[3], None)]),
+               nested_reply([(ds[0], 2, 2), (ds[2], 1, 1)]))            # W3-A: the nested batch
     srv.script(cites_path(ds[0]), page_reply(ds[0], 2))
     srv.script(cites_path(ds[2]), page_reply(ds[2], 1))
     res = walk(lib)
@@ -165,8 +182,8 @@ def test_real_clean_walk_publishes_zero_citer_and_unresolved_are_not_failures(wo
     assert sorted({r["seed_doi"] for r in rows}) == [ds[0], ds[2]] and len(rows) == 3
     assert not fc.journal_path(lib / "_forward_citations.csv").exists()
     assert not fc.degraded_path(lib / "_forward_citations.csv").exists()
-    # the real state counted every attempt for the mock host (1 batch + 2 citations)
-    assert state.day_count("127.0.0.1") == 3 == len(srv.hits)
+    # the real state counted every attempt for the mock host (W3-A: 1 metadata batch + 1 nested batch)
+    assert state.day_count("127.0.0.1") == 2 == len(srv.hits)
 
 
 def test_real_throttled_walk_exits_3_keeps_prior_byte_identical_and_the_journal(world, tmp_path):
@@ -175,7 +192,7 @@ def test_real_throttled_walk_exits_3_keeps_prior_byte_identical_and_the_journal(
     lib = make_lib(tmp_path / "root", ds)
     prior = write_prior(lib, {d: 2 for d in ds})
     before = sha(prior)
-    srv.script(BATCH, batch_reply([(d, 3) for d in ds]))
+    srv.script(BATCH, batch_reply([(d, 1001) for d in ds]))           # W3-A: paged seeds (3 now go nested)
     for d in ds:
         srv.script(cites_path(d), Reply(429, json.dumps({"message": "Too Many Requests"}), JSON_H))
     res = walk(lib)
@@ -195,10 +212,16 @@ def test_real_resume_rerequests_nothing_finished(world, tmp_path):
     srv, env, sdir = world
     ds = [f"10.5555/vf.r{i}" for i in range(5)]
     lib = make_lib(tmp_path / "root", ds)
-    srv.script(BATCH, batch_reply([(d, 1) for d in ds]), batch_reply([(d, 1) for d in ds[2:]]))
-    for d in ds:
+    # W3-A: the nested batch truncates every list (S2's silent nested truncation), so each seed is
+    # re-fetched by one paged GET: metadata + nested + 2 seeds = budget 4 (was batch + 2 seeds = 3).
+    # The second run's seeds are over 1,000 citers (paged), so its only batch is the metadata pass.
+    srv.script(BATCH, batch_reply([(d, 1) for d in ds]), nested_reply([(d, 1, 0) for d in ds]),
+               batch_reply([(d, 1001) for d in ds[2:]]))
+    for d in ds[:2]:
         srv.script(cites_path(d), page_reply(d, 1))
-    first = walk(lib, session=s2.Session(budget=3))                    # batch + 2 seeds, then spent
+    for d in ds[2:]:
+        srv.script(cites_path(d), *pages_1001(d))
+    first = walk(lib, session=s2.Session(budget=4))                    # batch + nested + 2 seeds, then spent
     assert first["exit_code"] == 3 and first["aborted"] == "budget"
     assert fc.journal_path(lib / "_forward_citations.csv").exists()
     assert not (lib / "_forward_citations.csv").exists()
@@ -217,12 +240,15 @@ def test_real_count_drift_is_recounted_once_and_published(world, tmp_path):
     srv, env, sdir = world
     ds = ["10.5555/vf.m0", "10.5555/vf.m1"]
     lib = make_lib(tmp_path / "root", ds)
-    srv.script(BATCH, batch_reply([(ds[0], 3), (ds[1], 1)]), batch_reply([(ds[0], 2)]))
+    srv.script(BATCH, batch_reply([(ds[0], 3), (ds[1], 1)]),
+               nested_reply([(ds[0], 3, 2), (ds[1], 1, 1)]),            # W3-A: nested, ds[0] short
+               batch_reply([(ds[0], 2)]))
     srv.script(cites_path(ds[0]), page_reply(ds[0], 2))               # 2 rows against a count of 3
     srv.script(cites_path(ds[1]), page_reply(ds[1], 1))
     res = walk(lib)
     assert res["exit_code"] == 0 and res["recounted"] == 1 and res["count_mismatch"] == 0
-    assert len(srv.hits_for(BATCH)) == 2 and len(srv.hits_for(cites_path(ds[0]))) == 2
+    # W3-A: metadata + nested + recount on the batch path (was 2: no nested batch)
+    assert len(srv.hits_for(BATCH)) == 3 and len(srv.hits_for(cites_path(ds[0]))) == 2
     rows = read_csv(lib / "_forward_citations.csv")
     assert sum(r["seed_doi"] == ds[0] for r in rows) == 2
 
@@ -232,13 +258,16 @@ def test_real_persistent_mismatch_stays_failed_and_is_not_rewalked(world, tmp_pa
     ds = ["10.5555/vf.p0", "10.5555/vf.p1"]
     lib = make_lib(tmp_path / "root", ds)
     prior = write_prior(lib, {ds[0]: 4, ds[1]: 1})
-    srv.script(BATCH, batch_reply([(ds[0], 3), (ds[1], 1)]), batch_reply([(ds[0], 3)]))
+    srv.script(BATCH, batch_reply([(ds[0], 3), (ds[1], 1)]),
+               nested_reply([(ds[0], 3, 2), (ds[1], 1, 1)]),            # W3-A: nested, ds[0] short
+               batch_reply([(ds[0], 3)]))
     srv.script(cites_path(ds[0]), page_reply(ds[0], 2))
     srv.script(cites_path(ds[1]), page_reply(ds[1], 1))
     before = sha(prior)
     res = walk(lib)
     assert res["exit_code"] == 2 and res["count_mismatch"] == 1 and res["transport_failures"] == 0
-    assert len(srv.hits_for(BATCH)) == 2 and len(srv.hits_for(cites_path(ds[0]))) == 1
+    # W3-A: metadata + nested + recount on the batch path (was 2: no nested batch)
+    assert len(srv.hits_for(BATCH)) == 3 and len(srv.hits_for(cites_path(ds[0]))) == 1
     assert sha(prior) == before
     deg = read_csv(fc.degraded_path(prior))
     assert sum(r["seed_doi"] == ds[0] for r in deg) == 4               # the prior rows, not the partial 2
@@ -255,7 +284,8 @@ def test_a_seed_whose_doi_went_unreadable_does_not_publish_away_its_rows(world, 
     prior = write_prior(lib, {d: 2 for d in ds})
     before = sha(prior)
     (lib / "2020_Seed0001.ris").unlink()                               # the PDF stays; its DOI is unreadable
-    srv.script(BATCH, batch_reply([(ds[0], 2), (ds[2], 2)]))
+    srv.script(BATCH, batch_reply([(ds[0], 2), (ds[2], 2)]),
+               nested_reply([(ds[0], 2, 2), (ds[2], 2, 2)]))            # W3-A: the nested batch
     srv.script(cites_path(ds[0]), page_reply(ds[0], 2))
     srv.script(cites_path(ds[2]), page_reply(ds[2], 2))
     res = walk(lib)
@@ -267,7 +297,8 @@ def test_real_s2_key_flag_reaches_the_header_and_nothing_persisted_or_printed(wo
     srv, env, sdir = world
     ds = ["10.5555/vf.k0", "10.5555/vf.k1"]
     lib = make_lib(tmp_path / "root", ds)
-    srv.script(BATCH, batch_reply([(ds[0], 1), (ds[1], 1)]))
+    srv.script(BATCH, batch_reply([(ds[0], 1), (ds[1], 1)]),
+               nested_reply([(ds[0], 1, 0), (ds[1], 1, 1)]))            # W3-A: ds[0] short -> paged GET
     srv.script(cites_path(ds[0]), Reply(500, json.dumps({"message": "boom"}), JSON_H))   # a failure detail path
     srv.script(cites_path(ds[1]), page_reply(ds[1], 1))
     res = walk(lib, s2_key=SECRET)
@@ -331,7 +362,7 @@ def test_snowball_reads_the_real_walkers_summary_and_logs_degraded(snow, capsys)
     srv, root, cmds = snow
     ds = [f"10.5555/vf.s{i}" for i in range(3)]
     make_lib(root / "research_a", ds)
-    srv.script(BATCH, batch_reply([(d, 2) for d in ds]))
+    srv.script(BATCH, batch_reply([(d, 1001) for d in ds]))           # W3-A: paged seeds (2 now go nested)
     for d in ds:
         srv.script(cites_path(d), Reply(429, json.dumps({"message": "Too Many Requests"}), JSON_H))
     assert snowball.main(["--project", "research_a"]) == 2
@@ -345,7 +376,8 @@ def test_snowball_degrades_on_one_transport_failure_under_the_threshold(snow):
     srv, root, cmds = snow
     ds = [f"10.5555/vf.u{i:02d}" for i in range(40)]
     make_lib(root / "research_a", ds)
-    srv.script(BATCH, batch_reply([(d, 1) for d in ds]))
+    srv.script(BATCH, batch_reply([(d, 1) for d in ds]),             # W3-A: nested, ds[7] short -> GET
+               nested_reply([(d, 1, 0 if d == ds[7] else 1) for d in ds]))
     for d in ds:
         srv.script(cites_path(d), page_reply(d, 1))
     srv.script(cites_path(ds[7]), Reply(503, json.dumps({"message": "unavailable"}), JSON_H))
