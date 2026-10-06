@@ -702,6 +702,8 @@ class _Run:
         except walk.CacheLocked as e:
             print(f"[abort] {e}")
             return self._locked_result()
+        except walk.CacheUnreadable as e:
+            return _error(f"walk cache cannot be opened ({e}); move it aside and rerun (the next walk rebuilds it)")
         try:
             return self._walk_and_finish()
         finally:
@@ -898,8 +900,9 @@ class _Run:
             res = walk.walk_windows(wid, count, year, session=self.sess)
         else:
             res = walk.walk_openalex(p, session=self.osess)
-            if self.source == "s2" and res.state == str(s2.WalkState.NOT_FOUND) and count is not None:
-                r = walk.ROUTE_WINDOWS                         # OpenAlex does not hold the DOI: S2 windows
+            if self.source == "s2" and count is not None and (res.state == str(s2.WalkState.NOT_FOUND)
+                                                              or res.not_sent):
+                r = walk.ROUTE_WINDOWS     # OpenAlex does not hold the DOI, or stopped before its next page
                 res = walk.walk_windows(wid, count, year, session=self.sess)
         res.route_taken = r
         return res
@@ -1009,12 +1012,15 @@ class _Run:
             rows, with_citers, prior_with = self._library_rows(cached)
             fields = FIELDS
         aborted = self._aborted()
-        code, reasons = verdict(len(self.walk_dois), len(t["failed"]), with_citers, prior_with, aborted,
+        # The 5 % rule's denominator is the seeds this run walked: a gate-kept seed was not walked, and
+        # counting it would let 30 failures in 60 walks pass beside 1,000 kept seeds (K3).
+        attempted = sum(1 for e in t["final"] if e is None or e.get("stage") != "gate")
+        code, reasons = verdict(attempted, len(t["failed"]), with_citers, prior_with, aborted,
                                 self.force, t["not_walked"])
         if self.source == "openalex" and self.osess.aborted == "config":
             code = EXIT_ERROR
             reasons.append("OpenAlex rejected the key (CONFIG)")
-        too_many = len(t["failed"]) > FAIL_THRESHOLD * len(self.walk_dois)
+        too_many = len(t["failed"]) > FAIL_THRESHOLD * attempted
 
         self.out.parent.mkdir(parents=True, exist_ok=True)
         uniq = sorted({r["citing_doi"] for r in rows if r["citing_doi"]})
@@ -1220,6 +1226,8 @@ def verdict(seed_walks, failed, with_citers, prior_with_citers=None, aborted=Non
     reasons = []
     if aborted:
         reasons.append(f"aborted ({aborted}); {not_walked} seed(s) not walked")
+    elif not_walked:
+        reasons.append(f"{not_walked} seed(s) not walked")
     if failed > FAIL_THRESHOLD * seed_walks:
         reasons.append(f"{failed} of {seed_walks} seed walks failed (over 5 %)")
     if prior_with_citers is not None and with_citers < prior_with_citers and not force:

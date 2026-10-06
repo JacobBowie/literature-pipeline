@@ -256,11 +256,13 @@ def test_a_failed_seed_keeps_its_prior_rows_from_the_cache(world, tmp_path):
     lib = make_lib(tmp_path, ds)
     assert fc.run(lib_dir=str(lib))["exit_code"] == 0
     (lib / "_forward_citations.csv").unlink()            # so the kept rows can only come from the cache
-    world.papers[ds[3]]["count"] = 5                     # a new citer: the gate re-walks it ...
+    for d in ds:                                         # every seed re-walked (I-1: kept seeds do not dilute)
+        world.papers[d]["count"] = world.papers[d]["rows"] = 5
+    world.papers[ds[3]]["count"] = 5                    # a new citer: the gate re-walks it ...
     world.papers[ds[3]]["rows"] = 5
     world.fail(ds[3], 503)                               # ... and the walk fails
     res = fc.run(lib_dir=str(lib))
-    assert res["exit_code"] == 0 and res["failed"] == 1 and res["kept"] == 24     # 1 of 25 = 4 %
+    assert res["exit_code"] == 0 and res["failed"] == 1 and res["kept"] == 0      # 1 of 25 walked = 4 %
     rows = [r for r in read_csv(lib / "_forward_citations.csv") if r["seed_doi"] == ds[3]]
     assert len(rows) == 4 and {r["citing_title"] for r in rows} == {f"Citer {i}" for i in range(4)}
     st = cache_states()[(ds[3], "s2")]
@@ -696,8 +698,8 @@ def test_a_failed_cache_statement_rolls_back_and_fails_the_seed(world, tmp_path,
             df.loc[0, "citing_id"] = None                # NOT NULL breaks the INSERT after the DELETE
         return df
     monkeypatch.setattr(walk, "_citer_frame", poisoned)
-    world.papers[ds[5]]["count"] = 4
-    world.papers[ds[5]]["rows"] = 4
+    for d in ds:                                         # every seed re-walked (I-1: kept seeds do not dilute)
+        world.papers[d]["count"] = world.papers[d]["rows"] = 4
     res = fc.run(lib_dir=str(lib))
     assert res["failed_cache"] == 1 and res["failed"] == 1 and res["exit_code"] == 0     # 1 of 25
     assert len(cache_rows(ds[5])) == 3                                                  # rolled back, rows kept

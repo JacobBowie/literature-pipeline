@@ -143,6 +143,10 @@ class CacheLocked(Exception):
     """Another process holds the cache (DuckDB allows one writer per file)."""
 
 
+class CacheUnreadable(Exception):
+    """The cache file exists but DuckDB cannot open it (not a database, corrupt, unreadable)."""
+
+
 class CacheWriteError(Exception):
     """A cache statement failed; the transaction was rolled back."""
 
@@ -177,7 +181,7 @@ class Cache:
         except duckdb.Error as e:
             if _is_lock_error(e):
                 raise CacheLocked(f"{self.path.name} is held by another process: {ledger.redact(str(e))[:200]}") from None
-            raise
+            raise CacheUnreadable(f"{self.path}: {type(e).__name__}: {ledger.redact(str(e))[:200]}") from None
         try:
             con.execute("SET TimeZone='UTC'")
             con.execute(_SCHEMA)
