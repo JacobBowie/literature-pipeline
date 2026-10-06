@@ -165,6 +165,7 @@ def test_snowball_per_project_skips_enrich(tmp_path, monkeypatch):
     monkeypatch.setattr(run_daily, "run",
                         lambda label, cmd, capture=False: (cmds.append(cmd),
                         types.SimpleNamespace(returncode=0, stdout="", stderr=""))[1])
+    monkeypatch.setattr(run_daily, "run_walk", lambda label, cmd: (cmds.append(cmd), False)[1])
     monkeypatch.setattr(run_daily, "project_dir", lambda p, cfg: tmp_path)
     monkeypatch.setattr(run_daily, "project_status", lambda root: "READY")
     # no draft is produced -> pipeline_one returns after seed, having invoked snowball

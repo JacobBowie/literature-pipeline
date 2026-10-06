@@ -15,8 +15,10 @@ Usage:
   python run_daily.py --with-snowball  # also runs forward+reverse cite walk first
                                        # (slow; recommend weekly not daily)
 
-Exit code is 0 if everything ran cleanly, non-zero if any project errored
-(but other projects still get attempted — failures isolated).
+Exit code is 0 if everything ran cleanly, 1 if any project errored (but other
+projects still get attempted — failures isolated), 2 if none errored but a
+snowball walk was DEGRADED (snowball's exit 2 with its closing summary line; that
+project still seeds and sweeps).
 """
 import argparse
 import json
@@ -39,6 +41,8 @@ lit_util.utf8_stdout()
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"
 PY = sys.executable
+SNOWBALL_SUMMARY = "# snowball: "   # snowball.run()'s closing line; printed only after a real run
+DEGRADED = "degraded"               # pipeline_one: the project ran, but its walk was DEGRADED
 
 
 def load_projects():
@@ -96,6 +100,29 @@ def run(label: str, cmd: list, capture: bool = False):
     return result
 
 
+def run_walk(label: str, cmd: list) -> bool:
+    """Run snowball, streaming its output (a walk can take hours), and read its verdict.
+    True when the walk was DEGRADED: exit 2 WITH snowball's closing '# snowball: ...' line (a
+    429, a budget stop or a deferral: the growth figure is not a measurement, but the candidates
+    written stand, so the project goes on). False on exit 0. Any other exit raises StepError,
+    including an exit 2 without that line (argparse's usage error also exits 2)."""
+    print(f"  → {label}")
+    summary = None
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                          encoding="utf-8", errors="replace") as proc:
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+            if line.startswith(SNOWBALL_SUMMARY):
+                summary = line.strip()
+    if proc.returncode == 0:
+        return False
+    if proc.returncode == 2 and summary is not None:
+        print(f"    [DEGRADED] exit 2; seeding and sweeping go on ({summary})")
+        return True
+    print(f"    [ERR] exit {proc.returncode}")
+    raise StepError(f"{label} exited {proc.returncode}")
+
+
 def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, run_date: str):
     print(f"\n=== {project} ===")
     proj_root = project_dir(project, cfg)   # RC11: parent-aware resolution
@@ -118,6 +145,7 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, ru
                 print(f"  WOULD: also run snowball first")
         return True
 
+    degraded = False   # a DEGRADED walk does not stop seeding or sweeping; main() reports it
     try:
         if status == "READY":
             if with_snowball:
@@ -126,14 +154,14 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, ru
                 # inside every project's snowball re-pays a full portfolio pass per project.
                 # Skip them here; run each ONCE after all projects (see main()). Snowball keeps
                 # forward+reverse discovery + the cheap per-project index refresh.
-                run("snowball (forward + reverse walk)",
-                    [PY, str(HERE / "snowball.py"), "--project", project,
-                     "--until-convergence", "--max-iter", "2",
-                     "--skip-recs", "--skip-abstracts"])
+                degraded = run_walk("snowball (forward + reverse walk)",
+                                    [PY, str(HERE / "snowball.py"), "--project", project,
+                                     "--until-convergence", "--max-iter", "2",
+                                     "--skip-recs", "--skip-abstracts"])
             if not auto:
                 if not _waiting(proj_root):
                     print(f"  [--] auto_stage is off and nothing is staged; skipping")
-                    return True
+                    return DEGRADED if degraded else True
                 print(f"  [--] auto_stage is off: not seeding; sweeping what is staged")
 
         if status == "READY" and auto:
@@ -145,7 +173,7 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, ru
             draft = proj_root / "lit_pull_queue.draft.csv"
             if not draft.exists():
                 print(f"  [--] no draft produced; skipping sweep")
-                return True
+                return DEGRADED if degraded else True
 
             with open(draft, encoding="utf-8") as f:
                 data_rows = sum(1 for line in f
@@ -154,7 +182,7 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, ru
             if data_rows == 0:
                 print(f"  [--] 0 candidates after filters; removing empty draft")
                 draft.unlink()
-                return True
+                return DEGRADED if degraded else True
 
             # RC8: never silently overwrite an existing non-empty curated queue.
             # project_status() only flags PENDING_QUEUE at >1 data row, so a
@@ -189,7 +217,7 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, ru
             [PY, str(HERE / "migrate_closed_to_md.py"), "--project", project,
              "--date", run_date])   # D4b: pin migrate to the run's date so a no-report
                                      # day can't fall back to a stale prior-day report
-        return True
+        return DEGRADED if degraded else True
     except StepError as e:
         # RC6: subprocess failure aborts THIS project (counted as a failure so
         # the overall exit code is non-zero); other projects still attempted.
@@ -229,10 +257,13 @@ def main():
         targets = projects
 
     run_date = f"{started:%Y-%m-%d}"
-    ok, fail = [], []
+    ok, fail, degraded = [], [], []
     for proj in targets:
-        if pipeline_one(proj, projects, args.with_snowball, args.dry_run, run_date):
+        res = pipeline_one(proj, projects, args.with_snowball, args.dry_run, run_date)
+        if res:
             ok.append(proj)
+            if res == DEGRADED:
+                degraded.append(proj)
         else:
             fail.append(proj)
 
@@ -250,9 +281,11 @@ def main():
 
     elapsed = (datetime.now() - started).total_seconds() / 60
     print(f"\n# Done — {len(ok)} ok, {len(fail)} failed, {elapsed:.1f} min")
+    if degraded:
+        print(f"# Degraded walk (seeded and swept anyway): {', '.join(degraded)}")
     if fail:
         print(f"# Failed: {', '.join(fail)}")
-    return 0 if not fail else 1
+    return 1 if fail else (2 if degraded else 0)
 
 
 if __name__ == "__main__":
