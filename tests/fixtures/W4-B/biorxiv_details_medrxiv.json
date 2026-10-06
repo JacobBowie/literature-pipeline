@@ -1,0 +1,42 @@
+{
+ "messages": [
+  {
+   "status": "ok",
+   "category": "all"
+  }
+ ],
+ "collection": [
+  {
+   "title": "Evolution of immunity to SARS-CoV-2",
+   "authors": "(cut)",
+   "author_corresponding": "(cut)",
+   "author_corresponding_institution": "(cut)",
+   "doi": "10.1101/2020.09.09.20191205",
+   "date": "2020-09-10",
+   "version": "1",
+   "type": "PUBLISHAHEADOFPRINT",
+   "license": "cc_no",
+   "category": "infectious diseases",
+   "jatsxml": "https://www.medrxiv.org/content/early/2020/09/10/2020.09.09.20191205.source.xml",
+   "abstract": "(cut)",
+   "published": "10.1038/s41467-021-21444-5",
+   "server": "medRxiv"
+  },
+  {
+   "title": "Evolution of immunity to SARS-CoV-2",
+   "authors": "(cut)",
+   "author_corresponding": "(cut)",
+   "author_corresponding_institution": "(cut)",
+   "doi": "10.1101/2020.09.09.20191205",
+   "date": "2020-09-11",
+   "version": "2",
+   "type": "PUBLISHAHEADOFPRINT",
+   "license": "cc_no",
+   "category": "infectious diseases",
+   "jatsxml": "https://www.medrxiv.org/content/early/2020/09/11/2020.09.09.20191205.source.xml",
+   "abstract": "(cut)",
+   "published": "10.1038/s41467-021-21444-5",
+   "server": "medRxiv"
+  }
+ ]
+}

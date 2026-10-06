@@ -1,0 +1,67 @@
+{
+ "headers": {
+  "X-RateLimit-Cost-USD": "0.0001",
+  "X-RateLimit-Credits-Used": "1",
+  "X-RateLimit-Limit": "10000",
+  "X-RateLimit-Limit-USD": "1",
+  "X-RateLimit-Onetime-Remaining": "0",
+  "X-RateLimit-Prepaid-Remaining-USD": "0",
+  "X-RateLimit-Remaining": "9997",
+  "X-RateLimit-Remaining-USD": "0.9997",
+  "X-RateLimit-Reset": "27396"
+ },
+ "body": {
+  "meta": {
+   "count": 3,
+   "db_response_time_ms": 11,
+   "page": 1,
+   "per_page": 3,
+   "groups_count": null,
+   "x_query": {
+    "oql": "get works where DOI is (\n    10.1123/ijspp.2022-0026\n    or 10.1152/japplphysiol.00775.2024\n    or 10.1249/mss.0000000000002991\n  )",
+    "oqo": {
+     "get_rows": "works",
+     "filter_rows": [
+      {
+       "join": "or",
+       "filters": [
+        {
+         "column_id": "doi",
+         "value": "10.1123/ijspp.2022-0026"
+        },
+        {
+         "column_id": "doi",
+         "value": "10.1152/japplphysiol.00775.2024"
+        },
+        {
+         "column_id": "doi",
+         "value": "10.1249/mss.0000000000002991"
+        }
+       ]
+      }
+     ]
+    },
+    "url": "/works?filter=doi:10.1123%2Fijspp.2022-0026|10.1152%2Fjapplphysiol.00775.2024|10.1249%2Fmss.0000000000002991&per_page=3"
+   },
+   "cost_usd": 0.0001
+  },
+  "results": [
+   {
+    "id": "https://openalex.org/W4283819494",
+    "doi": "https://doi.org/10.1249/mss.0000000000002991",
+    "referenced_works_count": 56
+   },
+   {
+    "id": "https://openalex.org/W4286582013",
+    "doi": "https://doi.org/10.1123/ijspp.2022-0026",
+    "referenced_works_count": 40
+   },
+   {
+    "id": "https://openalex.org/W4406534866",
+    "doi": "https://doi.org/10.1152/japplphysiol.00775.2024",
+    "referenced_works_count": 96
+   }
+  ],
+  "group_by": []
+ }
+}

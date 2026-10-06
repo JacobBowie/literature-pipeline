@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title type="html">ArXiv Query: id_list=1511.07289</title>
+  <id>http://arxiv.org/api/synthetic-fixture</id>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <entry>
+    <id>http://arxiv.org/abs/1511.07289v5</id>
+    <published>2015-11-23T15:58:05Z</published>
+    <title>Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)</title>
+    <summary>(cut)</summary>
+    <author><name>Djork-Arne Clevert</name></author>
+    <link href="http://arxiv.org/abs/1511.07289v5" rel="alternate" type="text/html"/>
+  </entry>
+</feed>

@@ -1,0 +1,45 @@
+{
+ "data": {
+  "id": "60a530d48b826b010e8c03c8",
+  "type": "files",
+  "attributes": {
+   "guid": "f6yza",
+   "checkout": null,
+   "name": "cardiac_structure_preprint.pdf",
+   "kind": "file",
+   "path": "/60a530d48b826b010e8c03c8",
+   "size": 671832,
+   "provider": "osfstorage",
+   "materialized_path": "/cardiac_structure_preprint.pdf",
+   "last_touched": null,
+   "date_modified": "2021-05-22T13:33:21.980086",
+   "date_created": "2021-05-19T15:37:56.463883Z",
+   "extra": {
+    "hashes": {
+     "md5": "d78f24518baa05e62e97d9e75529eea5",
+     "sha256": "4e4b54b964da6c688904fdde6e264e3de7ff01829b5aa26dd2faf65bc67fc277"
+    },
+    "downloads": 1190
+   },
+   "tags": [],
+   "current_user_can_comment": false,
+   "current_version": 3,
+   "show_as_unviewed": false
+  },
+  "relationships": {},
+  "links": {
+   "info": "https://api.osf.io/v2/files/60a530d48b826b010e8c03c8/",
+   "move": "https://files.osf.io/v1/resources/85tnv_v1/providers/osfstorage/60a530d48b826b010e8c03c8",
+   "upload": "https://files.osf.io/v1/resources/85tnv_v1/providers/osfstorage/60a530d48b826b010e8c03c8",
+   "delete": "https://files.osf.io/v1/resources/85tnv_v1/providers/osfstorage/60a530d48b826b010e8c03c8",
+   "download": "https://osf.io/download/f6yza/",
+   "render": "https://mfr.osf.io/render?url=https%3A%2F%2Fosf.io%2Fdownload%2Ff6yza%2F%3Fdirect%26mode%3Drender",
+   "html": "https://osf.io/85tnv_v1/files/osfstorage/60a530d48b826b010e8c03c8",
+   "self": "https://api.osf.io/v2/files/60a530d48b826b010e8c03c8/",
+   "iri": "https://osf.io/f6yza"
+  }
+ },
+ "meta": {
+  "version": "2.0"
+ }
+}

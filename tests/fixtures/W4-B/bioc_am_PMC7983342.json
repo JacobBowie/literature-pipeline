@@ -1,0 +1,69 @@
+[
+ {
+  "bioctype": "BioCCollection",
+  "source": "PMC",
+  "date": "20250113",
+  "key": "pmc.key",
+  "version": "1.0",
+  "infons": {},
+  "documents": [
+   {
+    "bioctype": "BioCDocument",
+    "id": "7983342",
+    "infons": {
+     "license": "author_manuscript"
+    },
+    "passages": [
+     {
+      "bioctype": "BioCPassage",
+      "offset": 0,
+      "infons": {
+       "article-id_doi": "10.1016/j.resp.2021.103638",
+       "article-id_manuscript": "NIHMS1675085",
+       "article-id_pmc": "7983342",
+       "article-id_pmid": "33581294",
+       "fpage": "103638",
+       "kwd": "Obesity shortness of breath exercise ventilatory demand",
+       "license": "\n          This file is available for text mining. It may also be used consistent with the principles of fair use under the copyright law.\n        ",
+       "lpage": "103638",
+       "section_type": "TITLE",
+       "type": "front",
+       "volume": "287",
+       "year": "2022"
+      },
+      "text": "Dyspnea during exercise and voluntary hyperpnea in women with obesity",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 70,
+      "infons": {
+       "section_type": "ABSTRACT",
+       "type": "abstract"
+      },
+      "text": "Temporal responses of ratings of perceived breathlessness (RBP) during constant-load and incremental exercise, and durin",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     },
+     {
+      "bioctype": "BioCPassage",
+      "offset": 1211,
+      "infons": {
+       "section_type": "INTRO",
+       "type": "title_1"
+      },
+      "text": "Introduction",
+      "sentences": [],
+      "annotations": [],
+      "relations": []
+     }
+    ],
+    "annotations": [],
+    "relations": []
+   }
+  ]
+ }
+]

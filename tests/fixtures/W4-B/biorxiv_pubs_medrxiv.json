@@ -1,0 +1,23 @@
+{
+ "messages": [
+  {
+   "status": "ok"
+  }
+ ],
+ "collection": [
+  {
+   "preprint_doi": "10.1101/2021.04.29.21256344",
+   "published_doi": "10.1371/journal.pone.0256482",
+   "published_journal": "PLOS ONE",
+   "preprint_platform": "medRxiv",
+   "preprint_title": "Original antigenic sin responses to heterologous Betacoronavirus spike proteins are observed in mice following intramuscular administration, but are not apparent in children following SARS-CoV-2 infection",
+   "preprint_authors": "(cut)",
+   "preprint_category": "infectious diseases",
+   "preprint_date": "2021-04-30",
+   "published_date": "2021-08-27",
+   "preprint_abstract": "(cut)",
+   "preprint_author_corresponding": "(cut)",
+   "preprint_author_corresponding_institution": "(cut)"
+  }
+ ]
+}

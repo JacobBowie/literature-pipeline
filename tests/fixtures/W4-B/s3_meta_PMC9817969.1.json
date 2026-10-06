@@ -1,0 +1,20 @@
+{
+ "pmcid": "PMC9817969",
+ "version": 1,
+ "pmid": 36620744,
+ "doi": "10.7717/peerj.14493",
+ "mid": null,
+ "title": "Acute physiological outcomes of high-intensity functional training: a scoping review",
+ "citation": "PeerJ. 2023 Jan 3;11:e14493. doi: 10.7717/peerj.14493",
+ "is_pmc_openaccess": true,
+ "is_manuscript": false,
+ "is_historical_ocr": false,
+ "is_retracted": false,
+ "license_code": "CC BY",
+ "xml_url": "s3://pmc-oa-opendata/PMC9817969.1/PMC9817969.1.xml?md5=800df0394479357d8bd3b94488dbed64",
+ "text_url": "s3://pmc-oa-opendata/PMC9817969.1/PMC9817969.1.txt?md5=284cdaa7339e877fc02b983157e4df86",
+ "pdf_url": "s3://pmc-oa-opendata/PMC9817969.1/PMC9817969.1.pdf?md5=09ccd2798f3dbbcba88e48d5d91d839c",
+ "media_urls": [
+  "s3://pmc-oa-opendata/PMC9817969.1/peerj-11-14493-g001.jpg?md5=3301f6ac076023257b6e1932a46532ed"
+ ]
+}

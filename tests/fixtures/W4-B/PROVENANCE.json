@@ -1,0 +1,22 @@
+{
+ "idconv_peerj.json": "V1 2026-09-25 raw/P7_direct_valid_alone.body (idconv is never probed: the host is refused by the probe rule); request echo dropped",
+ "epmc_am_500.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): GET fullTextXML PMC11903078 (author manuscript), HTTP 500 application/json",
+ "epmc_oa_head.xml": "live 2026-10-06 W4-B probe (temp state, litpipe.net): GET fullTextXML PMC9817969 (OA), HTTP 200 application/xml, first 600 characters",
+ "efetch_pmc_3.xml": "live 2026-10-06 W4-B probe (temp state, litpipe.net): efetch db=pmc id=9817969,11903078,4806772; each article cut after </article-meta> (abstracts, contributors, affiliations and author notes dropped)",
+ "s3_list_PMC9817969.xml": "live 2026-10-06 W4-B probe (temp state, litpipe.net): S3 list-type=2 prefix=PMC9817969. delimiter=/",
+ "s3_meta_PMC9817969.1.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): S3 metadata/PMC9817969.1.json (media_urls cut to 1)",
+ "bioc_am_PMC7983342.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): BioC_json/PMC7983342/unicode (81 passages; first 3 kept, texts cut, author name infons dropped)",
+ "biorxiv_details_medrxiv.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): /details/medrxiv/10.1101/2020.09.09.20191205/na/json (abstract and author fields cut)",
+ "biorxiv_pubs_medrxiv.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): /pubs/medrxiv/10.1101/2021.04.29.21256344/na/json (abstract and author fields cut)",
+ "osf_file_record.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): api.osf.io/v2/files/60a530d48b826b010e8c03c8/ (relationships dropped); links.download https://osf.io/download/f6yza/ -> files.osf.io -> storage.googleapis.com, %PDF, 671,832 B",
+ "sportrxiv_oai_listrecords.xml": "live 2026-10-06 W4-B probe (temp state, litpipe.net): OAI ListRecords metadataPrefix=oai_dc from=2026-10-05 (1 record; descriptions and creators cut)",
+ "datacite_arxiv_2605_29559.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): api.datacite.org/dois/10.48550/arxiv.2605.29559 without publisher=true (attributes cut to doi, publisher, year, titles, types)",
+ "doira_4.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): doi.org/doiRA/10.1152,10.48550,10.3305,10.2903",
+ "openalex_list_3.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net) (keyed): /works?filter=doi:a|b|c&select=id,doi,referenced_works_count; counts 96/56/40 (10.1123/ijspp.2022-0026 was 41 on 2026-09-27); X-RateLimit-* headers kept",
+ "crossref_refs_2.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): /works?filter=doi:a,doi:b&select=DOI,reference,references-count&rows=2, x-api-pool polite-array; reference entries cut to their key (lengths 101/39 kept)",
+ "cn_crossref_csl.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): doi.org CSL-JSON, 302 to api.crossref.org then 200 (cut to type, id, DOI, title)",
+ "cn_datacite_csl.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): doi.org CSL-JSON, 302 to data.crosscite.org then 200 (cut to type, id, DOI, title)",
+ "sici_302.json": "live 2026-10-06 W4-B probe (temp state, litpipe.net): doi.org + migrate_closed_to_md.doi_url(<;2-# doc SICI DOI>), 302 to the publisher landing page",
+ "crossref_alias_prime.json": "W2-E1 live probe 2026-09-30 through litpipe.net: /works/10.1515/9789882204508-009, attempts 2 (301 to the prime record); not re-probed 2026-10-06 (the alias alone costs 2 of amendment 6's 'alias and SICI 2')",
+ "arxiv_atom_1511_07289.xml": "synthetic: the arXiv API Atom shape (as tests/fixtures/W2-C/arxiv_atom_docs_example.xml); arXiv refuses this machine and is never probed"
+}

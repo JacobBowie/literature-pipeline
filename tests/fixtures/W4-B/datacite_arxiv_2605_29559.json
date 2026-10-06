@@ -1,0 +1,24 @@
+{
+ "data": {
+  "id": "10.48550/arxiv.2605.29559",
+  "type": "dois",
+  "attributes": {
+   "doi": "10.48550/arxiv.2605.29559",
+   "publisher": "arXiv",
+   "publicationYear": 2026,
+   "titles": [
+    {
+     "title": "LiteCoder-Terminal: Scaling Long-Horizon Terminal Environments for Learning Language Agents"
+    }
+   ],
+   "types": {
+    "ris": "GEN",
+    "bibtex": "misc",
+    "citeproc": "article",
+    "schemaOrg": "CreativeWork",
+    "resourceType": "Article",
+    "resourceTypeGeneral": "Preprint"
+   }
+  }
+ }
+}
