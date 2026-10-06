@@ -1,0 +1,69 @@
+{
+  "_about": "W4-D second fixture: each row pins one fix to build_priority_paywall_queue (every pin fails at base 280f592).",
+  "date": "2026-10-08",
+  "projects": {
+    "teaching_alpha": {"lib_dir": "literature"},
+    "research_beta": {"lib_dir": "literature"},
+    "research_beta/sub_study": {"parent": "research_beta", "lib_dir": "sub_study/literature"}
+  },
+  "held": {
+    "teaching_alpha": [
+      {"stem": "2019_Avery_seed_one", "doi": "10.1000/ta.2019.001", "title": "Seed one"}
+    ],
+    "research_beta": [
+      {"stem": "2018_Lee_seed_four", "doi": "10.2000/rb.2018.001", "title": "Seed four"}
+    ]
+  },
+  "extra_files": [
+    {"project": "teaching_alpha", "name": "2020_Flagged_download.pdf", "text": "%PDF-1.4 stub\n"},
+    {"project": "teaching_alpha", "name": "2020_Flagged_download.fulltext.json",
+     "json": {"doi": "10.4000/x.2020.302", "identity": "FLAG", "identity_score": 0.1, "has_pdf": true, "extracted_from_pdf": true, "text": "Body text of another paper entirely. Body text of another paper entirely."}},
+    {"project": "teaching_alpha", "name": "2018_Lee_erratum.pdf", "text": "%PDF-1.4 stub\n"},
+    {"project": "teaching_alpha", "name": "2018_Lee_erratum.ris",
+     "text": "TY  - JOUR\nAU  - Lee, Jordan\nPY  - 2018\nTI  - An erratum\nJO  - A Journal\nDO  - 10.2000/rb.2018.009\nN1  - Erratum for 10.4000/x.2020.301\nER  - \n"}
+  ],
+  "forward": {
+    "teaching_alpha": [
+      {"seed_doi": "10.1000/ta.2019.001", "citing_doi": "10.4000/x.2020.301", "citing_title": "Note line only", "citing_year": 2020, "citing_cited_by": 30}
+    ]
+  },
+  "residuals": {
+    "teaching_alpha": [
+      {"name": "lit_pull_queue.2026-09-01.residual.csv",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes", "residual_class", "reason", "stages", "held_at"],
+       "rows": [
+         {"doi": "10.4000/x.2020.301", "title": "Only a .ris N1 note names it", "year": "2020", "residual_class": "TERMINAL_CLOSED"},
+         {"doi": "10.4000/x.2020.302", "title": "Only a flagged sidecar names it", "year": "2020", "residual_class": "TERMINAL_CLOSED"},
+         {"doi": "10.4000/x.2020.303", "title": "A transient row", "year": "2020", "residual_class": "TRANSIENT"},
+         {"doi": "10.4000/x.2020.304", "title": "An OA-blocked row", "year": "2020", "residual_class": "OA_BLOCKED"},
+         {"doi": "10.1175/1520-0477(1998)079<0001:ATDSOW>2.0.CO;2", "title": "A SICI with angle brackets", "year": "1998", "residual_class": "TERMINAL_CLOSED"},
+         {"doi": "10.1002/(SICI)1097-4636(199601)30:1<1::AID-JBM1>3.0.CO;2-#", "title": "A SICI with a hash check character", "year": "1996", "residual_class": "TERMINAL_CLOSED"},
+         {"doi": "10.1088/2053-1591/acdecd", "title": "A letter-tail DOI", "year": "2023", "residual_class": "TERMINAL_CLOSED"}
+       ]},
+      {"name": "lit_pull_queue.2026-09-21.residual.csv", "subdir": "runs",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes", "residual_class", "reason"],
+       "rows": [
+         {"doi": "10.4000/x.2020.305", "title": "A residual in an artifact subdirectory", "year": "2020", "residual_class": "TERMINAL_CLOSED"}
+       ]},
+      {"name": "lit_pull_queue.2026-01-01.residual.csv", "subdir": "archive",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes", "residual_class", "reason"],
+       "rows": [
+         {"doi": "10.4000/x.2020.399", "title": "An archived residual", "year": "2020", "residual_class": "TERMINAL_CLOSED"}
+       ]}
+    ],
+    "research_beta": [
+      {"name": "lit_pull_queue.2026-08-20.residual.csv",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes"],
+       "rows": [
+         {"doi": "10.4000/x.2020.307", "title": "A legacy residual row", "year": "2020"}
+       ]}
+    ],
+    "research_beta/sub_study": [
+      {"name": "lit_pull_queue.2026-09-20.residual.csv",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes", "residual_class", "reason"],
+       "rows": [
+         {"doi": "10.4000/x.2020.306", "title": "A subproject residual", "year": "2020", "residual_class": "TERMINAL_CLOSED"}
+       ]}
+    ]
+  }
+}

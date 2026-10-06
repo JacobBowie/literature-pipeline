@@ -1,0 +1,8 @@
+rank,doi,url,title,year,score,seeds_pointing,cited_by,projects
+1,10.4000/x.2015.101,https://doi.org/10.4000/x.2015.101,"Heat acclimation, the legacy title",2015,70,3,40,"research_beta,teaching_alpha"
+2,10.4000/x.2016.102,https://doi.org/10.4000/x.2016.102,Plasma volume index title,2016,35,2,15,research_gamma
+3,10.4000/x.2014.103,https://doi.org/10.4000/x.2014.103,Sweat rate and sodium loss,2014,32,1,22,teaching_alpha
+4,10.4000/x.2019.106,https://doi.org/10.4000/x.2019.106,Core temperature during exercise in the heat,2019,13,1,3,teaching_alpha
+5,10.5000/y.2012.104,https://doi.org/10.5000/y.2012.104,Hydration status in field studies,2012,12,0,12,research_beta
+6,10.6000/z.2010.107,https://doi.org/10.6000/z.2010.107,Thermal comfort models,in press,7,0,7,research_beta
+7,10.5000/y.2011.105,https://doi.org/10.5000/y.2011.105,,,0,0,0,research_gamma

@@ -1,0 +1,76 @@
+{
+  "_about": "W4-D golden fixture for build_priority_paywall_queue. Rules: registry keys equal the folder names, top-level projects only; every held DOI is a PDF with a .ris whose only DOI is its DO line, plus a sidecar with the same DOI; plain DOIs only; every typed residual row is TERMINAL_CLOSED; every queue row has a distinct score.",
+  "runs": [
+    {"date": "2026-10-06", "argv": []},
+    {"date": "2026-10-07", "argv": ["--top-a", "3"]}
+  ],
+  "projects": {
+    "teaching_alpha": {"lib_dir": "literature"},
+    "research_beta": {"lib_dir": "literature"},
+    "research_gamma": {"lib_dir": "lib"}
+  },
+  "held": {
+    "teaching_alpha": [
+      {"stem": "2019_Avery_seed_one", "doi": "10.1000/ta.2019.001", "title": "Seed one"},
+      {"stem": "2019_Avery_seed_two", "doi": "10.1000/ta.2019.002", "title": "Seed two"},
+      {"stem": "2019_Avery_seed_three", "doi": "10.1000/ta.2019.003", "title": "Seed three"}
+    ],
+    "research_beta": [
+      {"stem": "2018_Lee_seed_four", "doi": "10.2000/rb.2018.001", "title": "Seed four"},
+      {"stem": "2018_Lee_seed_five", "doi": "10.2000/rb.2018.002", "title": "Seed five"}
+    ],
+    "research_gamma": [
+      {"stem": "2017_Kim_seed_six", "doi": "10.3000/rg.2017.001", "title": "Seed six"}
+    ]
+  },
+  "forward": {
+    "teaching_alpha": [
+      {"seed_doi": "10.1000/ta.2019.001", "citing_doi": "10.4000/x.2015.101", "citing_title": "Heat acclimation index title", "citing_year": 2015, "citing_cited_by": 40},
+      {"seed_doi": "10.1000/ta.2019.002", "citing_doi": "10.4000/x.2015.101", "citing_title": "Heat acclimation index title", "citing_year": 2015, "citing_cited_by": 38},
+      {"seed_doi": "10.1000/ta.2019.003", "citing_doi": "10.4000/x.2014.103", "citing_title": "Sweat rate index title", "citing_year": 2014, "citing_cited_by": 9},
+      {"seed_doi": "10.1000/ta.2019.001", "citing_doi": "10.7000/w.2020.200", "citing_title": "A candidate nobody queued", "citing_year": 2020, "citing_cited_by": 99}
+    ],
+    "research_beta": [
+      {"seed_doi": "10.2000/rb.2018.001", "citing_doi": "10.4000/x.2015.101", "citing_title": "Heat acclimation index title", "citing_year": 2015, "citing_cited_by": 40},
+      {"seed_doi": "10.2000/rb.2018.002", "citing_doi": "10.4000/x.2019.106", "citing_title": "Core temperature index title", "citing_year": 2019, "citing_cited_by": 3},
+      {"seed_doi": "10.2000/rb.2018.002", "citing_doi": "10.4000/x.2016.102", "citing_title": "Plasma volume index title", "citing_year": 2016, "citing_cited_by": 15}
+    ],
+    "research_gamma": [
+      {"seed_doi": "10.3000/rg.2017.001", "citing_doi": "10.4000/x.2016.102", "citing_title": "Plasma volume index title", "citing_year": 2016, "citing_cited_by": 12}
+    ]
+  },
+  "residuals": {
+    "teaching_alpha": [
+      {"name": "lit_pull_queue.2026-09-01.residual.csv",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes", "citation_count", "residual_class", "reason", "stages", "held_at"],
+       "rows": [
+         {"doi": "10.4000/x.2015.101", "title": "Heat acclimation and plasma volume expansion", "authors": "Avery, K", "year": "2015", "destination": "literature/", "notes": "", "citation_count": "", "residual_class": "TERMINAL_CLOSED", "reason": "every enabled stage: closed", "stages": "unpaywall=NOT_AVAILABLE; pmc=NO_MATCH", "held_at": ""},
+         {"doi": "10.4000/x.2019.106", "title": "Core temperature during exercise in the heat", "authors": "Lee, J", "year": "2019", "destination": "literature/", "notes": "", "citation_count": "", "residual_class": "TERMINAL_CLOSED", "reason": "every enabled stage: closed", "stages": "unpaywall=NOT_AVAILABLE; pmc=NO_MATCH", "held_at": ""},
+         {"doi": "10.2000/rb.2018.002", "title": "Seed five, held by another project", "authors": "Lee, J", "year": "2018", "destination": "literature/", "notes": "", "citation_count": "4", "residual_class": "TERMINAL_CLOSED", "reason": "every enabled stage: closed", "stages": "unpaywall=NOT_AVAILABLE; pmc=NO_MATCH", "held_at": ""}
+       ]},
+      {"name": "lit_pull_queue.retry.2026-09-15.residual.csv",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes", "citation_count", "residual_class", "reason", "stages", "held_at"],
+       "rows": [
+         {"doi": "10.4000/x.2014.103", "title": "Sweat rate and sodium loss", "authors": "Morgan, A", "year": "", "destination": "literature/", "notes": "", "citation_count": "22", "residual_class": "TERMINAL_CLOSED", "reason": "every enabled stage: closed", "stages": "unpaywall=NOT_AVAILABLE; pmc=NO_MATCH", "held_at": ""}
+       ]}
+    ],
+    "research_beta": [
+      {"name": "lit_pull_queue.2026-08-20.residual.csv",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes", "citation_count"],
+       "rows": [
+         {"doi": "10.4000/x.2015.101", "title": "Heat acclimation, the legacy title", "authors": "Avery, K", "year": "2015", "destination": "literature/", "notes": "", "citation_count": "25"},
+         {"doi": "10.5000/y.2012.104", "title": "Hydration status in field studies", "authors": "Kim, S", "year": "2012", "destination": "literature/", "notes": "", "citation_count": "12"},
+         {"doi": "10.6000/z.2010.107", "title": "Thermal comfort models", "authors": "Lee, J", "year": "in press", "destination": "literature/", "notes": "", "citation_count": " 7 "}
+       ]}
+    ],
+    "research_gamma": [
+      {"name": "lit_pull_queue.2026-09-10.residual.csv",
+       "fields": ["doi", "title", "authors", "year", "destination", "notes", "residual_class", "reason", "stages", "held_at"],
+       "rows": [
+         {"doi": "10.4000/x.2016.102", "title": "", "authors": "", "year": "2016", "destination": "lib/", "notes": "", "residual_class": "TERMINAL_CLOSED", "reason": "every enabled stage: closed", "stages": "unpaywall=NOT_AVAILABLE; pmc=NO_MATCH", "held_at": ""},
+         {"doi": "10.5000/y.2011.105", "title": "", "authors": "", "year": "", "destination": "lib/", "notes": "", "residual_class": "TERMINAL_CLOSED", "reason": "every enabled stage: closed", "stages": "unpaywall=NOT_AVAILABLE; pmc=NO_MATCH", "held_at": ""},
+         {"doi": "10.1000/TA.2019.003", "title": "Seed three in capitals, held", "authors": "", "year": "2019", "destination": "lib/", "notes": "", "residual_class": "TERMINAL_CLOSED", "reason": "every enabled stage: closed", "stages": "unpaywall=NOT_AVAILABLE; pmc=NO_MATCH", "held_at": ""}
+       ]}
+    ]
+  }
+}
