@@ -318,7 +318,9 @@ def test_synthetic_typed_run_routes_every_row_by_the_table(tmp_path, monkeypatch
     rl = w.retry()
     assert set(rl) == by_class["TRANSIENT"] | by_class["OA_BLOCKED"]
     for d, r in rl.items():
-        want_nb = {doi_of("pmc_embargo_dated"): "2027-03-11", doi_of("pmc_embargo_undated"): "2026-10-08"}.get(
+        want_nb = {doi_of("pmc_embargo_dated"): "2027-03-11", doi_of("pmc_embargo_undated"): "2026-10-08",
+                   # its only open source, export.arxiv.org, is refused until cleared: 30 days (W4-0)
+                   doi_of("ppr_arxiv_refused"): "2026-10-31"}.get(
             d, "2026-10-04" if d in by_class["OA_BLOCKED"] else DAY2)
         assert r["not_before"] == want_nb, (d, r["not_before"])
     routing = {r["doi"]: r for r in read_csv(w.proj / f"lit_pull_queue.{DAY}.routing.csv")}

@@ -17,6 +17,9 @@ wins) and routed:
   OA_BLOCKED       a download host refused us (403, an HTML wall, a final 429), or a preprint needs a
                    manual click -> lit_pull_queue.oa_blocked.md (browser worklist; a manual preprint
                    links its landing page) and retry_later (3 days)
+                   A TRANSIENT or OA_BLOCKED row whose only open source is a host refused until
+                   someone clears it (litpipe.hosts refusal_persistence "manual": arXiv) waits 30 days,
+                   not 1 or 3: retrying sooner only repeats its Unpaywall and PMC lookups.
   IDENTITY_FLAG    the served file failed the identity check (another DOI, or a supplement) ->
                    lit_pull_queue.review.md with the file's path and its evidence (the file stays put)
   SKIPPED_SOURCE   no enabled stage attempted the row: nothing
@@ -58,6 +61,7 @@ from urllib.parse import quote
 import lit_util  # RC4: atomic writes for crash-safe .md / .csv writes
 from litpipe import config, holdings
 from litpipe import doi as _doi
+from litpipe import hosts as _hosts
 from litpipe import ledger as _ledger
 from litpipe.outcomes import Kind, from_legacy
 
@@ -72,6 +76,7 @@ RETRY_LATER_NAME = "lit_pull_queue.retry_later.csv"
 OA_BLOCKED_DAYS = 3
 TRANSIENT_DAYS = 1
 EMBARGO_DEFAULT_DAYS = 7
+MANUAL_REFUSAL_DAYS = 30   # the row's only open source is a host refused until cleared (arXiv)
 ERROR_RUN_LIMIT = 3
 
 # Residual classes (dispatch 0.5)
@@ -845,9 +850,46 @@ def _is_embargo(r):
         _EMBARGO_REASON.search(r.get("reason") or ""))
 
 
+_HOST_REFUSED = re.compile(r"host_refused:([a-z0-9.-]+)", re.I)
+
+
+def _manual_refusal_host(s):
+    """The host a REFUSED signal names (`host_refused:<host>`, in the typed detail and the legacy
+    status alike) when that host keeps a refusal until someone clears it (litpipe.hosts
+    refusal_persistence "manual": arXiv); else None."""
+    if s["kind"] is not Kind.REFUSED:
+        return None
+    m = _HOST_REFUSED.search(s["detail"])
+    if not m:
+        return None
+    host = m.group(1).lower().rstrip(".")
+    return host if _hosts.policy(host).refusal_persistence == "manual" else None
+
+
+def _waits_on_manual_refusal(r):
+    """True when the only sources still open for a TRANSIENT or OA_BLOCKED row are hosts refused
+    until cleared: every signal is terminal (NO_MATCH, NOT_AVAILABLE, NOT_AT_RA), a skipped or
+    aliased source, or such a refusal, and at least one is a refusal. Retrying such a row daily
+    only repeats its Unpaywall and PMC lookups (FRED's 405 arXiv rows, ledger 2026-10-05)."""
+    sigs = r.get("signals") or ()
+    if r["residual_class"] not in (TRANSIENT, OA_BLOCKED) or not sigs:
+        return False
+    refused = 0
+    for s in sigs:
+        if s["kind"] in _TERMINAL_KINDS or s["kind"] is Kind.ALIASED:
+            continue
+        if s["kind"] is Kind.SKIPPED and not s["detail"].startswith("manual_preprint"):
+            continue
+        if _manual_refusal_host(s) is None:
+            return False
+        refused += 1
+    return refused > 0
+
+
 def _not_before(r, today):
     """3 days for OA_BLOCKED, 1 day otherwise; an embargo waits for its release date (sweep's
-    not_before, at least 1 day), or 7 days when the date is unknown. A later date the row
+    not_before, at least 1 day), or 7 days when the date is unknown; 30 days when the row's only
+    open source is a host refused until cleared (_waits_on_manual_refusal). A later date the row
     already carries wins. A past date carried through a re-admitted retry queue is stale and
     ignored, or the row would come back every day."""
     given = []
@@ -856,7 +898,9 @@ def _not_before(r, today):
             given.append(datetime.date.fromisoformat(str(g or "").strip()[:10]))
         except ValueError:
             continue
-    if r["residual_class"] == OA_BLOCKED:
+    if _waits_on_manual_refusal(r):
+        nb = today + datetime.timedelta(days=MANUAL_REFUSAL_DAYS)
+    elif r["residual_class"] == OA_BLOCKED:
         nb = today + datetime.timedelta(days=OA_BLOCKED_DAYS)
     elif _is_embargo(r) and not given:
         nb = today + datetime.timedelta(days=EMBARGO_DEFAULT_DAYS)

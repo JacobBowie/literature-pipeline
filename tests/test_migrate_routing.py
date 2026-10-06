@@ -567,3 +567,63 @@ def test_typed_config_row_aborts(env):
     before = sorted(p.name for p in env.proj.iterdir())
     assert route(env)["status"] == "config"
     assert sorted(p.name for p in env.proj.iterdir()) == before
+
+
+# ---------------------------------------------------------------- a host refused until cleared (W4-0)
+# FRED's 405 arXiv rows (ledger 2026-10-05): with export.arxiv.org refused by hand (litpipe.hosts
+# refusal_persistence "manual"), the preprint stage sends nothing, and each row came back the next day
+# (TRANSIENT) or in 3 days (OA_BLOCKED), repeating its Unpaywall and PMC lookups while the refusal stood.
+# Row shapes: preprint_fetch's legacy token and the W2-G typed fixture (tests/fixtures/W2-G/typed.preprint.csv).
+ARXIV = "10.48550/arxiv.2101.00001"
+NOT_IN_UPW = {"oa_status": "", "error": "NOT_IN_UNPAYWALL"}
+PREPRINT_TYPED = PREPRINT + ["first_status", "route", "outcome", "detail", "identity", "release_date",
+                             "landing_url"]
+MANUAL_WAIT = "2026-10-30"   # TODAY + 30 days
+
+
+def test_a_row_whose_only_open_source_is_refused_until_cleared_waits_30_days(env):
+    chain(env.proj, RUN, [row(ARXIV, u=NOT_IN_UPW, r={"status": "HOST_REFUSED:export.arxiv.org",
+                                                      "source": "arxiv"})], preprint=True)
+    route(env)
+    rl = {r["doi"]: r for r in retry_rows(env)}
+    assert rl[ARXIV]["not_before"] == MANUAL_WAIT          # before W4-0: 2026-10-03 (OA_BLOCKED, 3 days)
+
+
+def test_typed_residual_row_refused_until_cleared_waits_30_days(env):
+    typed_row = {"doi": ARXIV, "title": "A title", "year": "2020", "found": "False", "source": "arxiv",
+                 "downloaded": "False", "skipped": "False", "status": "REFUSED: host_refused:export.arxiv.org",
+                 "route": "arxiv", "outcome": "REFUSED", "detail": "host_refused:export.arxiv.org"}
+    chain(env.proj, RUN, [row(ARXIV, u=NOT_IN_UPW)])
+    write_csv(mig.artifact_path(env.proj, RUN, "preprint"), PREPRINT_TYPED, [typed_row])
+    typed_residual(env.proj, [typed(ARXIV, "TRANSIENT", "preprint refused: REFUSED: host_refused:export.arxiv.org")])
+    route(env)
+    rl = {r["doi"]: r for r in retry_rows(env)}
+    assert rl[ARXIV]["residual_class"] == "TRANSIENT"
+    assert rl[ARXIV]["not_before"] == MANUAL_WAIT          # before W4-0: 2026-10-01 (1 day)
+
+
+def test_an_arxiv_pdf_refused_until_cleared_stays_on_the_worklist_and_waits_30_days(env):
+    chain(env.proj, RUN, [row(ARXIV, u=NOT_IN_UPW, r={"status": "HOST_REFUSED:arxiv.org", "source": "arxiv",
+                                                      "found": "True"})], preprint=True)
+    route(env)
+    assert routing(env)[ARXIV]["residual_class"] == "OA_BLOCKED"
+    assert ARXIV in holdings.extract_dois(text(env.proj / mig.OA_BLOCKED_NAME))   # a person can still fetch it
+    assert {r["doi"]: r for r in retry_rows(env)}[ARXIV]["not_before"] == MANUAL_WAIT
+
+
+# A legacy preprint refusal routes OA_BLOCKED (3 days); a preprint 503 routes TRANSIENT (1 day).
+@pytest.mark.parametrize("u,r,want", [
+    ({"oa_status": "", "error": "HTTP 503"}, {"status": "HOST_REFUSED:export.arxiv.org"}, "2026-10-03"),
+    (NOT_IN_UPW, {"status": "HOST_REFUSED:api.unpaywall.org"}, "2026-10-03"),   # a refusal for the run only
+    (NOT_IN_UPW, {"status": "HTTP_503"}, "2026-10-01"),
+], ids=["another-source-still-open", "run-refusal", "no-refusal"])
+def test_a_row_with_another_open_source_keeps_its_short_wait(env, u, r, want):
+    chain(env.proj, RUN, [row(ARXIV, u=u, r={"source": "arxiv", **r})], preprint=True)
+    route(env)
+    assert {x["doi"]: x for x in retry_rows(env)}[ARXIV]["not_before"] == want
+
+
+def test_a_typed_row_without_its_report_chain_keeps_the_default_wait(env):
+    typed_residual(env.proj, [typed(ARXIV, "TRANSIENT", "preprint refused: REFUSED: host_refused:export.arxiv.org")])
+    route(env)
+    assert {x["doi"]: x for x in retry_rows(env)}[ARXIV]["not_before"] == "2026-10-01"   # no signals: no evidence
