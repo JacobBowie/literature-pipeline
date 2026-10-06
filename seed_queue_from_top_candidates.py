@@ -316,7 +316,9 @@ def check_pmc(rows, *, state=None, cfg=None):
             r["pmc_status"] = "OK" if o.kind is Kind.OK else lit_net.lookup_status(o)
             if o.kind not in answered:
                 failed += 1
-                transport += o.kind is Kind.TRANSPORT
+                # the chain reports its FIRST failure (a refused idconv hides a later TRANSPORT): read the steps
+                steps = getattr(hit, "steps", None) or ()
+                transport += o.kind is Kind.TRANSPORT or any(str(s).endswith(":TRANSPORT") for s in steps)
         key = r["pmc_status"].split(":")[0].split(" ")[0]
         by_status[key] = by_status.get(key, 0) + 1
     return {"n": len(rows), "failed": failed, "transport": transport, "by_status": by_status}

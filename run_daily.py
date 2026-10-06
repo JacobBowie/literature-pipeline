@@ -27,6 +27,7 @@ from datetime import datetime
 from pathlib import Path
 
 import lit_util  # RC4: atomic_write_text for crash-safe queue staging
+from litpipe import config
 
 # Force UTF-8 I/O. On Windows a piped stdout defaults to cp1252, which can't
 # encode the step-label arrow, so every project died at its first print before
@@ -71,6 +72,12 @@ def project_status(proj_root: Path):
     return "READY"
 
 
+def _waiting(proj_root: Path) -> bool:
+    """A queue sweep would take (lit_pull_queue.csv or a tagged queue), or a retry_later file."""
+    import sweep
+    return bool(sweep.discover_queues(proj_root)) or (proj_root / sweep.RETRY_LATER_FILE).exists()
+
+
 class StepError(Exception):
     """A pipeline subprocess exited non-zero; abort this project."""
 
@@ -94,10 +101,17 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, ru
     proj_root = project_dir(project, cfg)   # RC11: parent-aware resolution
     status = project_status(proj_root)
     print(f"  status: {status}")
+    try:   # projects.json `auto_stage` (default false): may this run seed and stage a draft itself
+        auto = status != "READY" or config.auto_stage(project, {"projects": cfg})
+    except config.ConfigError as e:
+        print(f"  [ERR] {e}")
+        return False
 
     if dry_run:
         if status == "PENDING_QUEUE":
             print(f"  WOULD: sweep + migrate (existing queue)")
+        elif not auto:
+            print(f"  WOULD: sweep + migrate what is staged (auto_stage off: no seeding)")
         else:
             print(f"  WOULD: seed + stage + sweep + migrate")
             if with_snowball:
@@ -116,7 +130,13 @@ def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, ru
                     [PY, str(HERE / "snowball.py"), "--project", project,
                      "--until-convergence", "--max-iter", "2",
                      "--skip-recs", "--skip-abstracts"])
+            if not auto:
+                if not _waiting(proj_root):
+                    print(f"  [--] auto_stage is off and nothing is staged; skipping")
+                    return True
+                print(f"  [--] auto_stage is off: not seeding; sweeping what is staged")
 
+        if status == "READY" and auto:
             seed = run("seed_queue_from_top_candidates",
                        [PY, str(HERE / "seed_queue_from_top_candidates.py"),
                         "--project", project], capture=True)
