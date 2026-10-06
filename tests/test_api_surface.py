@@ -52,6 +52,11 @@ SURFACE = {
     "litpipe.openalex": (["works_by_doi", "works_by_id", "referenced_works", "referenced_works_many",
                           "citing_works", "content_pdf", "key_present", "apply_host_policy"],
                          ["RefList", "Page", "Session"]),
+    # W3b: the forward walk (snowball and the W4 runner call it) and its cache module
+    "forward_citations": (["run", "main", "verdict", "doi_from_ris", "read_report", "library_seeds"],
+                          ["FIELDS", "SUMMARY_MARKER", "CONFIG_PATH"]),
+    "litpipe.walk": (["cache_path", "needs_walk", "route", "plan"],
+                     ["Cache", "CacheLocked", "CacheWriteError", "CACHE_PATH", "CACHE_NAME"]),
 }
 
 CASES = [(mod, name, True) for mod, (fns, _) in SURFACE.items() for name in fns] + \
