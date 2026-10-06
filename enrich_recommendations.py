@@ -130,12 +130,12 @@ def parse_recs(seed, papers):
     """(feed rows, metadata rows) from one seed's recommendedPapers list. rank is the position in
     S2's list (1-based, DOI-less entries included, as before); a DOI is kept once per seed."""
     feed, meta, seen = [], [], set()
-    self_doi = _doi.normalise(seed)
+    self_doi = _doi.normalise_structured(seed)
     for rank, p in enumerate(papers, 1):
         if not isinstance(p, dict):
             continue
         ext = p.get("externalIds") if isinstance(p.get("externalIds"), dict) else {}
-        d = _doi.normalise(ext.get("DOI")) if ext.get("DOI") else None
+        d = _doi.normalise_structured(ext.get("DOI")) if ext.get("DOI") else None
         if not d or d in seen or d == self_doi:
             continue
         seen.add(d)

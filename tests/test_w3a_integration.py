@@ -20,6 +20,44 @@ def _cmd(calls, stem):
     return next(c for c in calls if Path(c[1]).stem == stem)
 
 
+def test_a_library_that_lists_empty_keeps_its_index_rows(tmp_path, monkeypatch, capsys):
+    """Verifier G's observation: the DOI-keyed GC deletes every row of a project whose library lists
+    nothing (the old prune skipped an empty listing). A synced folder can list empty for a moment,
+    so that is a skip (exit 2, rows kept); --allow-empty-library accepts a library emptied on purpose."""
+    import json
+    import duckdb
+    import lit_util
+    root = tmp_path / "root"
+    lib = root / "research_a" / "literature"
+    lib.mkdir(parents=True)
+    ris = "TY  - JOUR\nAU  - Smith, Jane\nPY  - 2019\nTI  - Title\nDO  - 10.5555/held.2019.001\nER  - \n"
+    (lib / "2019_Smith_Title.pdf").write_bytes(b"%PDF-1.4 stub")
+    (lib / "2019_Smith_Title.ris").write_text(ris, encoding="utf-8")
+    cfg = tmp_path / "projects.json"
+    cfg.write_text(json.dumps({"state_dir": str(tmp_path / "state"),
+                               "projects": {"research_a": {"lib_dir": "literature"}}}), encoding="utf-8")
+    monkeypatch.setattr(lit_util, "PROJECTS_ROOT", root)
+    monkeypatch.setattr(index_portfolio, "CONFIG_PATH", cfg)
+    db = tmp_path / "refs" / "portfolio.duckdb"
+
+    def rows():
+        con = duckdb.connect(str(db), read_only=True)
+        try:
+            return con.execute("SELECT COUNT(*) FROM paper_locations WHERE project = 'research_a'").fetchone()[0]
+        finally:
+            con.close()
+
+    assert index_portfolio.main(["--db", str(db)]) == 0 and rows() == 1
+    for f in lib.iterdir():
+        f.unlink()
+    capsys.readouterr()
+    assert index_portfolio.main(["--db", str(db)]) == 2
+    out = capsys.readouterr().out
+    assert rows() == 1 and "lists no PDF, sidecar or .ris" in out
+    assert out.strip().splitlines()[-1].startswith("[step-summary] ")
+    assert index_portfolio.main(["--db", str(db), "--allow-empty-library"]) == 0 and rows() == 0
+
+
 LINE_START_ADDRESS = "Corresponding author:\njo.author@uni.example\nReceived 2024"
 
 

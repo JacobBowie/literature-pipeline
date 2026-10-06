@@ -78,6 +78,7 @@ DDL = """CREATE TABLE IF NOT EXISTS s2_enrichment (
   citation_count  INTEGER,
   reference_count INTEGER,
   abstract_elided BOOLEAN,              -- S2's disclaimer: the publisher elided the abstract
+  abstract_offered BOOLEAN,             -- S2 returned a usable abstract (non-empty, not elided)
   fetched_at      TIMESTAMPTZ
 )"""
 
@@ -245,9 +246,9 @@ def _enrichment_state(con, cutoff_iso):
     """{doi: (abstract_elided, fresh)} from s2_enrichment ({} when the table does not exist)."""
     if not table_exists(con, "s2_enrichment"):
         return {}
-    rows = con.execute("SELECT doi, abstract_elided, fetched_at >= CAST(? AS TIMESTAMPTZ) FROM s2_enrichment",
-                       [cutoff_iso]).fetchall()
-    return {d: (bool(e), bool(f)) for d, e, f in rows}
+    rows = con.execute("SELECT doi, abstract_elided, fetched_at >= CAST(? AS TIMESTAMPTZ), "
+                       "coalesce(abstract_offered, false) FROM s2_enrichment", [cutoff_iso]).fetchall()
+    return {d: (bool(e), bool(f), bool(o)) for d, e, f, o in rows}
 
 
 def _commit_command(project, db, limit, refresh, max_age_days, recheck_elided) -> str:
@@ -300,7 +301,7 @@ def run(*, db=None, project=None, commit=False, limit=0, refresh=False, max_age_
         by_norm = defaultdict(lambda: {"dois": set(), "projects": set()})
         not_doi = set()
         for d, proj in lib:
-            n = _doi.normalise(d)
+            n = _doi.normalise_structured(d)
             if n is None:
                 not_doi.add(d)
                 continue
@@ -308,10 +309,11 @@ def run(*, db=None, project=None, commit=False, limit=0, refresh=False, max_age_
             by_norm[n]["projects"].add(proj)
         targets, skipped_elided, skipped_fresh = [], [], []
         for n in sorted(by_norm):
-            elided, fresh = state.get(n, (False, False))
+            elided, fresh, offered = state.get(n, (False, False, False))
+            lost = offered and any(not has_abs.get(d, True) for d in by_norm[n]["dois"])
             if elided and not recheck_elided:
                 skipped_elided.append(n)
-            elif fresh and not refresh and n in state:
+            elif fresh and not refresh and n in state and not lost:
                 skipped_fresh.append(n)
             else:
                 targets.append(n)
@@ -340,7 +342,7 @@ def run(*, db=None, project=None, commit=False, limit=0, refresh=False, max_age_
                 unresolved.append(n)
                 continue
             ext = slot.get("externalIds") if isinstance(slot.get("externalIds"), dict) else {}
-            back = _doi.normalise(ext.get("DOI")) if ext.get("DOI") else None
+            back = _doi.normalise_structured(ext.get("DOI")) if ext.get("DOI") else None
             if back is not None and back != n:
                 mismatch.append(n)
                 continue
@@ -427,10 +429,12 @@ def _write(con, rows, fill, now) -> dict:
     ts = utc_iso(now)
     ef = pd.DataFrame([{"doi": n, "oa_url": r["oa_url"], "citation_count": r["citation_count"],
                         "reference_count": r["reference_count"], "abstract_elided": r["abstract_elided"],
+                        "abstract_offered": bool(r["abstract"]),
                         "ts": ts} for n, r in sorted(rows.items())])
     ef["citation_count"] = ef["citation_count"].astype("Int64")
     ef["reference_count"] = ef["reference_count"].astype("Int64")
     ef["abstract_elided"] = ef["abstract_elided"].astype("boolean")
+    ef["abstract_offered"] = ef["abstract_offered"].astype("boolean")
     seen, uniq = set(), []
     for d, a in fill:
         if d not in seen:
@@ -439,6 +443,7 @@ def _write(con, rows, fill, now) -> dict:
     ff = pd.DataFrame(uniq, columns=["doi", "abstract"], dtype=object)
     values = {"oa_url": "s.oa_url", "citation_count": "s.citation_count",
               "reference_count": "s.reference_count", "abstract_elided": "s.abstract_elided",
+              "abstract_offered": "s.abstract_offered",
               "fetched_at": "CAST(s.ts AS TIMESTAMPTZ)"}
     with write_transaction(con):
         with staged(con, "_w3e_enrich", ef):

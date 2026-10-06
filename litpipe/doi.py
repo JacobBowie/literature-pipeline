@@ -55,8 +55,8 @@ default (today's wire behaviour at Crossref and Unpaywall); `strict=True` gives 
 import re
 from urllib.parse import quote, unquote
 
-__all__ = ["candidates", "iter_candidates", "normalise", "encode_path", "resolve_first",
-           "is_placeholder", "ResolverUnavailable"]
+__all__ = ["candidates", "iter_candidates", "normalise", "normalise_structured", "encode_path",
+           "resolve_first", "is_placeholder", "ResolverUnavailable"]
 
 # ---------------------------------------------------------------- shapes
 # Directory indicator 10 + registrant code, not preceded by a digit (a glued year "2010.1234/").
@@ -182,7 +182,10 @@ def _capture(text: str, start: int, end: int):
         # SICI: Wiley's "(sici)" marker, or the bare ISSN(date) form NSCA, AMS and others registered
         # (10.1519/1533-4287(1990)004<0047:rbrasp>2.3.co;2); 25 of 30 index SICI DOIs lack the marker
         sici = "(sici)" in head[:8].lower() or bool(_SICI_ISSN_DATE.match(head))
-        if _BODY.match(c) or (sici and c in _SICI_EXTRA and text[i:i + 2] != "</"):
+        # A SICI also carries square brackets (10.1519/1533-4295(2006)28[44:msastr]2.0.co;2); take a
+        # ']' only while a '[' is open, so a Markdown link's `](` still ends the capture.
+        if _BODY.match(c) or (sici and c in _SICI_EXTRA and text[i:i + 2] != "</") \
+                or (sici and c == "[") or (sici and c == "]" and body.count("[") > body.count("]")):
             body.append(c)
             i += 1
             continue
@@ -297,10 +300,33 @@ def candidates(raw, rejected=None) -> list:
 
 
 def normalise(raw):
-    """The single most specific DOI in `raw`, or None when there is none."""
+    """The single most specific DOI in `raw`, or None when there is none. For free text; a DOI
+    from a structured metadata field takes normalise_structured()."""
     for _, cand in iter_candidates(raw):
         return cand
     return None
+
+
+def _whole(raw) -> str:
+    s = str(raw or "").strip().lower()
+    i = s.find("10.")
+    return (s[i:] if i >= 0 else s).rstrip(".,;:")
+
+
+def normalise_structured(raw):
+    """A DOI from structured metadata (a `.ris` DO line, an S2, OpenAlex or Crossref field): its
+    whole form (resolver prefix, case and trailing punctuation removed) when candidates() offers
+    that form, else the most specific candidate (a `#fragment` or an embedded URL is cut); None for
+    a placeholder, a malformed value or no DOI. The text heuristics in normalise() shorten registered
+    DOIs that end in letters (`10.1089/ther.2017.29031.mkb`, `10.1088/2053-1591/acdecd`,
+    `10.1149/2.0381907jss`), so structured input must not go through it (W3a verifier G)."""
+    if raw is None or not str(raw).strip():
+        return None
+    cands = candidates(str(raw))
+    if not cands:
+        return None
+    w = _whole(raw)
+    return w if w in cands else cands[0]
 
 
 _PATH_SAFE = "!$&'()*+;=:@"                             # DOI Handbook 4.7, beyond ALPHA DIGIT - . _ ~

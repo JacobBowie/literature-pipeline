@@ -218,14 +218,20 @@ def test_gc_is_per_project(tmp_path, lib):
     assert con.execute("SELECT project FROM paper_locations").fetchall() == [("P2",)]
 
 
-def test_empty_library_clears_its_rows(tmp_path, lib):
+def test_empty_library_clears_its_rows_only_when_allowed(tmp_path, lib):
+    """A library that lists nothing while the index holds its rows is a skip, not "every paper is
+    gone" (a synced folder can list empty for a moment); allow_empty accepts a library emptied on
+    purpose (W3a verifier G observation; this test pinned the unguarded clear before)."""
     (lib / "2019_A_Held.pdf").write_bytes(b"%PDF-1.4 x")
     write(lib, "2019_A_Held.ris", ris("10.5555/a.0001"))
     con = _con(tmp_path)
     I.ingest_papers(con, "T", lib)
     for p in list(lib.iterdir()):
         p.unlink()
+    with pytest.raises(I.LibraryUnreadable):
+        I.ingest_papers(con, "T", lib)
+    assert con.execute("SELECT COUNT(*) FROM paper_locations").fetchone()[0] == 1
     st = {}
-    I.ingest_papers(con, "T", lib, stats=st)
+    I.ingest_papers(con, "T", lib, stats=st, allow_empty=True)
     assert con.execute("SELECT COUNT(*) FROM paper_locations").fetchone()[0] == 0
     assert st["n_files"] == 0 and st["gc_file_gone"] == 1

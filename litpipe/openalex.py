@@ -163,9 +163,9 @@ def host_policy() -> hosts.HostPolicy:
     row with 5xx-only retries, a 429 that defers instead of refusing, and a 401 that is CONFIG."""
     return dataclasses.replace(hosts.policy(API_HOST), host=hosts.host_of(BASE), retry=OA_RETRY,
                                refuse_host_statuses=frozenset({406}), status_kinds=dict(_STATUS_KINDS),
-                               note="1,000 credits/day keyless, $1/day keyed; URL <= 8,190 B as counted; "
-                                    "budget from X-RateLimit-*; 429 defers to X-RateLimit-Reset "
-                                    "(litpipe.openalex registers)")
+                               note="10,000 credits/day ($1) with OPENALEX_API_KEY, 1,000 ($0.10) keyless; a singleton "
+                                    "costs 0, a list call 1 credit; URL <= 8,190 B as counted; budget from "
+                                    "X-RateLimit-*; 429 defers to X-RateLimit-Reset (litpipe.openalex registers)")
 
 
 def content_policy() -> hosts.HostPolicy:
@@ -484,7 +484,7 @@ def _select(select, *need) -> str:
 
 def _work_doi(work) -> str | None:
     d = work.get("doi") if isinstance(work, dict) else None
-    return _doi.normalise(d) if isinstance(d, str) and d else None
+    return _doi.normalise_structured(d) if isinstance(d, str) and d else None
 
 
 def _list_call(session, field, values, select, purpose, extra=None):
@@ -514,7 +514,7 @@ def works_by_doi(dois, select=WORK_SELECT, *, corpus=None, session: Session | No
     result: dict = {}
     norm: dict = {}
     for raw in dois:
-        d = _doi.normalise(raw) if isinstance(raw, str) else None
+        d = _doi.normalise_structured(raw) if isinstance(raw, str) else None
         if d is None:
             result[raw] = Outcome(Kind.SKIPPED, host=API_HOST, detail=ledger.redact(f"not a DOI: {raw!r}"[:200]))
         else:
@@ -681,7 +681,7 @@ def referenced_works(doi, *, select=WORK_SELECT, session: Session | None = None)
     NOT_AVAILABLE: referenced_works_count 0 (unknown). NO_MATCH: the DOI is not in OpenAlex.
     Otherwise the failure, payload None."""
     s = session or default_session()
-    d = _doi.normalise(doi) if isinstance(doi, str) else None
+    d = _doi.normalise_structured(doi) if isinstance(doi, str) else None
     if d is None:
         return Outcome(Kind.SKIPPED, host=API_HOST, detail=ledger.redact(f"not a DOI: {doi!r}"[:200]))
     out = _request(s, f"{BASE.rstrip('/')}/works/doi:{_doi.encode_path(d)}",
@@ -719,7 +719,7 @@ def _resolve_wid(s, doi_or_wid):
         return work_id(doi_or_wid), None
     except ValueError:
         pass
-    d = _doi.normalise(doi_or_wid) if isinstance(doi_or_wid, str) else None
+    d = _doi.normalise_structured(doi_or_wid) if isinstance(doi_or_wid, str) else None
     if d is None:
         return None, Outcome(Kind.SKIPPED, host=API_HOST,
                              detail=ledger.redact(f"not a DOI or an OpenAlex id: {doi_or_wid!r}"[:200]))

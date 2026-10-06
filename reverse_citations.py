@@ -24,7 +24,8 @@ before W3-B.
 The union per seed: the first network source that answered gives the seed's network rows; the
 sidecar and regex rows add only DOIs the network rows lack (all their rows when no network source
 answered). Then: the seed's own DOI is dropped, an arXiv ID with no DOI becomes its 10.48550 DOI,
-and every DOI is normalised by litpipe.doi.normalise. A seed whose network walk failed, or whose
+and every DOI is normalised by litpipe.doi (a structured source's DOI keeps its whole registered
+form through normalise_structured; a regex DOI takes normalise). A seed whose network walk failed, or whose
 sources were skipped or disabled this run, keeps the network rows it had; a seed whose prior rows
 came from a higher source than this run's answer keeps them when that source could not answer this
 run. A seed whose stored rows came from S2 or OpenAlex and whose PDF is unchanged is not requested
@@ -81,6 +82,7 @@ FIELDS = LEGACY_FIELDS + ["seed_doi", "source"]           # W3-C1 contract: the 
 SOURCES = ("s2", "openalex", "crossref", "regex")         # --sources values ("regex" = the local parse)
 NETWORK_SOURCES = ("s2", "openalex", "crossref")
 ROW_SOURCES = ("s2", "openalex", "crossref", "sidecar", "regex")
+STRUCTURED_ROW_SOURCES = frozenset(ROW_SOURCES) - {"regex"}   # = index_portfolio.STRUCTURED_SOURCES (locked)
 _RANK = {s: i for i, s in enumerate(ROW_SOURCES)}
 S2_REF_FIELDS = ("paperId", "externalIds", "title", "year", "authors")
 
@@ -361,8 +363,12 @@ class Seed:
     parse_suspect: bool = False
 
 
-def _gate(d) -> str:
-    return _doi.normalise(d) or "" if isinstance(d, str) and d.strip() else ""
+def _gate(d, structured=True) -> str:
+    """A seed DOI: structured (a .ris DO line, a sidecar field) keeps its whole registered form;
+    text from the PDF head takes the text normaliser."""
+    if not (isinstance(d, str) and d.strip()):
+        return ""
+    return (_doi.normalise_structured(d) if structured else _doi.normalise(d)) or ""
 
 
 def seed_doi(pdf: Path, text=None, read_pdf=False) -> str:
@@ -384,7 +390,7 @@ def seed_doi(pdf: Path, text=None, read_pdf=False) -> str:
             pass
     if text is None and read_pdf:
         text = text_from_pdf(pdf)
-    return _gate(lit_util.extract_doi_from_text(text, max_chars=5000)) if text else ""
+    return _gate(lit_util.extract_doi_from_text(text, max_chars=5000), structured=False) if text else ""
 
 
 def _local_leg(sd: Seed, text_dir):
@@ -484,7 +490,7 @@ def dedupe_crossref(entries) -> list:
     for e in entries or ():
         if not isinstance(e, dict):
             continue
-        d = _doi.normalise(e["DOI"]) if isinstance(e.get("DOI"), str) else None
+        d = _doi.normalise_structured(e["DOI"]) if isinstance(e.get("DOI"), str) else None
         if d:
             key = ("doi", d)
         else:
@@ -569,7 +575,7 @@ def crossref_references(dois, *, cfg=None, state=None, leg=None) -> dict:
         truncated = isinstance(total, int) and total > len(items)
         found = {}
         for it in items:
-            d = _doi.normalise(it["DOI"]) if isinstance(it.get("DOI"), str) else None
+            d = _doi.normalise_structured(it["DOI"]) if isinstance(it.get("DOI"), str) else None
             if d and d not in found:
                 found[d] = it
         for d in chunk:
@@ -1039,9 +1045,12 @@ class _Walk:
 def _final(r: dict, seed_doi: str):
     """(row, is_self): the row with its DOI normalised by litpipe.doi (an arXiv ID becomes
     10.48550/arxiv.<id> when the row has no DOI), and whether that DOI, or any DOI candidate of a
-    regex chunk, is the seed's own (then the row's DOI is blanked)."""
+    regex chunk, is the seed's own (then the row's DOI is blanked). A DOI from a structured source
+    keeps its whole registered form (normalise_structured); a regex DOI takes the text normaliser."""
     raw_doi = r.get("doi") or ""
-    d = _doi.normalise(raw_doi) if raw_doi.strip() else None
+    norm = (_doi.normalise_structured if (r.get("source") or "") in STRUCTURED_ROW_SOURCES
+            else _doi.normalise)
+    d = norm(raw_doi) if raw_doi.strip() else None
     if not d:
         a = arxiv_doi(r.get("_arxiv") or r.get("raw") or "")
         d = _doi.normalise(a) if a else None

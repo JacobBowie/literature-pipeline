@@ -317,7 +317,7 @@ def paper_id(x) -> str:
         return s
     if _PAPER_SHA.match(s):
         return s
-    d = _doi.normalise(m.group(2) if m else s)
+    d = _doi.normalise_structured(m.group(2) if m else s)
     if d is None:
         raise ValueError(f"not a DOI or a Semantic Scholar id: {s!r}")
     return "DOI:" + d

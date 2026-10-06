@@ -87,6 +87,9 @@ STRUCTURED_SOURCES = frozenset({"s2", "openalex", "crossref", "sidecar"})
 # History tables other tasks own that --rebuild carries over from the .bak, each only if it
 # exists there (abstract_attempts: W2-E2; the other three: W3-E).
 CARRY_OVER_TABLES = ("abstract_attempts", "recent_feed", "rec_attempts", "s2_enrichment")
+# SCHEMA tables only enrich_recommendations fills: their rows are carried over too, or a rebuild leaves
+# rec_attempts saying "answered" for seeds whose rows were dropped (W3a verifier G-3).
+CARRY_OVER_ROWS = ("recommendations",)
 
 SCHEMA = """
 -- Schema v2 (2026-05-04). Normalized:
@@ -311,13 +314,7 @@ def norm_doi(raw, structured=True):
 def _norm_doi_cached(raw, structured):
     if not raw.strip():
         return None
-    if not structured:
-        return _doi.normalise(raw)
-    cands = _doi.candidates(raw)
-    if not cands:
-        return None
-    w = _whole_doi(raw)
-    return w if w in cands else cands[0]
+    return _doi.normalise_structured(raw) if structured else _doi.normalise(raw)
 
 
 def _ok_doi(d) -> bool:
@@ -513,7 +510,7 @@ def _now():
     return datetime.datetime.now().isoformat(timespec="seconds")
 
 
-def ingest_papers(con, name: str, lib: Path, stats=None):
+def ingest_papers(con, name: str, lib: Path, stats=None, allow_empty=False):
     """Walk a library's top level; write paper_metadata, paper_locations and papers_no_doi rows for
     project `name`. Returns (pdf_count, no_doi_count) as before; `stats` (a dict), when given,
     receives n_files, n_pdfs, n_text_only, n_text_only_indexed, n_flagged, unreadable [(file, why)],
@@ -533,11 +530,23 @@ def ingest_papers(con, name: str, lib: Path, stats=None):
     that is why one research library showed two more paper_locations rows than PDFs while every
     file name reconciled (read-only look at the live index, 2026-10-05).
 
+    An empty listing (no PDF, sidecar, .ris or identity file) while the index holds rows for the
+    project is read as an unlistable library (LibraryUnreadable: rolled back, exit 2, nothing
+    pruned), not as "every paper is gone": a synced folder can list empty for a moment, and the GC
+    would delete every row (W3a verifier G). `allow_empty` (`--allow-empty-library`) accepts a
+    library emptied on purpose.
+
     Writes go through `con` so the caller's per-project transaction enrolls them (C2)."""
     st = stats if stats is not None else {}
     cur = con
     now = _now()
     pdfs, sidecars, ris_files, idents = scan_library_files(lib)
+    if not (pdfs or sidecars or ris_files or idents) and not allow_empty:
+        held = cur.execute("SELECT COUNT(*) FROM paper_locations WHERE project = ?", [name]).fetchone()[0]
+        if held:
+            raise LibraryUnreadable(f"{lib}: lists no PDF, sidecar or .ris, but the index holds {held} "
+                                    f"location row(s) for {name}; nothing pruned (pass "
+                                    f"--allow-empty-library if it was emptied on purpose)")
     unreadable = []
 
     flags = {}
@@ -1058,8 +1067,9 @@ def rename_project(con, old, new, execute=False):
 
 
 def carry_over(con, bak: Path):
-    """--rebuild: copy CARRY_OVER_TABLES from the .bak into the fresh DB, each only if it exists
-    there, keeping its DDL (keys included). Returns {table: rows}; raises on an unreadable .bak."""
+    """--rebuild: copy CARRY_OVER_TABLES and the rows of CARRY_OVER_ROWS from the .bak into the fresh
+    DB, each only if it exists there, keeping its DDL (keys included). Returns {table: rows};
+    raises on an unreadable .bak."""
     out = {}
     path = str(bak).replace("'", "''")
     con.execute(f"ATTACH '{path}' AS _carry_bak (READ_ONLY)")
@@ -1067,7 +1077,7 @@ def carry_over(con, bak: Path):
         ddl = dict(con.execute("SELECT table_name, sql FROM duckdb_tables() "
                                "WHERE database_name = '_carry_bak' AND schema_name = 'main'").fetchall())
         have = _existing_tables(con)
-        for t in CARRY_OVER_TABLES:
+        for t in CARRY_OVER_TABLES + CARRY_OVER_ROWS:
             if t not in ddl:
                 continue
             if t not in have:
@@ -1214,7 +1224,7 @@ def _rebuild_drop(db_path: Path):
 
 
 def run(*, project=None, db=None, no_citations=False, rebuild=False, gc=False,
-        rename_project=None, execute=False) -> dict:
+        rename_project=None, execute=False, allow_empty_library=False) -> dict:
     """One index run (or a --rename-project). Returns the summary dict; its `exit_code` is the
     CLI's exit code. Prints the DB path first and "[step-summary] {json}" last."""
     try:
@@ -1285,7 +1295,7 @@ def run(*, project=None, db=None, no_citations=False, rebuild=False, gc=False,
             # transaction (a nested BEGIN raises).
             con.execute("BEGIN TRANSACTION")
             try:
-                n_pdf, n_no = ingest_papers(con, name, lib, stats=st)
+                n_pdf, n_no = ingest_papers(con, name, lib, stats=st, allow_empty=allow_empty_library)
                 print(f"  papers: {n_pdf} ingested, {n_no} no-DOI"
                       + (f" ({st['n_flagged']} identity-flagged)" if st.get("n_flagged") else "")
                       + f"; text-only holdings: {st['n_text_only_indexed']} indexed"
@@ -1441,7 +1451,8 @@ def main(argv=None) -> int:
                          ".ris/sidecar — so re-run enrich_abstracts.py afterward. A plain (non-rebuild) "
                          "re-index PRESERVES abstracts; use --rebuild only to flush stale candidate rows. "
                          "The old DB is kept as <db>.bak, and the abstract_attempts, recent_feed, "
-                         "rec_attempts and s2_enrichment history tables are carried over from it.")
+                         "rec_attempts and s2_enrichment history tables and the recommendations "
+                         "rows are carried over from it.")
     ap.add_argument("--gc", action="store_true",
                     help="Garbage-collect paper_metadata rows with zero references (no location, "
                          "candidate, cite, recommendation, recent_feed or scoped row), and list rows "
@@ -1451,9 +1462,14 @@ def main(argv=None) -> int:
                          "dropped). Dry run unless --execute. Indexes nothing.")
     ap.add_argument("--execute", action="store_true",
                     help="With --rename-project: apply the move in one transaction.")
+    ap.add_argument("--allow-empty-library", action="store_true",
+                    help="Index a library that lists no PDF or sidecar even though the index holds rows "
+                         "for it (its rows are then pruned). Without it such a library is skipped "
+                         "(exit 2) and its rows kept, since a synced folder can list empty for a moment.")
     args = ap.parse_args(sys.argv[1:] if argv is None else argv)
     res = run(project=args.project, db=args.db, no_citations=args.no_citations, rebuild=args.rebuild,
-              gc=args.gc, rename_project=args.rename_project, execute=args.execute)
+              gc=args.gc, rename_project=args.rename_project, execute=args.execute,
+              allow_empty_library=args.allow_empty_library)
     return res["exit_code"]
 
 
