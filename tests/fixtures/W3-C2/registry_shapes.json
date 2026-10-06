@@ -1,0 +1,25 @@
+{
+  "_comment": "W3-C2 destination shapes. The first seven subprojects mirror every subproject shape of the live registry on 2026-10-05 under generic names (a tail library, a three-level tail library, digits and hyphens, a parent that is not registered itself, upper case and digits); the rest add a dot, a space, a nested tail, lib_dir '.', a library equal to the tail, and libraries outside their project root. expect is the destination the seeder writes; null means outside the project root (exit 1 unless --destination).",
+  "projects": {
+    "Research_Data": {"lib_dir": "docs/literature", "expect": "docs/literature/"},
+    "Research_Data/sub_a": {"lib_dir": "sub_a/literature", "parent": "Research_Data", "expect": "literature/"},
+    "Review-Set": {"lib_dir": "literature/pdfs", "expect": "literature/pdfs/"},
+    "Review-Set/scoping_one": {"lib_dir": "scoping_one/literature/pdfs", "parent": "Review-Set", "expect": "literature/pdfs/"},
+    "Review-Set/scoping_ed50": {"lib_dir": "scoping_ed50/literature/pdfs", "parent": "Review-Set", "expect": "literature/pdfs/"},
+    "house_group/recipe_b": {"lib_dir": "recipe_b/references/literature", "parent": "house_group", "expect": "references/literature/"},
+    "Teach/Teaching_C101_Phys": {"lib_dir": "Teaching_C101_Phys/literature", "parent": "Teach", "expect": "literature/"},
+    "Teach/Teaching_C102_Rx": {"lib_dir": "Teaching_C102_Rx/literature", "parent": "Teach", "expect": "literature/"},
+    "Teach/Dance_MH": {"lib_dir": "Dance_MH/literature", "parent": "Teach", "expect": "literature/"},
+    "research_lab": {"lib_dir": "equipment/kit-mk1/references/literature", "expect": "equipment/kit-mk1/references/literature/"},
+    "research.v2": {"lib_dir": "papers", "expect": "papers/"},
+    "Teach/notes.v2": {"lib_dir": "notes.v2/literature", "parent": "Teach", "expect": "literature/"},
+    "research space": {"lib_dir": "refs/literature", "expect": "refs/literature/"},
+    "Group A/sub b": {"lib_dir": "sub b/lit dir", "parent": "Group A", "expect": "lit dir/"},
+    "Group A/deep/er": {"lib_dir": "deep/er/lit", "parent": "Group A", "expect": "lit/"},
+    "research_flat": {"lib_dir": ".", "expect": "./"},
+    "Teach/flat_sub": {"lib_dir": "flat_sub", "parent": "Teach", "expect": "./"},
+    "Teach/outside_sub": {"lib_dir": "literature", "parent": "Teach", "expect": null},
+    "research_up": {"lib_dir": "../shared/literature", "expect": null},
+    "Teach/flat_parent": {"lib_dir": ".", "parent": "Teach", "expect": null}
+  }
+}

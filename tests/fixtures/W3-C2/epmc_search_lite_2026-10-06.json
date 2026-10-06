@@ -1,0 +1,15 @@
+{
+  "_comment": "Trimmed from the W3-C2 live probe of 2026-10-06: GET www.ebi.ac.uk/europepmc/webservices/rest/search, query = the six DOIs ORed (DOI:\"...\"), resultType=lite, format=json, pageSize=1000; 200, version 6.9, hitCount 6. Per result only doi, pmcid, isOpenAccess, source, pubYear are kept. Drift from the 2026-09-30 recording: 10.21037/jss-20262-05 now carries PMC13598418 (released in PMC 2026-09-30).",
+  "version": "6.9",
+  "hitCount": 6,
+  "resultList": {
+    "result": [
+      {"doi": "10.21037/jss-20262-05", "pmcid": "PMC13598418", "isOpenAccess": "Y", "source": "MED", "pubYear": "2026"},
+      {"doi": "10.1002/14651858.cd013617.pub2", "isOpenAccess": "N", "source": "MED", "pubYear": "2026"},
+      {"doi": "10.1016/j.resp.2021.103638", "pmcid": "PMC7983342", "isOpenAccess": "N", "source": "MED", "pubYear": "2021"},
+      {"doi": "10.3390/nu8060377", "pmcid": "PMC4924218", "isOpenAccess": "Y", "source": "MED", "pubYear": "2016"},
+      {"doi": "10.2337/db14-1771", "pmcid": "PMC4587640", "isOpenAccess": "N", "source": "MED", "pubYear": "2015"},
+      {"doi": "10.1007/s40279-015-0365-0", "isOpenAccess": "N", "source": "MED", "pubYear": "2015"}
+    ]
+  }
+}
