@@ -57,6 +57,13 @@ SURFACE = {
                           ["FIELDS", "SUMMARY_MARKER", "CONFIG_PATH"]),
     "litpipe.walk": (["cache_path", "needs_walk", "route", "plan"],
                      ["Cache", "CacheLocked", "CacheWriteError", "CACHE_PATH", "CACHE_NAME"]),
+    # W4a: the canaries and the worklists the W4 runner calls in-process, and the paywall queue paywall_pull imports
+    "litpipe.canaries": (["run", "report", "summary", "planned_requests", "checks", "worst_case", "main"],
+                         ["PROFILES", "CHECKS", "Check"]),
+    "litpipe.worklists": (["oa_blocked", "group_by_host", "render_oa_worklist", "ill_list", "render_ill_list",
+                           "seed_coverage", "residual_csvs", "read_residuals", "doi_link", "run", "main"],
+                          ["Pool", "WorklistError", "PoolStateError"]),
+    "build_priority_paywall_queue": (["lib_dois", "load_libs", "run", "main"], ["LIBS", "ROOT", "CONFIG_PATH"]),
 }
 
 CASES = [(mod, name, True) for mod, (fns, _) in SURFACE.items() for name in fns] + \
