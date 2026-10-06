@@ -385,6 +385,19 @@ def _within(a, b):
     return lo > 0 and hi / lo < TIE_MARGIN
 
 
+_WARNED = []
+
+
+def _warn_no_evidence():
+    """Once per process: a caller written before section 3.6 (score_match without evidence=) gets
+    no HIGH label any more; say so rather than degrade silently."""
+    if not _WARNED:
+        _WARNED.append(True)
+        print("[fill_missing_dois] score_match called without evidence=: no match can be HIGH (section "
+              "3.6 needs the record's title in the evidence text). Pass evidence=<the file's text or the "
+              "reference string> and query=<the search string>.", file=sys.stderr)
+
+
 def score_match(year_hint, author_hint, ranked_items, raw_items, evidence=None, query=""):
     """Label the Crossref hits for one orphan (section 3.6). Returns (status, meta, top1, top2).
 
@@ -396,6 +409,8 @@ def score_match(year_hint, author_hint, ranked_items, raw_items, evidence=None, 
     LOW_TITLE_ONLY are review labels."""
     if not ranked_items and not raw_items:
         return "NO_RESULT", None, 0, 0
+    if evidence is None:
+        _warn_no_evidence()
     ev = _evidence(evidence)
     cands = [extract_metadata(it) for it in ranked_items if not excluded_reason(it, query)]
     if not cands:

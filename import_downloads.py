@@ -91,7 +91,7 @@ import unpaywall_fetch_v2 as U  # noqa: E402  (build_filename, resolve_dest, boi
 from litpipe import config, holdings  # noqa: E402
 from litpipe import identity as _identity  # noqa: E402
 from litpipe import text as _text  # noqa: E402
-from litpipe.ledger import now_iso, redact  # noqa: E402
+from litpipe.ledger import now_iso, redact, redact_obj  # noqa: E402
 from litpipe.outcomes import Kind  # noqa: E402
 from pdf_text_clean import clean_pdf_text  # noqa: E402
 
@@ -291,10 +291,19 @@ def _short(meta):
     return (meta.get("title") or "")[:60]
 
 
+STRICT_MIN_CHARS, STRICT_MIN_WORDS = 40, 6     # fill_missing_dois section 3.6: a shorter title matches anything
+
+
+def _specific_title(title):
+    t = _text.normalise_title(title or "")
+    return len(t) >= STRICT_MIN_CHARS and len(t.split()) >= STRICT_MIN_WORDS
+
+
 def identify(scan, forced=None) -> Ident:
     """Which work the PDF is (module docstring, step 2). `forced` is a resolved (doi, meta, source)
     from --doi. MetadataUnavailable is returned as status META_UNAVAILABLE, never as 'no match'."""
     art = scan.article_text
+    head = scan.first_article_text      # where a paper prints its own title; a cited title sits later
     if forced is not None:
         d, meta, src = forced
         v = _identity.check(art, d, queue_title=meta.get("title"))
@@ -313,7 +322,7 @@ def identify(scan, forced=None) -> Ident:
             if is_boilerplate_record(meta):
                 tried.append(f"{d}: boilerplate record '{_short(meta)}'")
                 continue
-            score = _identity.title_similarity(meta.get("title"), art)
+            score = _identity.title_similarity(meta.get("title"), head)
             if score >= TITLE_THRESHOLD:
                 v = _identity.check(art, d, queue_title=meta.get("title"))
                 return Ident("OK", meta.get("doi") or d, meta, src, v, f"doi_{where}",
@@ -326,9 +335,10 @@ def identify(scan, forced=None) -> Ident:
             best, best_score = None, 0.0
             for it in crossref_search(snippet):
                 m = R.crossref_meta(it)
-                if not m.get("title") or not m.get("doi") or is_boilerplate_record(m):
+                if not m.get("title") or not m.get("doi") or is_boilerplate_record(m) \
+                        or not _specific_title(m["title"]):
                     continue
-                s = _identity.title_similarity(m["title"], art)
+                s = _identity.title_similarity(m["title"], head)
                 if s > best_score:
                     best, best_score = m, s
             if best is not None and best_score >= TITLE_THRESHOLD:
@@ -550,7 +560,7 @@ def make_sidecar(text, meta, source, doi, source_filename, ident, kind):
     }
     if ident.verdict is not None:
         rec.update(ident.verdict.as_dict())
-    return json.loads(redact(json.dumps(rec, ensure_ascii=False)))
+    return redact_obj(rec)
 
 
 def _mark_has_pdf(sidecar_path, rec, source_filename):

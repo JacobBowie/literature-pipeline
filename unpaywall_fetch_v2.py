@@ -823,7 +823,7 @@ def write_identity_sidecar(pdf_path, doi, verdict, kind, n_pages, attempt, sourc
            "checked_at": ledger.now_iso(), "n_pages": n_pages, "doc_kind": str(kind)}
     rec.update(verdict.as_dict())
     path = str(lit_util.companion_path(pdf_path, ".identity.json"))
-    lit_util.atomic_write_json(path, json.loads(ledger.redact(json.dumps(rec, ensure_ascii=False))))
+    lit_util.atomic_write_json(path, ledger.redact_obj(rec))
     return path
 
 

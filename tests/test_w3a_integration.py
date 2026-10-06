@@ -20,6 +20,50 @@ def _cmd(calls, stem):
     return next(c for c in calls if Path(c[1]).stem == stem)
 
 
+LINE_START_ADDRESS = "Corresponding author:\njo.author@uni.example\nReceived 2024"
+
+
+def _read_json(path):
+    import json
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def test_redact_obj_keeps_the_record_valid_and_the_address_out():
+    """Verifier H (H1): redacting the JSON encoding turned "\\njo@..." into "\\REDACTED", an invalid
+    escape; redact_obj redacts the decoded values instead."""
+    from litpipe import ledger
+    out = ledger.redact_obj({"text": LINE_START_ADDRESS, "pages": [LINE_START_ADDRESS], "n": 3})
+    assert "jo.author@uni.example" not in str(out) and out["n"] == 3
+    assert out["text"].startswith("Corresponding author:\n") and out["text"].endswith("\nReceived 2024")
+
+
+def test_preprint_text_sidecar_survives_an_address_after_a_line_break(tmp_path):
+    """Sibling of H1 (preprint_fetch.py, the Europe PMC preprint text-only sidecar): full text puts an
+    author address at a line start often, and the old write raised JSONDecodeError."""
+    from types import SimpleNamespace
+    import preprint_fetch
+    ctx = SimpleNamespace(lib_dir=str(tmp_path))
+    row = SimpleNamespace(doi="10.5555/p.1")
+    c = SimpleNamespace(doi="10.5555/p.1", ppr="PPR1", server="medrxiv")
+    got = SimpleNamespace(text={"text": LINE_START_ADDRESS})
+    assert preprint_fetch._write_text_sidecar(ctx, row, c, "2024_Author_Title.pdf", got) == "OK"
+    rec = _read_json(tmp_path / "2024_Author_Title.fulltext.json")
+    assert "jo.author@uni.example" not in rec["text"] and rec["has_pdf"] is False
+
+
+def test_identity_sidecar_survives_an_address_after_a_line_break(tmp_path):
+    """Sibling of H1 (unpaywall_fetch_v2.write_identity_sidecar): the verdict's evidence is free text."""
+    from types import SimpleNamespace
+    import unpaywall_fetch_v2 as U
+    verdict = SimpleNamespace(as_dict=lambda: {"identity": "OK", "identity_evidence": LINE_START_ADDRESS})
+    attempt = SimpleNamespace(url="https://pub.example/a.pdf", host="pub.example", host_type="publisher",
+                              version="publishedVersion")
+    pdf = tmp_path / "2024_Author_Title.pdf"
+    path = U.write_identity_sidecar(str(pdf), "10.5555/p.1", verdict, "ARTICLE", 9, attempt)
+    rec = _read_json(path)
+    assert "jo.author@uni.example" not in rec["identity_evidence"] and rec["identity"] == "OK"
+
+
 def test_with_recs_asks_for_the_recent_feed(monkeypatch):
     """W3-E made enrich_recommendations do nothing without --recent-feed, so snowball --with-recs
     must pass it, and the flag must be one the real parser accepts."""

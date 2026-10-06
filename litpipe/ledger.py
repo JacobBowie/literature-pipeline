@@ -152,13 +152,17 @@ def redact_headers(headers) -> dict:
     return out
 
 
-def _deep_redact(x):
+def redact_obj(x):
+    """`x` (a JSON-shaped dict, list or scalar) with redact() applied to every string value: the
+    form for a record about to be written as JSON. Never redact the JSON encoding instead: an
+    address right after an escaped newline takes the escape letter with it ("\\njohn@x.edu" ->
+    "\\REDACTED"), which is invalid JSON (W3a verifier H)."""
     if isinstance(x, str):
         return redact(x)
     if isinstance(x, dict):
-        return {k: _deep_redact(v) for k, v in x.items()}
+        return {k: redact_obj(v) for k, v in x.items()}
     if isinstance(x, (list, tuple)):
-        return [_deep_redact(v) for v in x]
+        return [redact_obj(v) for v in x]
     return x
 
 
@@ -214,7 +218,7 @@ def write(record: dict, cfg=None, strict=False) -> Path | None:
     """Append one redacted record. Returns the ledger file, or None when the write failed (a
     warning goes to stderr once; the request it describes is not failed for it) unless strict."""
     global _warned
-    rec = _deep_redact(dict(record))
+    rec = redact_obj(dict(record))
     rec.setdefault("ts", now_iso())
     rec.setdefault("run_id", current_run_id())
     rec.setdefault("pid", os.getpid())

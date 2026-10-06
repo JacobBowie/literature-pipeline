@@ -379,6 +379,10 @@ def cascade_rename(lib_dir, old_pdf, new_pdf):
     for _kind, o, n in moves:
         if os.path.exists(path(n)) and os.path.normcase(path(n)) != os.path.normcase(path(o)):
             raise FileExistsError(errno.EEXIST, f"target exists: {n}", path(n))
+    for ext in COMPANION_EXTS:          # an orphan at the new stem would pair this PDF with another record
+        n, o = path(new_stem + ext), path(old_stem + ext)
+        if os.path.exists(n) and os.path.normcase(n) != os.path.normcase(o):
+            raise FileExistsError(errno.EEXIST, f"target exists: {new_stem + ext}", n)
 
     old_ris = path(old_stem + ".ris")
     old_key = ris_emit.manifest_key(old_ris) if os.path.exists(old_ris) else None

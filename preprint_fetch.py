@@ -1197,7 +1197,7 @@ def _write_text_sidecar(ctx, row, c, fn, got):
                "has_pdf": False, "extracted_from_pdf": False, "extractor": "europepmc_preprint_fulltextxml",
                "source": "preprint",
                "fetched_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
-    lit_util.atomic_write_json(path, json.loads(ledger.redact(json.dumps(sc, ensure_ascii=False))))
+    lit_util.atomic_write_json(path, ledger.redact_obj(sc))
     return "OK"
 
 
