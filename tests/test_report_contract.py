@@ -115,7 +115,7 @@ def test_real_chain_writes_redacted_routes(real_project, tmp_path):
     ("lit_pull_queue.2026-09-22.unpaywall.csv", (None, "2026-09-22", "unpaywall")),
     ("lit_pull_queue.2026-09-30.2.pmc.csv", (None, "2026-09-30.2", "pmc")),
     ("lit_pull_queue.retry.2026-09-30.preprint.csv", ("retry", "2026-09-30", "preprint")),
-    ("lit_pull_queue.ch15_b01.2026-09-30.10.routing.csv", ("ch15_b01", "2026-09-30.10", "routing")),
+    ("lit_pull_queue.unit3_b01.2026-09-30.10.routing.csv", ("unit3_b01", "2026-09-30.10", "routing")),
 ])
 def test_artifact_names_read(name, parsed):
     m = mig._ARTIFACT.match(name)
@@ -123,9 +123,9 @@ def test_artifact_names_read(name, parsed):
 
 
 @pytest.mark.parametrize("name", [
-    "lit_pull_queue.snapshot.4501bc_b01.unpaywall.csv",   # a consumer's own snapshot names
+    "lit_pull_queue.snapshot.cohort_b01.unpaywall.csv",   # a consumer's own snapshot names
     "lit_pull_queue.2026-09-22.processed.10.csv",         # legacy processed.N
-    "lit_pull_queue.csv", "lit_pull_queue.retry_later.csv", "lit_pull_queue.ch15_b01.draft.csv",
+    "lit_pull_queue.csv", "lit_pull_queue.retry_later.csv", "lit_pull_queue.unit3_b01.draft.csv",
 ])
 def test_non_run_artifacts_are_not_read_as_chains(name):
     assert mig._ARTIFACT.match(name) is None

@@ -5,23 +5,33 @@ Top-level keys (all optional):
              path is used verbatim; a bare-relative path is anchored to the projects root, like
              the default.
   state_dir  the pipeline's own write-heavy state: litpipe_state.sqlite, s2_cache.duckdb,
-             ledger/, source caches. Default ~/.local/db/literature_pipeline, off the Drive
-             mirror (decided 2026-08-21). A bare-relative path is anchored to HOME, never to the
-             projects root, so it cannot land on the mirror by accident.
+             ledger/, source caches. Default ~/.local/db/literature_pipeline, on a local disk
+             (SQLite WAL needs one; a synced folder must not hold it). A bare-relative path is
+             anchored to HOME, never to the projects root, so it cannot land in a synced
+             projects tree by accident.
   hosts      overrides of the host policy table; the switches default off
              ({"arxiv_pdf_allowed": false, "biorxiv_pdf_allowed": false}).
   s2, openalex   client blocks (budget, spacing), passed through as dicts.
+  artifact_dir   where sweep's run artifacts go (artifact_dir() below); unset: each project root.
+  runner     the scheduled runner's block (litpipe.runner.runner_block validates it).
+  portfolio_dir  the folder for portfolio-level worklists, read by
+             build_priority_paywall_queue.portfolio_dir() and paywall_pull; no default (those
+             tools resolve it themselves; no accessor here).
+  ezproxy_host   the library proxy host read by `paywall_pull --access ezproxy`; no default
+             (resolved by paywall_pull itself; no accessor here).
 
 Per-project keys (under "projects": {key: {...}}):
   sources            list of fetch sources; replaces the default {"unpaywall", "pmc"}.
   auto_stage         bool, default false: may the runner stage top_candidates drafts itself.
   walk_cadence_days  positive int, or absent for no scheduled walk.
+  artifact_dir       this project's artifact directory; wins over the top-level key.
 
 Every accessor takes an optional `cfg` dict (a loaded projects.json) so tests pass a temp
 registry; without it the file at CONFIG_PATH is read on each call. Tests may also monkeypatch
 CONFIG_PATH by attribute. A value of the wrong type or an unknown source raises ConfigError
 (the CONFIG outcome: the run aborts rather than guessing).
 """
+import os
 from pathlib import Path
 
 import lit_util
@@ -118,6 +128,54 @@ def walk_cadence_days(project_key, cfg=None) -> int | None:
         raise ConfigError(f"projects[{project_key!r}].walk_cadence_days must be a positive "
                           f"integer, got {v!r}")
     return v
+
+
+def _artifact_raw(value, where):
+    if value is not None and (not isinstance(value, str) or not value.strip()):
+        raise ConfigError(f"{where} must be a non-empty path string, got {value!r}")
+    return value
+
+
+def _artifact_dir_of(key, entry, global_raw):
+    """(directory, configured) for one registered project (see artifact_dir)."""
+    root = lit_util.project_root(key, entry)
+    own = _artifact_raw(entry.get("artifact_dir"), f"projects[{key!r}].artifact_dir")
+    if own:
+        p = Path(own).expanduser()
+        return (p if p.is_absolute() else root / p), True
+    if global_raw:
+        p = Path(global_raw).expanduser()
+        # sweep's artifact names carry no project, so one absolute directory holds a subfolder per key
+        return (p / key if p.is_absolute() else root / p), True
+    return root, False
+
+
+def artifact_dir(key, cfg=None) -> Path:
+    """Where sweep, migrate and the runner keep a project's run artifacts
+    (lit_pull_queue[.<tag>].<run_id>.<stage>.csv): projects.json `artifact_dir`, the project's own
+    value winning over the top-level one. Unset: the project root, exactly as before. A relative
+    path is under the project root; a top-level ABSOLUTE path holds one subfolder per project,
+    `<it>/<project key>`; a per-project absolute path is used as given. An unregistered key returns
+    its project root. Two projects resolving to one directory (where either has the key set) is a
+    ConfigError. sweep --artifact-dir still wins for one run. The queue files, retry_later and the
+    worklist .md files stay in the project root."""
+    c = load(cfg)
+    projects = c.get("projects") or {}
+    global_raw = _artifact_raw(c.get("artifact_dir"), "artifact_dir")
+    if key not in projects:
+        return lit_util.project_root(key, {})
+    mine, configured = _artifact_dir_of(key, projects[key] or {}, global_raw)
+    if configured or global_raw or any(isinstance(e, dict) and e.get("artifact_dir")
+                                       for e in projects.values()):
+        want = os.path.normcase(os.path.abspath(mine))
+        for other, entry in projects.items():
+            if other == key:
+                continue
+            d, conf = _artifact_dir_of(other, entry or {}, global_raw)
+            if (conf or configured) and os.path.normcase(os.path.abspath(d)) == want:
+                raise ConfigError(f"artifact_dir: projects {key!r} and {other!r} both resolve to {mine}; "
+                                  f"each project needs its own artifact directory")
+    return mine
 
 
 def _block(name, cfg):

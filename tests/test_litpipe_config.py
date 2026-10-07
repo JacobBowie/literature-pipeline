@@ -66,14 +66,14 @@ def test_sources_default_is_unpaywall_and_pmc_only():
 
 
 def test_project_sources_replace_the_default():
-    r = reg(projects={"FRED": {"lib_dir": "x", "sources": ["unpaywall", "pmc", "arxiv", "osf"]}})
-    assert config.sources("FRED", cfg=r) == {"unpaywall", "pmc", "arxiv", "osf"}
+    r = reg(projects={"research_a": {"lib_dir": "x", "sources": ["unpaywall", "pmc", "arxiv", "osf"]}})
+    assert config.sources("research_a", cfg=r) == {"unpaywall", "pmc", "arxiv", "osf"}
 
 
 def test_override_replaces_both_and_accepts_a_cli_string():
-    r = reg(projects={"FRED": {"lib_dir": "x", "sources": ["arxiv"]}})
-    assert config.sources("FRED", override=["pmc"], cfg=r) == {"pmc"}
-    assert config.sources("FRED", override="unpaywall, PMC", cfg=r) == {"unpaywall", "pmc"}
+    r = reg(projects={"research_a": {"lib_dir": "x", "sources": ["arxiv"]}})
+    assert config.sources("research_a", override=["pmc"], cfg=r) == {"pmc"}
+    assert config.sources("research_a", override="unpaywall, PMC", cfg=r) == {"unpaywall", "pmc"}
 
 
 def test_empty_sources_list_is_honoured():

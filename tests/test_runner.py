@@ -53,7 +53,7 @@ def test_stage_modules_table_names_every_stage():
         "seed": "seed_queue_from_top_candidates", "sweep": "sweep", "route": "migrate_closed_to_md",
         "walk": "forward_citations", "reverse": "reverse_citations", "index": "index_portfolio",
         "abstracts": "enrich_abstracts", "recommendations": "enrich_recommendations",
-        "audit": "audit_portfolio", "extract": "extract_pdf_fulltext"}
+        "audit": "audit_portfolio", "extract": "extract_pdf_fulltext", "ris": "backfill_ris"}
 
 
 # ================================================================ amendment 2: the result table

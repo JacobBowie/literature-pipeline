@@ -196,8 +196,8 @@ def test_parse_artifact_reads_current_and_legacy_names():
     assert P("lit_pull_queue.retry.2026-09-15.2.residual.csv") == sweep.ArtifactName(
         "retry", "2026-09-15.2", "residual")
     for not_artifact in ("lit_pull_queue.csv", "lit_pull_queue.alpha.csv",
-                         "lit_pull_queue.retry_later.csv", "lit_pull_queue.ch15_b01.draft.csv",
-                         "lit_pull_queue.snapshot.4501bc_b01.unpaywall.csv",
+                         "lit_pull_queue.retry_later.csv", "lit_pull_queue.unit3_b01.draft.csv",
+                         "lit_pull_queue.snapshot.cohort_b01.unpaywall.csv",
                          "lit_pull_queue.2026-09-15.report.2.csv"):
         assert P(not_artifact) is None, not_artifact
 
@@ -253,7 +253,7 @@ def test_two_tagged_queues_in_one_run_keep_separate_artifacts(env):
 
 @pytest.mark.parametrize("tag,ok", [
     ("alpha", True), ("s09_fwd", True), ("a-b", True), ("retry", True),
-    ("Alpha", False), ("4501_pool", False), ("rerun-2026-08-25", False), ("draft", False),
+    ("Alpha", False), ("2024_pool", False), ("rerun-2026-08-25", False), ("draft", False),
     ("retry_later", False), ("report", False), ("a" * 33, False), ("", False)])
 def test_tag_rules(tag, ok):
     assert sweep.is_valid_tag(tag) is ok
@@ -262,13 +262,13 @@ def test_tag_rules(tag, ok):
 def test_tag_shaped_pool_without_queue_columns_is_left_alone(env):
     """A consumer keeps lit_pull_queue.<tag>_pool.csv (a candidate pool, no destination column) beside
     its batches; the tag rule alone would sweep 1,000 rows of it."""
-    pool = env.pdir() / "lit_pull_queue.ch15_pool.csv"
+    pool = env.pdir() / "lit_pull_queue.unit3_pool.csv"
     pool.write_text("doi,title,year,venue,authors,cited_by,n_seeds,verdict,on_disk,facets\n"
                     "10.1000/p1,T,2020,V,A,1,1,ON,0,x\n", encoding="utf-8")
     env.queue(["10.1000/a1"])
     assert env.sweep() == 0
     assert pool.exists() and env.stages.triage_dois() == ["10.1000/a1"]
-    assert not list(env.pdir().glob("lit_pull_queue.ch15_pool.2026*"))
+    assert not list(env.pdir().glob("lit_pull_queue.unit3_pool.2026*"))
 
 
 # ---------------------------------------------------------------- exit codes
@@ -451,7 +451,7 @@ def test_a_blank_title_row_is_filled(env, monkeypatch):
 
 @pytest.mark.parametrize("resolver", [
     lambda doi: ({}, "none"),
-    lambda doi: (_ for _ in ()).throw(RuntimeError("https://api.x/?email=me@uconn.edu")),
+    lambda doi: (_ for _ in ()).throw(RuntimeError("https://api.x/?email=me@uni-test.edu")),
 ])
 def test_an_unfillable_blank_title_row_is_marked_not_fetched(env, monkeypatch, resolver):
     env.queue(["10.1000/blank9", "10.1000/ok9"], extra={"10.1000/blank9": {"title": "", "authors": ""}})

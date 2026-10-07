@@ -7,7 +7,8 @@ cannot live inside one process. Everything here sits in one stdlib sqlite3 file,
 `BEGIN IMMEDIATE`, which takes the write lock before the read, so two processes can never both
 read the same "next allowed" time and both claim it (tested: 2 and 4 processes keep every gap at
 or above the interval). WAL only works when every process is on the same host and the file is on
-a local disk (sqlite.org/wal.html); the default state_dir is local, off the Drive mirror.
+a local disk (sqlite.org/wal.html); the default state_dir is local, never a synced or network
+folder (projects.json state_dir must keep it so).
 
 Pacing (`acquire` / `release`):
   acquire(host) blocks until the host's next-allowed time and a free concurrency lease, then claims
@@ -21,7 +22,8 @@ Pacing (`acquire` / `release`):
   caller passes them; without litpipe.hosts, the unknown-host default (2 s, no budget, 1).
   The exceptions carry `until` (epoch) and `retry_after` (seconds). The budget day is the UTC day.
   Always pair acquire with release in a `finally`: a lease that is never released holds the host
-  until LEASE_S passes or the holding process exits.
+  until LEASE_S passes or the holding process exits. renew(slot) pushes a held lease's expiry to
+  now + LEASE_S (litpipe.net renews during a long transfer).
 
 Refusals: `refuse(host, reason, persistence="run")` holds while the refusing run is live and clears
 when it finishes (or dies); "manual" survives every run until `clear_refusal(host)` or
@@ -60,8 +62,8 @@ DEFAULT_INTERVAL_S = 2.0     # a host with no policy row (dispatch W1-A1: unknow
 # such a stream only at 266.7 KB/s or faster; 1,800 s covers it down to 44.4 KB/s (W4b, amendment
 # 12). The cost of a longer lease falls only on a holder that died without releasing AND whose pid
 # Windows reused (a dead pid is reaped at once when the host is at its limit, and a run's leases go
-# when the run finishes or is marked abandoned). Renewing the lease during a long transfer belongs
-# in litpipe/net.py (forwarded); until then the length is the guard.
+# when the run finishes or is marked abandoned). litpipe.net renews the lease (renew(slot)) at least
+# every LEASE_S / 3 while it drains a body (W5), so a slower stream keeps it too.
 LEASE_S = 1800.0
 HEARTBEAT_STALE_S = 1800.0   # a run silent this long is not live (the runner heartbeats more often)
 POLL_S = 0.05                # re-check interval while every concurrency lease is taken
@@ -447,6 +449,17 @@ def release(host, ok=True, slot=None):
             con.execute("UPDATE hosts SET next_ok=?, consecutive_fail=?, last_release=? "
                         "WHERE host=?",
                         (max(next_ok, now + interval_s), 0 if ok else fails + 1, now, host))
+
+
+def renew(slot, lease_s=None) -> bool:
+    """Push a held lease's expiry to now + lease_s (default LEASE_S). litpipe.net calls it at least
+    every LEASE_S / 3 while it drains a body, so a slow transfer keeps its lease. True when the
+    lease still exists (False: it was released, expired and reaped, or its run ended)."""
+    lease_s = LEASE_S if lease_s is None else float(lease_s)
+    lid = slot.lease_id if isinstance(slot, Slot) else int(slot)
+    with _Tx() as con:
+        cur = con.execute("UPDATE leases SET expires=? WHERE id=?", (_time() + lease_s, lid))
+        return cur.rowcount > 0
 
 
 def day_count(host) -> int:

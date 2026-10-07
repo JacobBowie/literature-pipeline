@@ -361,12 +361,12 @@ def test_refuse_rejects_an_unknown_persistence():
 
 
 def test_refusal_reason_is_redacted(isolated_state, monkeypatch):
-    monkeypatch.setenv("LITPIPE_EMAIL", "pipeline.owner@uconn.edu")
-    state.refuse("r.test", "HTTP 406 for https://r.test/q?email=pipeline.owner%40uconn.edu&x=1 "
-                 "(mailto:pipeline.owner@uconn.edu)", persistence="manual")
+    monkeypatch.setenv("LITPIPE_EMAIL", "pipeline.owner@uni-test.edu")
+    state.refuse("r.test", "HTTP 406 for https://r.test/q?email=pipeline.owner%40uni-test.edu&x=1 "
+                 "(mailto:pipeline.owner@uni-test.edu)", persistence="manual")
     reason = db_row(isolated_state, "SELECT refused_reason FROM hosts WHERE host='r.test'")[0]
     assert "HTTP 406" in reason
-    for form in ("pipeline.owner@uconn.edu", "pipeline.owner%40uconn.edu", "uconn.edu"):
+    for form in ("pipeline.owner@uni-test.edu", "pipeline.owner%40uni-test.edu", "uni-test.edu"):
         assert form not in reason
 
 
@@ -566,7 +566,7 @@ def test_help_exits_zero_as_a_module(module, tmp_path):
 
 
 # ================================================================== preflight
-EMAIL = "pipeline.owner@uconn.edu"
+EMAIL = "pipeline.owner@uni-test.edu"
 DOI = preflight.PREFLIGHT_DOI
 
 
@@ -610,7 +610,7 @@ def by_check(outs):
 
 
 @pytest.mark.parametrize("value", [
-    None, "", "   ", "jacob", "@uconn.edu", "someone@", "some one@uconn.edu",
+    None, "", "   ", "owner", "@uni-test.edu", "someone@", "some one@uni-test.edu",
     "x@example.com", "X@EXAMPLE.COM", "x@mail.example.com", "x@example.org", "x@example.net",
     "x@lab.test", "x@foo.invalid", "x@localhost", "x@site.example", "x@example.com.",
 ])
@@ -626,7 +626,7 @@ def test_preflight_rejects_a_missing_or_placeholder_email(value):
     assert preflight.exit_code(outs) == 2 and not preflight.ok(outs)
 
 
-@pytest.mark.parametrize("value", ["pipeline.owner@uconn.edu", "someone@myexample.com",
+@pytest.mark.parametrize("value", ["pipeline.owner@uni-test.edu", "someone@myexample.com",
                                    "a.b+lit@gmail.com", "x@example.com.au", " x@state.edu "])
 def test_preflight_accepts_a_real_email(value):
     assert preflight.check_email({"LITPIPE_EMAIL": value}).kind is Kind.OK

@@ -69,12 +69,12 @@ def test_same_day_second_sweep_keeps_new_doi(env):
 
 def test_a_doi_in_two_chains_of_one_run_is_listed_once(env):
     chain(env.proj, RUN, [row("10.1234/twice9")])
-    chain(env.proj, RUN, [row("10.1234/TWICE9")], tag="ch15")
+    chain(env.proj, RUN, [row("10.1234/TWICE9")], tag="unit3")
     route(env)
     assert holdings.extract_dois(text(env.proj / m.ILL_NAME)) == ["10.1234/twice9"]
 
 
-def test_oa_blocked_worklist_dedups_against_the_vap_form(env):
+def test_oa_blocked_worklist_dedups_against_a_consumer_form(env):
     body = (FIX / "md_blocked_oa.md").read_text(encoding="utf-8")
     (env.proj / m.OA_BLOCKED_NAME).write_text("# P: open access, blocked\n\n" + body, encoding="utf-8")
     listed = [holdings.extract_dois(l)[0] for l in body.splitlines()]

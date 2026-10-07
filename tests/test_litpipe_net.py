@@ -431,8 +431,8 @@ def test_no_email_sends_no_mailto_at_all(net_env, mock_server, monkeypatch, valu
 def test_identity_user_agent_and_ncbi_params(net_env, mock_server):
     pol(identity="ncbi")
     s = mock_server().script("/x", Reply(200))
-    assert net.request("GET", s.url("/x"), params={"ids": "1", "email": "old@x.org", "tool": "GETPAID"},
-                       headers={"User-Agent": "GETPAID-x/1.0"}).ok
+    assert net.request("GET", s.url("/x"), params={"ids": "1", "email": "old@x.org", "tool": "OLDTOOL"},
+                       headers={"User-Agent": "oldtool-x/1.0"}).ok
     h = s.hits[0]
     assert h.headers["User-Agent"] == f"literature-pipeline/{__version__} (mailto:tester@litpipe-test.org)"
     assert h.query == {"ids": ["1"], "tool": ["literature-pipeline"], "email": ["tester@litpipe-test.org"]}

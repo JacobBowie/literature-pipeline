@@ -195,7 +195,7 @@ def kill_runner(p):
 # ================================================================ acceptance 3: a batch killed mid-sweep
 def test_a_batch_killed_mid_sweep_resumes_and_sweeps_only_the_surviving_file_again(w, monkeypatch):
     w.register("teaching_a")
-    pool = w.proot("teaching_a") / "lit_pull_queue.ch15_pool.csv"
+    pool = w.proot("teaching_a") / "lit_pull_queue.unit3_pool.csv"
     dois = [f"10.5555/pool.{i:04d}" for i in range(1, 7)]
     pool.write_bytes(("doi,title,authors,year\n" + "".join(f"{d},T {i},A,2021\n" for i, d in enumerate(dois)))
                      .encode("utf-8"))
@@ -209,7 +209,7 @@ def test_a_batch_killed_mid_sweep_resumes_and_sweeps_only_the_surviving_file_aga
         if p.poll() is None:
             p.kill()
     assert wait_for(lambda: not state.pid_alive(pid_of(child)), timeout=30)   # the child died with the runner
-    bfile = w.proot("teaching_a") / "lit_pull_queue.b-ch15_pool.csv"
+    bfile = w.proot("teaching_a") / "lit_pull_queue.b-unit3_pool.csv"
     assert bfile.is_file()                                                   # the file survived the kill
     cfg = json.loads(w.cfg_path.read_text(encoding="utf-8"))
     assert worklists.Pool(pool, registry=cfg).status()["pending"] == 2

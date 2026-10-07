@@ -3,67 +3,89 @@ DEC-11, DEC-12, DEC-18, DEC-31).
 
 Commands
   run --profile every_run|daily|weekly|monthly [--project KEY ...] [--dry-run] [--scheduled]
-      [--db-writes|--no-db-writes] [--json PATH] [--timeout JOB=SECONDS ...]
+      [--db-writes|--no-db-writes] [--json PATH] [--timeout JOB=SECONDS ...] [--sources LIST]
   batch --project KEY --pool CSV [--size 100] [--batches 1] [--tag TAG] [--skip-preprint]
-      [--stage-only] [--dry-run] [--json PATH]
+      [--stage-only] [--dry-run] [--json PATH] [--sources LIST]
   status            live runs, the last run per project, refused and deferred hosts, today's
                     per-host counts; registers nothing and creates no state file
-  schedule-print [--platform linux|windows]
-                    the ONE nightly task (DEC-03, 01:00) as a template filled from this checkout and
-                    the registry, for this machine's platform by default: a systemd user service and
-                    timer (OnCalendar=*-*-* 01:00:00, Persistent=true) plus a crontab line on Linux, a
-                    Register-ScheduledTask command plus a schtasks line on Windows. Variable names
-                    only, never values; prints only, never registers
+  schedule-print [--platform linux|windows|macos]
+                    the ONE nightly task (DEC-03; projects.json runner.schedule_time "HH:MM", default
+                    01:00, local time) as a template filled from this checkout and the registry, for
+                    this machine's platform by default: a systemd user service and timer
+                    (OnCalendar=*-*-* 01:00:00, Persistent=true) plus a crontab line on Linux, a
+                    Register-ScheduledTask command plus a schtasks line on Windows, a crontab line
+                    only on macOS (best-effort: no launchd unit). Variable names only, never values;
+                    prints only, never registers
   _stage            internal: the child-process shim (below)
+
+--sources LIST (DEC-31) replaces every project's `sources` for one run (sweep and migrate get it);
+an invalid list is exit 1 before anything runs.
 
 Profiles are cumulative (daily includes every_run, weekly daily, monthly weekly). With
 --scheduled the profile escalates (one nightly task runs the weekly and monthly jobs too): kv
-namespace "runner", keys profile_done:weekly / profile_done:monthly hold the UTC time a run of that
-profile or higher last finished with exit 0 or 2; weekly runs when 6.5 days or more have passed,
-monthly when 27 days or more, never lower than --profile. A key is stamped only when those jobs ran
-(not on a refusal, an abort or a dry run).
+namespace "runner", keys profile_done:weekly / profile_done:monthly hold the UTC START time of the
+last run of that profile or higher that ended with exit 0 or 2 (a start, so a run over 12 h never
+pushes the next weekly a day later); weekly runs when 6.5 days or more have passed, monthly when
+27.5 days or more (the 28th night), never lower than --profile. A key is stamped only when those
+jobs ran (not on a refusal, an abort or a dry run).
 
 Order of one `run`
   1. Registry: exit 1 BEFORE registering when projects.json is missing, does not parse, a selected
-     project's sources / auto_stage / walk_cadence_days or the top-level "runner" block is invalid,
-     or no project is selected (the active ones, or --project). Then register a writer run
-     (state.register_run("runner")), refuse when another runner registered first (by `seq`, the runs
-     rowid: `started` is truncated to the second), and start the heartbeat.
+     project's sources / auto_stage / walk_cadence_days / artifact_dir, --sources or the top-level
+     "runner" block is invalid, or no project is selected (the active ones, or --project). Then
+     register a writer run (state.register_run("runner")), refuse when another runner registered
+     first (by `seq`, the runs rowid: `started` is truncated to the second), start the heartbeat,
+     and (POSIX) report a stage an earlier, killed runner left running (find_orphans).
   2. Preflight (litpipe.preflight.run): not ok -> nothing else runs, exit 3.
   3. Network canaries (litpipe.canaries, phase "network"): a confirmed failure refuses its origin
      host in litpipe.state for the run; the stages read that.
-  4. Per project, in registry order: (a) auto_stage projects only: seed and stage a draft (a
-     non-empty queue is backed up first; comment lines stripped; written atomically); (b) sweep, only
-     when something is staged (a queue, a tagged queue, or due retry_later rows), with
-     loose_ends=False and the candidate order; (c) route (migrate_closed_to_md) the sweep's run id;
-     (d) the forward walk when due (walk_cadence_days; kv runner walk:<project>).
+  4. Per project, in registry order, under the project's lock file (litpipe.lockfile, taken with
+     this run's id, so the sweep child joins it): (a) auto_stage projects only: seed and stage a
+     draft (a non-empty queue is backed up first; comment lines stripped; written atomically);
+     (b) sweep, only when something is staged (a queue, a tagged queue, or due retry_later rows),
+     with loose_ends=False and the candidate order; (c) route (migrate_closed_to_md) the sweep's
+     run id; (d) ris, daily and up: backfill_ris.run(project, commit=True, include_text_only=True,
+     limit) writes a .ris for holdings without one (text-only holdings among them; at most
+     projects.json runner.ris_limit, default 200, per run; it never replaces a .ris, and the DEC-29
+     manifest keeps curated ones); skipped when every holding has one. A lock another live
+     process holds (an interactive sweep, maybe on another machine) DEFERS (a) to (d) for this run
+     (reported, never a failure); a lock lost on the way stops the project's remaining stages
+     (ABORTED, a failure). Then, outside the lock: (e) the forward walk when due
+     (walk_cadence_days; kv runner walk:<project>).
   5. Weekly: the backward top-up (reverse_citations) for the cadence-driven projects.
   6. Index each project whose index fingerprint changed (DB writes only).
   7. Profile jobs: enrich_abstracts (weekly), enrich_recommendations --recent-feed (monthly, S2 key
      only, DEC-18), one keyed S2 call (monthly, so an idle key is not pruned), audit_portfolio
      (weekly, read-only, holdings=False).
-  8. Local canaries over what the run wrote, the health report.
-  9. LOOSE_ENDS (one line per project, only when its state changed), the summary, finish_run (in a
-     finally, so a crash still ends the run and its run refusals).
---dry-run lists every job per project with the reason for each skip, and the canaries' planned
-requests; it registers nothing and writes nothing (no state file, summary, log, LOOSE_ENDS line or
-pool state), and exits 0.
+  8. Local canaries over what the run wrote (artifacts read from each project's
+     config.artifact_dir; `unpaywall` expected only when the project's Unpaywall stage ran,
+     `routing` whenever the route ran: migrate writes one per chain), the health report.
+  9. LOOSE_ENDS (one line per project, only when its state changed; when the project's previous
+     line in the LOOSE_ENDS FILE is a PARTIAL, possibly a laptop's, and this run is clean, the one
+     line is "✅ Lit pull done: <key>/ — closes the PARTIAL of <date>: <done summary>", written
+     once), the summary, finish_run (in a finally, so a crash still ends the run and its run
+     refusals).
+--dry-run lists every job per project with the reason for each skip (a held lock among them), and
+the canaries' planned requests; it registers nothing and writes nothing (no state file, summary,
+log, lock, LOOSE_ENDS line or pool state), and exits 0.
 
 `batch` draws a pool down on litpipe.worklists.Pool's drawdown contract (W4a verifier M): the pool
 CSV's row order is its rank; each batch is written as lit_pull_queue.<tag>.csv in the project root
 (the 6-column queue contract, destination = the registry library relative to the project root) and
-swept with sweep's own run id. The tag is --tag, else `b-` + the pool's file name (a leading
-`lit_pull_queue.` and the `.csv` dropped, lower-cased, characters outside [a-z0-9_-] as '-', leading
-characters that are neither letters nor digits dropped, 32 characters at most); it must pass
-sweep.is_valid_tag. Exit 1 before anything is written when the batch queue would be the pool CSV,
-when sweep would sweep the pool itself, when another queue is staged (sweep's own `retry` queue
-aside), or when a file sits at the batch path that the pool does not track. Pending batches are
-resolved first (a file present: swept; a processed artifact of its tag holding its DOIs: routed if
-its routing CSV is missing, then marked swept, never swept again; neither: the file is written again
-from the staged DOIs, never staged twice); no new row is drawn while one is unresolved. One batch:
-next_batch, mark_staged (before the write), the write, the sweep, the route, mark_swept with each
-DOI's residual class ("fetched" when absent from the residual). A batch whose own queue did not
-retire is not marked swept: the loop stops and the batch waits for the next `runner batch`.
+swept with sweep's own run id. The project's lock file is taken for the whole invocation, before
+anything is drawn: held by another live process, the batch is exit 1. The tag is --tag, else `b-` +
+the pool's file name (a leading `lit_pull_queue.` and the `.csv` dropped, lower-cased, characters
+outside [a-z0-9_-] as '-', leading characters that are neither letters nor digits dropped, 32
+characters at most); it must pass sweep.is_valid_tag. Exit 1 before anything is written when the
+batch queue would be the pool CSV, when sweep would sweep the pool itself, when another queue is
+staged (sweep's own `retry` queue aside), or when a file sits at the batch path that the pool does
+not track. Pending batches are resolved first (a file present: swept; a processed artifact of its
+tag holding its DOIs, in the artifact directory or the project root: routed if its routing CSV is
+missing, then marked swept, never swept again; neither: the file is written again from the staged
+DOIs, never staged twice); no new row is drawn while one is unresolved. One batch: next_batch,
+mark_staged (before the write), the write, the sweep, the route, mark_swept with each DOI's
+residual class ("fetched" when absent from the residual). A batch whose own queue did not retire
+is not marked swept: the loop stops and the batch waits for the next `runner batch`.
 --batches counts the batches swept by one invocation, a resumed one included. --stage-only stages
 the next batch and stops (the curation pause, no preflight or canaries: nothing is sent); the next
 `runner batch` marks the rows a person removed from the file `curated_out` and sweeps the rest; a
@@ -71,18 +93,24 @@ DOI in the file that the batch did not stage is exit 1. "Archive the stage set":
 artifacts (lit_pull_queue.<tag>.<run_id>.<stage>.csv, the processed queue among them) are the
 archive; nothing is copied.
 
-Exit codes: 0 every job OK or deliberately SKIPPED, and HEALTH PASS; 1 usage or config; 2 completed
-with failures (a job DEGRADED, FAILED, ERROR, ABORTED or timed out; a walk DEFERRED; HEALTH ALARM,
-except an index_freshness ALARM for a project whose index the runner skipped because DB writes are
-off); 3 aborted (preflight failed, another runner live, heartbeat lost, interrupted, the runner
-crashed). Before an exit 2 or 3 the last stdout line is `[step-summary] {json}` with reasons,
-aborted and transport_failures.
+Exit codes: 0 every job OK or deliberately SKIPPED (a project DEFERRED by its lock included), and
+HEALTH PASS; 1 usage or config; 2 completed with failures (a job DEGRADED, FAILED, ERROR, ABORTED
+or timed out; a walk DEFERRED; a project lock lost; HEALTH ALARM, except an index_freshness ALARM
+for a project whose index the runner skipped because DB writes are off); 3 aborted (preflight
+failed, another runner live, heartbeat lost, interrupted, the runner crashed). Before an exit 2 or
+3 the last stdout line is `[step-summary] {json}` with reasons, aborted and transport_failures.
 
 Database writes (DEC-05 not executed): index_portfolio, enrich_abstracts, enrich_recommendations
 (and litpipe.enrich_s2, which the runner does not call) open portfolio.duckdb for writing. They run
 only when projects.json has "runner": {"unattended_db_writes": true} or --db-writes is passed
-(--no-db-writes forces them off); otherwise the summary lists each with the command to run. The
-"runner" block also takes "candidate_order": "repository" | "publisher" (DEC-11).
+(--no-db-writes forces them off); otherwise the summary lists each with the command to run.
+The "runner" block (runner_block validates every key; all optional):
+  unattended_db_writes  bool (above)
+  candidate_order       "repository" | "publisher" (DEC-11)
+  timeouts              {job: seconds} per-stage timeouts (--timeout JOB=SECONDS wins for one run)
+  lock_stale_s          seconds after which a project lock file's heartbeat is stale (default 7200)
+  ris_limit             the most holdings the nightly ris job resolves per project (default 200)
+  schedule_time         "HH:MM", the nightly task's local time in every template (default 01:00)
 
 Stage isolation (ruling 2 of the W4 plan). Every (project, stage) runs in a child process:
     python -m litpipe.runner _stage --module M --kwargs K.json --out R.json --config REGISTRY
@@ -137,6 +165,14 @@ SKIPPED, ABORTED (and DEFERRED, set by the runner before a walk).
                                             2 SKIPPED (no matching project)
   extract   extract_pdf_fulltext            exit 0 OK, 1 FAILED, 2 DEGRADED (not run by the     counts
                                             runner itself: sweep runs it)
+  ris       backfill_ris                    the exit convention on its stats: a metadata        written, skipped,
+                                            source that could not answer (META_UNAVAILABLE,    kept_curated,
+                                            a network failure) DEGRADED (2), else OK (0)       meta_unavailable
+  lock      (the runner itself)             DEFERRED (held by another live process; not a
+                                            failure); ABORTED (lost mid-project; a failure)
+  orphaned_stage (the runner itself)        DEGRADED, not a failure: a stage an earlier killed
+                                            runner left running (POSIX), killed when its pid's
+                                            start time matches the record
   any       a stage that returns OK while its log holds "Traceback (most recent call last):" is
             DEGRADED "traceback in the stage log" (a stage that swallows a grandchild's crash still
             exits 0).
@@ -196,7 +232,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import lit_util
-from litpipe import canaries, config, ledger, preflight, state
+from litpipe import canaries, config, ledger, lockfile, preflight, state
 from litpipe.outcomes import Kind, Outcome
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -211,14 +247,14 @@ FAILURE_STATUSES = frozenset({DEGRADED, FAILED, ERROR, ABORTED, DEFERRED})
 EXIT_OK, EXIT_CONFIG, EXIT_FAILURES, EXIT_ABORTED = 0, 1, 2, 3
 
 HEARTBEAT_EVERY_S = 300.0       # beat when time.time() has advanced this much since the last beat
-HEARTBEAT_SLICE_S = 15.0        # the heartbeat thread never waits longer than this at a time
+HEARTBEAT_SLICE_S = 1.0         # the heartbeat thread never waits longer than this at a time (W5: was 15 s)
 JUMP_TOLERANCE_S = 30.0         # a wall-clock advance this far beyond a wait is a jump (sleep, clock step)
 POLL_S = 0.2                    # the wait loop's poll while a child runs
 JOIN_S = 10.0                   # join the log reader after the child ends (a grandchild may hold the pipe)
 KILL_GRACE_S = 10.0             # POSIX: SIGTERM to a stage's process group, then SIGKILL after this
 KEEP_RUN_DIRS = 90
 WEEKLY_AFTER_S = 6.5 * 86400
-MONTHLY_AFTER_S = 27 * 86400
+MONTHLY_AFTER_S = 27.5 * 86400  # W5: with START stamps, half a day of slack keeps monthly on the 28th night
 CANDIDATE_ORDERS = ("repository", "publisher")
 AB_ORDERS = ("repository", "publisher")      # DEC-11: the first two scheduled runs with Unpaywall
 S2_HOST = "api.semanticscholar.org"
@@ -246,7 +282,12 @@ STAGE_MODULES = {
     "recommendations": "enrich_recommendations",
     "audit": "audit_portfolio",
     "extract": "extract_pdf_fulltext",
+    "ris": "backfill_ris",
 }
+RIS_LIMIT = 200                 # runner.ris_limit: the most holdings the nightly `ris` job resolves
+SCHEDULE_TIME = "01:00"         # runner.schedule_time: the nightly task's local time (DEC-03)
+ACTIVE_STAGE_KEY = "active_stage"   # kv runner: the stage child running now (POSIX orphan check)
+ORPHAN_CHECK = os.name != "nt"  # POSIX: a SIGKILLed runner can leave a stage's process group behind
 # Per-stage timeouts in seconds (--timeout JOB=SECONDS overrides one run). enrich_abstracts and
 # enrich_recommendations get 3 h, not the 30 min default: about 17,000 DOIs take about 95 min at
 # Crossref's pacing (enrich_abstracts' docstring), and 5,872 seeds at the keyed 1.1 s take about
@@ -351,8 +392,14 @@ def _has_rows(path) -> bool:
 
 
 # ------------------------------------------------------------------------------ the registry
+def _positive(v):
+    return not isinstance(v, bool) and isinstance(v, (int, float)) and v > 0
+
+
 def runner_block(cfg) -> dict:
-    """projects.json "runner": {"unattended_db_writes": bool, "candidate_order": str}, validated."""
+    """projects.json "runner", validated: {"unattended_db_writes": bool, "candidate_order": str,
+    "timeouts": {job: seconds}, "lock_stale_s": seconds, "ris_limit": int, "schedule_time": "HH:MM"}.
+    Every key is optional; ConfigError on a value of the wrong shape."""
     b = config.load(cfg).get("runner", {})
     if b is None:
         b = {}
@@ -365,11 +412,31 @@ def runner_block(cfg) -> dict:
     if order is not None and order not in CANDIDATE_ORDERS:
         raise config.ConfigError(f"runner.candidate_order must be one of {', '.join(CANDIDATE_ORDERS)}, "
                                  f"got {order!r}")
-    return {"unattended_db_writes": udw, "candidate_order": order}
+    timeouts = b.get("timeouts") or {}
+    if not isinstance(timeouts, dict):
+        raise config.ConfigError(f"runner.timeouts must be an object of job: seconds, got {timeouts!r}")
+    for job, secs in timeouts.items():
+        if job not in STAGE_MODULES or not _positive(secs):
+            raise config.ConfigError(f"runner.timeouts takes job: seconds with job one of "
+                                     f"{', '.join(STAGE_MODULES)} and seconds > 0, got {job!r}: {secs!r}")
+    stale = b.get("lock_stale_s")
+    if stale is not None and not _positive(stale):
+        raise config.ConfigError(f"runner.lock_stale_s must be a positive number of seconds, got {stale!r}")
+    ris = b.get("ris_limit", RIS_LIMIT)
+    if isinstance(ris, bool) or not isinstance(ris, int) or ris < 1:
+        raise config.ConfigError(f"runner.ris_limit must be a positive integer, got {ris!r}")
+    when = b.get("schedule_time", SCHEDULE_TIME)
+    if not isinstance(when, str) or not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", when.strip()):
+        raise config.ConfigError(f"runner.schedule_time must be \"HH:MM\" (24-hour, local time), got {when!r}")
+    return {"unattended_db_writes": udw, "candidate_order": order,
+            "timeouts": {k: float(v) for k, v in timeouts.items()},
+            "lock_stale_s": float(stale) if stale is not None else lockfile.STALE_S,
+            "ris_limit": ris, "schedule_time": when.strip()}
 
 
-def load_registry(projects=None):
-    """(cfg, [selected keys in registry order]); ConfigProblem for every exit-1 case."""
+def load_registry(projects=None, sources=None):
+    """(cfg, [selected keys in registry order]); ConfigProblem for every exit-1 case (an invalid
+    one-run `sources` override among them)."""
     path = Path(config.CONFIG_PATH)
     if not path.is_file():
         raise ConfigProblem(f"projects.json not found at {path} (config.load would read it as empty)")
@@ -398,10 +465,13 @@ def load_registry(projects=None):
     if not keys:
         raise ConfigProblem("no project selected (no active project in the registry)")
     try:
+        if sources is not None:
+            config.sources(None, override=sources, cfg=cfg)
         for k in keys:
             config.sources(k, cfg=cfg)
             config.auto_stage(k, cfg=cfg)
             config.walk_cadence_days(k, cfg=cfg)
+            config.artifact_dir(k, cfg=cfg)
         runner_block(cfg)
         config.state_dir(cfg, create=False)
         config.db_dir(cfg)
@@ -423,17 +493,21 @@ class Project:
     sweep: dict | None = None          # {"exit", "run_id", "results", "refused"}
     route_status: str | None = None
     staged_rows: int = 0
+    art_dir: Path | None = None        # where sweep keeps its run artifacts (config.artifact_dir)
+    lock_deferred: str = ""            # the holder, when another process held the project's lock
 
 
-def _projects(cfg, keys):
+def _projects(cfg, keys, sources=None):
     reg = cfg.get("projects") or {}
     out = []
     for k in keys:
         e = reg.get(k) or {}
-        out.append(Project(k, e, lit_util.project_root(k, e),
-                           lit_util.lib_paths(k, e)[1] if e.get("lib_dir") else None,
-                           sorted(config.sources(k, cfg=cfg)), config.auto_stage(k, cfg=cfg),
-                           config.walk_cadence_days(k, cfg=cfg)))
+        p = Project(k, e, lit_util.project_root(k, e),
+                    lit_util.lib_paths(k, e)[1] if e.get("lib_dir") else None,
+                    sorted(config.sources(k, override=sources, cfg=cfg)), config.auto_stage(k, cfg=cfg),
+                    config.walk_cadence_days(k, cfg=cfg))
+        p.art_dir = Path(config.artifact_dir(k, cfg=cfg))
+        out.append(p)
     return out
 
 
@@ -535,6 +609,18 @@ def _c_extract(res, _project=None):
     return FAILED, f"exit {code}", code if isinstance(code, int) else None
 
 
+def _c_ris(res, _project=None):
+    """backfill_ris.run(): no exit code of its own. A metadata source that could not answer
+    (META_UNAVAILABLE: a network failure) is DEGRADED (the exit convention's 2), never FAILED: the
+    holding gets its .ris on a later night. Anything else that returned is OK."""
+    stats = res.get("stats") or {}
+    summ = res.get("summary") or {}
+    unavailable = int(stats.get("META_UNAVAILABLE") or summ.get("meta_unavailable") or 0)
+    if unavailable:
+        return DEGRADED, f"{unavailable} metadata lookup(s) could not be answered (network); retried next run", 2
+    return OK, "", 0
+
+
 RESULT_TABLE = {
     "seed": (("exit_code",), _exit_convention),
     "sweep": (("exit_code", "projects"), _c_sweep),
@@ -546,6 +632,7 @@ RESULT_TABLE = {
     "recommendations": (("status", "exit_code"), _c_recs),
     "audit": (("exit_code",), _c_audit),
     "extract": (("exit",), _c_extract),
+    "ris": (("summary",), _c_ris),
 }
 
 KEPT = {
@@ -581,6 +668,11 @@ def kept_counts(job, res, project=None) -> dict:
         for k in ("rows", "downloaded", "unpaywall", "pmc", "preprint"):
             out[k] = sum(int(r.get(k) or 0) for r in results)
         return out
+    if job == "ris":
+        s = res.get("summary") or {}
+        return {"written": int(s.get("wrote") or 0), "skipped": int(s.get("skip_existing") or 0),
+                "kept_curated": int(s.get("kept_curated") or 0),
+                "meta_unavailable": int(s.get("meta_unavailable") or 0)}
     return {k: res[k] for k in KEPT.get(job, ()) if k in res}
 
 
@@ -590,6 +682,8 @@ def classify(job, run, project=None):
         return ERROR, f"timeout after {int(run.timeout_s)} s", None
     if run.killed == "heartbeat":
         return ABORTED, HEARTBEAT_LOST, None
+    if run.killed == "lock":
+        return ABORTED, "project lock lost: the stage was stopped", None
     if run.result is None:
         rc = "" if run.rc is None else f"; shim exit {run.rc}"
         return ERROR, f"{run.problem or 'no result'}{rc}", None
@@ -781,6 +875,7 @@ class Step:
     registry: Path
     run_id: str
     heartbeat: object = None
+    stop: object = None            # a threading.Event: the project's lock was lost (kill the stage)
 
 
 @dataclass
@@ -788,7 +883,7 @@ class StageRun:
     rc: int | None
     result: dict | None
     problem: str = ""
-    killed: str = ""               # "timeout" | "heartbeat" | ""
+    killed: str = ""               # "timeout" | "heartbeat" | "lock" | ""
     kill_method: str = ""
     traceback: bool = False
     lines: int = 0
@@ -1089,6 +1184,99 @@ def _kill_tree(proc, job=None) -> str:
     return ProcessTree(proc, job).kill()
 
 
+# ------------------------------------------------------------------------------ orphaned stages (POSIX)
+# A runner killed with SIGKILL (the OOM killer, kill -9, cron) cannot kill its running stage: the
+# stage's own session (process group) runs on. So the launcher records the running child in kv
+# runner/active_stage (pid = pgid, its start time, run id, job) and clears it when the child ends; a
+# later runner finding a record whose run was abandoned checks the process table: a process group
+# still there is reported, and killed only while that pid's start time still matches the record (a
+# reused pid is never killed). The process-table access is three seams tests replace.
+def _proc_start(pid):
+    """A process's start time as an opaque string (Linux: /proc/<pid>/stat field 22, the start in
+    clock ticks after boot; elsewhere `ps -o lstart=`), or None when unknown."""
+    try:
+        with open(f"/proc/{int(pid)}/stat", encoding="utf-8", errors="replace") as f:
+            stat = f.read()
+        return "proc:" + stat.rsplit(")", 1)[1].split()[19]
+    except (OSError, IndexError, ValueError):
+        pass
+    try:
+        out = subprocess.run(["ps", "-o", "lstart=", "-p", str(int(pid))], capture_output=True, text=True,
+                             timeout=10)
+        s = out.stdout.strip()
+        return f"ps:{s}" if out.returncode == 0 and s else None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+def _group_alive(pgid) -> bool:
+    try:
+        os.killpg(int(pgid), 0)        # signal 0: an existence check, nothing is sent (POSIX only)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except (OSError, AttributeError, ValueError):
+        return False
+
+
+def _kill_group(pgid) -> str:
+    import signal
+    try:
+        os.killpg(int(pgid), getattr(signal, "SIGTERM", 15))
+    except (OSError, AttributeError):
+        return "gone"
+    end = time.time() + KILL_GRACE_S
+    while time.time() < end and _group_alive(pgid):
+        time.sleep(0.2)
+    if _group_alive(pgid):
+        try:
+            os.killpg(int(pgid), getattr(signal, "SIGKILL", 9))
+        except (OSError, AttributeError):
+            pass
+        return "SIGTERM, then SIGKILL"
+    return "SIGTERM"
+
+
+def _record_stage(step, pid):
+    """kv runner/active_stage: the child now running (pid None: none). POSIX only; never fails a run."""
+    if not ORPHAN_CHECK:
+        return
+    try:
+        rec = None if pid is None else {"run_id": step.run_id, "pid": int(pid), "pgid": int(pid),
+                                        "start": _proc_start(pid), "job": step.job, "project": step.project,
+                                        "recorded": _iso(time.time())}
+        state.kv_set(KV, ACTIVE_STAGE_KEY, rec)
+    except Exception:   # noqa: BLE001 - the record is a diagnosis aid only
+        pass
+
+
+def find_orphans(own_run_id, *, kill=True) -> list:
+    """The orphan check a runner makes on start (POSIX; see above). Returns one dict per record
+    found: {run_id, job, project, pid, alive, killed, how}; the record is cleared once handled."""
+    if not ORPHAN_CHECK:
+        return []
+    rec = state.kv_get(KV, ACTIVE_STAGE_KEY)
+    if not isinstance(rec, dict) or not rec.get("pid") or rec.get("run_id") == own_run_id:
+        return []
+    if rec.get("run_id") in {r["run_id"] for r in state.live_runs()}:
+        return []                       # its runner is alive (it is not ours: the one-runner rule refuses us)
+    pgid = rec.get("pgid") or rec.get("pid")
+    out = {k: rec.get(k) for k in ("run_id", "job", "project", "pid")}
+    out.update(alive=_group_alive(pgid), killed=False, how="")
+    if out["alive"]:
+        now = _proc_start(rec["pid"])
+        same = rec.get("start") is not None and now == rec.get("start")
+        if kill and same:
+            out["how"] = _kill_group(pgid)
+            out["killed"] = True
+        elif not same:
+            out["how"] = "not killed: the pid's start time differs from the record (reused pid) or is unknown"
+    state.kv_set(KV, ACTIVE_STAGE_KEY, None)
+    return [out]
+
+
 class _Terminated(BaseException):
     """SIGTERM reached the runner (POSIX: systemd stopping the unit, `kill <pid>`): the running
     child's tree is killed and the run ends as aborted."""
@@ -1148,6 +1336,7 @@ def subprocess_launcher(step: Step) -> StageRun:
     proc = tree.proc
     pump = _Pump(proc.stdout, step.log_path).start()
     killed, how, rc = "", "", None
+    _record_stage(step, proc.pid)
     try:
         while True:
             try:
@@ -1158,6 +1347,9 @@ def subprocess_launcher(step: Step) -> StageRun:
             tick()
             if hb.lost.is_set():
                 killed = "heartbeat"
+                break
+            if step.stop is not None and step.stop.is_set():
+                killed = "lock"
                 break
             if elapsed() > step.timeout_s:
                 killed = "timeout"
@@ -1171,6 +1363,7 @@ def subprocess_launcher(step: Step) -> StageRun:
     finally:
         pump.thread.join(JOIN_S)
         tree.close()
+        _record_stage(step, None)
         pump.thread.join(JOIN_S)
         abandoned = pump.thread.is_alive()
         pump.close()
@@ -1299,6 +1492,27 @@ def _is_crossref_error(r) -> bool:
     return str(r.get("kind") or "") in ("TRANSPORT", "OUTAGE", "REFUSED")
 
 
+CLOSES_MARK = "closes the PARTIAL of"       # the greppable marker of a closing LOOSE_ENDS line (B3)
+
+
+def closing_line(key, line, prev):
+    """Decision B3: when the project's previous lit-pull line in the LOOSE_ENDS FILE (`prev`, read
+    with sweep.last_loose_end: a laptop's PARTIAL never reaches this machine's kv) is a PARTIAL and
+    this run's line is a done line, the line that closes it:
+        ✅ Lit pull done: <key>/ — closes the PARTIAL of <date>: <done summary>
+    (<date> from the earlier line's report names; "closes the earlier PARTIAL" when it names none).
+    None otherwise, so a second clean run writes no second closing line."""
+    import sweep
+    if not prev or not str(prev).startswith(sweep.LOOSE_PARTIAL) or not str(line).startswith(sweep.LOOSE_DONE):
+        return None
+    head = f"{sweep.LOOSE_DONE} {key}/ — "
+    summary = line[len(head):] if line.startswith(head) else line[len(sweep.LOOSE_DONE):].strip()
+    reports = prev.split(" Report:", 1)[1] if " Report:" in prev else ""
+    m = re.search(r"(?<!\d)(\d{4}-\d{2}-\d{2})(?!\d)", reports) or re.search(r"(?<!\d)(\d{4}-\d{2}-\d{2})(?!\d)", prev)
+    when = f"{CLOSES_MARK} {m.group(1)}" if m else "closes the earlier PARTIAL"
+    return f"{head}{when}: {summary}"
+
+
 # ------------------------------------------------------------------------------ one run
 def earlier_runner(live, run_id):
     """The live `runner` run registered before `run_id` (DEC-02), or None. Registration order is
@@ -1316,14 +1530,17 @@ class _Run:
     kind = "runner run"
 
     def __init__(self, cfg, keys, *, launcher=None, timeouts=None, json_path=None, db_writes=None,
-                 profile="daily", scheduled=False, force_walks=False):
+                 profile="daily", scheduled=False, force_walks=False, sources=None):
         self.cfg = cfg
         self.keys = keys
-        self.projects = _projects(cfg, keys)
+        self.sources_override = sources
+        self.projects = _projects(cfg, keys, sources)
         self.launcher = launcher or subprocess_launcher
-        self.timeouts = {**TIMEOUTS, **(timeouts or {})}
         self.json_path = json_path
         self.runner_cfg = runner_block(cfg)
+        # per-stage timeouts: the defaults, then projects.json runner.timeouts, then --timeout (one run)
+        self.timeouts = {**TIMEOUTS, **self.runner_cfg["timeouts"], **(timeouts or {})}
+        self.lock = None               # the project lock held around the current project's stages
         if db_writes is None:
             self.db_writes, self.db_writes_source = self.runner_cfg["unattended_db_writes"], "projects.json"
         else:
@@ -1380,9 +1597,10 @@ class _Run:
             raise _Abort(HEARTBEAT_LOST)
         self.step_n += 1
         slug = f"{self.step_n:02d}-{job}" + (f"-{_slug(project)}" if project else "")
+        stop = self.lock.lost if (self.lock is not None and project is not None) else None
         step = Step(job, STAGE_MODULES[job], kwargs, project, float(self.timeouts.get(job, DEFAULT_TIMEOUT_S)),
                     self.run_dir / "logs" / f"{slug}.log", self.run_dir / "stages" / f"{slug}.kwargs.json",
-                    self.run_dir / "stages" / f"{slug}.result.json", self.registry, self.run_id, self.hb)
+                    self.run_dir / "stages" / f"{slug}.result.json", self.registry, self.run_id, self.hb, stop)
         _say(f"{slug}: {step.module}.run() (timeout {int(step.timeout_s)} s)")
         try:
             sr = self.launcher(step)
@@ -1423,6 +1641,52 @@ class _Run:
         self.hb = Heartbeat(self.run_id).start()
         _say(f"run {self.run_id} registered ({self.kind}; profile {self.profile}"
              + (f" -> {self.effective}" if self.effective != self.profile else "") + ")")
+        self._orphans()
+
+    def _orphans(self):
+        """POSIX: a stage left running by an earlier runner that was killed (find_orphans)."""
+        try:
+            found = find_orphans(self.run_id)
+        except Exception as e:   # noqa: BLE001 - a diagnosis aid; never stops the run
+            found = []
+            self.extra["orphan_check_error"] = f"{type(e).__name__}: {ledger.redact(str(e))[:160]}"
+        for o in found:
+            if not o["alive"]:
+                continue
+            what = (f"run {o['run_id']} left its {o['job']} stage" + (f" for {o['project']}" if o["project"] else "")
+                    + f" running (process group {o['pid']})")
+            self._job(o.get("project"), "orphaned_stage", DEGRADED,
+                      f"{what}: " + (f"killed ({o['how']})" if o["killed"] else o["how"] or "left running"),
+                      counts_for_exit=False)
+        if found:
+            self.extra["orphaned_stages"] = found
+
+    # -- the per-project lock file (litpipe.lockfile)
+    def _take_lock(self, p, tool="runner"):
+        """Take (or join) p's lock with this run's id; None and p.lock_deferred when another live
+        process holds it, None when the project root does not exist (nothing to lock)."""
+        if not p.root.is_dir():
+            return None
+        try:
+            return lockfile.Lock(p.root, tool=tool, run_id=self.run_id,
+                                 stale_s=self.runner_cfg["lock_stale_s"]).acquire()
+        except lockfile.LockHeld as e:
+            p.lock_deferred = lockfile.describe(e.record)
+            return None
+
+    def _release_lock(self):
+        lk, self.lock = self.lock, None
+        if lk is not None:
+            lk.release()
+
+    def _lock_lost(self, p):
+        """True (and an ABORTED row) when p's lock was lost: its remaining stages do not run."""
+        if self.lock is not None and self.lock.lost.is_set():
+            if not any(j["project"] == p.key and j["job"] == "lock" for j in self.jobs):
+                self._job(p.key, "lock", ABORTED, f"project lock lost ({self.lock.lost_reason}); "
+                                                  f"the project's remaining stages do not run")
+            return True
+        return False
 
     def _later_runners_only(self, o):
         """Preflight's writer check DEFERs on any other live writer, but a `runner` run registered
@@ -1561,16 +1825,18 @@ class _Run:
                 continue
             line = ledger.redact(line)
             st = sweep._loose_state(line)
-            if _kv_get(f"loose_ends:{p.key}") == st:
-                self.loose[p.key] = "unchanged"
-                continue
             with _bound(sweep, "CONFIG_PATH", self.registry):
-                path = sweep.append_loose_end(line)
+                closing = closing_line(p.key, line, sweep.last_loose_end(p.key))
+                if closing is None and _kv_get(f"loose_ends:{p.key}") == st:
+                    self.loose[p.key] = "unchanged"
+                    continue
+                path = sweep.append_loose_end(closing or line)
             if path is None:
                 self.loose[p.key] = "unconfigured: projects.json has no loose_ends key; nothing written"
                 continue
+            # the kv holds the plain done state, so the next clean run with the same summary writes nothing
             state.kv_set(KV, f"loose_ends:{p.key}", st)
-            self.loose[p.key] = "written"
+            self.loose[p.key] = "written (closes the earlier PARTIAL)" if closing else "written"
 
     def _stamps(self):
         pass
@@ -1719,11 +1985,13 @@ class _ScheduledRun(_Run):
     def _stamps(self):
         if not self.scheduled:          # a manual run never moves the nightly task's escalation
             return
-        end = _now()
+        # the run's START (verifier O): a run longer than 12 h stamped at its finish would push the
+        # next weekly run a day later each week
+        start = self.t0
         if RANK[self.effective] >= RANK["weekly"]:
-            state.kv_set(KV, "profile_done:weekly", end)
+            state.kv_set(KV, "profile_done:weekly", start)
         if RANK[self.effective] >= RANK["monthly"]:
-            state.kv_set(KV, "profile_done:monthly", end)
+            state.kv_set(KV, "profile_done:monthly", start)
 
     def _consume_ab(self):
         if self.run_id is None or self.order_source != "a/b" or not self.unpaywall_ran:
@@ -1803,6 +2071,8 @@ class _ScheduledRun(_Run):
             kwargs["candidate_order"] = self.order
         if self.skip_preprint:
             kwargs["skip_preprint"] = True
+        if self.sources_override is not None:
+            kwargs["sources"] = self.sources_override
         rec, res = self._launch("sweep", p.key, kwargs)
         proj = ((res or {}).get("projects") or {}).get(p.key) or {}
         p.sweep = {"exit": rec["exit"], "status": rec["status"], "run_id": proj.get("run_id"),
@@ -1810,7 +2080,10 @@ class _ScheduledRun(_Run):
                    "refused": list(proj.get("refused") or [])}
         if rec["exit"] == 2:
             self.sweep_abort = p.key
-        ran = any((r.get("stages") or {}).get("unpaywall") == "completed" for r in p.sweep["results"])
+        # a completed Unpaywall stage with data rows (verifier O: a 0-row report asked nothing, so it
+        # neither counts as Unpaywall having run nor spends a DEC-11 A/B slot)
+        ran = any((r.get("stages") or {}).get("unpaywall") == "completed"
+                  and _has_rows(self._art(p, r, "unpaywall")) for r in p.sweep["results"])
         if ran:
             self.unpaywall_ran = True
             c = rec["counts"]
@@ -1833,12 +2106,93 @@ class _ScheduledRun(_Run):
             self._job(p.key, "route", ERROR, "the sweep result names no run id")
             return
         import sweep
-        skip = bool(self.skip_preprint) or sweep._preprint_excluded(p.key, self.cfg)
+        skip = bool(self.skip_preprint) or sweep._preprint_excluded(p.key, self.cfg, self.sources_override)
         kwargs = {"project": p.key, "run_id": sw["run_id"], "skip_preprint": skip}
         if tags:
             kwargs["tags"] = list(tags)
+        if self.sources_override is not None:
+            kwargs["sources"] = self.sources_override
         rec, res = self._launch("route", p.key, kwargs)
         p.route_status = (res or {}).get("status")
+
+    @staticmethod
+    def _art(p, r, stage):
+        """A sweep result's artifact for `stage`, in the project's artifact directory."""
+        import sweep
+        return (p.art_dir or p.root) / sweep.artifact_name(r.get("tag") or "", r.get("run_id"), stage)
+
+    # -- text-only holdings get a .ris (W5 plan item 12)
+    def _ris_todo(self, p):
+        """(holdings without a .ris, the limit to pass): backfill_ris.run sorts PDFs and text-only
+        sidecars by name and cuts the list at `limit` BEFORE skipping those that have a .ris, so the
+        limit passed is the position of the ris_limit-th holding that needs one (0: no cut). A
+        holding is a PDF, or a .fulltext.json with no PDF beside it; it needs one when <stem>.ris is
+        missing. None when the library cannot be read."""
+        try:
+            names = [e.name for e in os.scandir(p.lib) if e.is_file()]
+        except OSError:
+            return None
+        low = {n.casefold() for n in names}
+        pdf_stems = {n[:-4].casefold() for n in names if n.lower().endswith(".pdf")}
+        items = []
+        for n in names:
+            if n.lower().endswith(".pdf"):
+                items.append((n.casefold(), n[:-4]))
+            elif n.lower().endswith(".fulltext.json") and n[:-len(".fulltext.json")].casefold() not in pdf_stems:
+                items.append((n.casefold(), n[:-len(".fulltext.json")]))
+        items.sort()
+        need, limit = 0, 0
+        for i, (_, stem) in enumerate(items, 1):
+            if f"{stem}.ris".casefold() not in low:
+                need += 1
+                if need == self.runner_cfg["ris_limit"]:
+                    limit = i
+        return need, (limit if need > self.runner_cfg["ris_limit"] else 0)
+
+    def _ris(self, p):
+        """backfill_ris.run(project, commit, include_text_only, limit) after the route, daily and up:
+        it writes only .ris files that do not exist (the DEC-29 manifest keeps curated ones)."""
+        if RANK[self.effective] < RANK["daily"]:
+            self._job(p.key, "ris", SKIPPED, f"profile {self.effective}: the ris job runs daily and up",
+                      counts_for_exit=False)
+            return
+        if p.lib is None:
+            self._job(p.key, "ris", SKIPPED, "no lib_dir in the registry", counts_for_exit=False)
+            return
+        todo = self._ris_todo(p)
+        if todo is None:
+            self._job(p.key, "ris", SKIPPED, f"library not readable: {p.lib}", counts_for_exit=False)
+            return
+        need, limit = todo
+        if not need:
+            self._job(p.key, "ris", SKIPPED, "every holding has a .ris", counts_for_exit=False)
+            return
+        rec, _res = self._launch("ris", p.key, {"project": p.key, "commit": True, "include_text_only": True,
+                                                "limit": limit})
+        rec["counts"]["needed"] = need
+        self._crossref_check()
+
+    def _project_stages(self, p):
+        """Stage, sweep, route and ris for one project under its lock file (litpipe.lockfile, taken
+        with this run's id so the sweep child joins it). A lock another live process holds DEFERS
+        the project for this run (reported, never a failure); a lock lost on the way stops the
+        project's remaining stages as an abort."""
+        self.lock = self._take_lock(p)
+        if p.lock_deferred:
+            self._job(p.key, "lock", DEFERRED, f"project lock held: {p.lock_deferred}; this project's stage, "
+                                               f"sweep, route and ris wait for the next run",
+                      counts_for_exit=False)
+            return
+        try:
+            if p.auto_stage:
+                self._auto_stage(p)
+            for step in (self._sweep, self._route, self._ris):
+                if self._lock_lost(p):
+                    return
+                step(p)
+            self._lock_lost(p)
+        finally:
+            self._release_lock()
 
     def _walk_due(self, p, read_only=False):
         if self.force_walks:
@@ -1996,7 +2350,6 @@ class _ScheduledRun(_Run):
                       counts={"attempts": o.attempts})
 
     def _local_ctx(self):
-        import sweep
         projects = []
         for p in self.projects:
             sw = p.sweep or {}
@@ -2004,22 +2357,24 @@ class _ScheduledRun(_Run):
             run_ids = sorted({r.get("run_id") for r in results if r.get("run_id")})
             stages = []
             if results:
-                stages = ["unpaywall", "residual", "report"]
+                # unpaywall is expected only when the project's Unpaywall stage ran (DEC-31: a project
+                # whose sources omit it has no report, and that is no lost artifact)
+                if all((r.get("stages") or {}).get("unpaywall") in ("completed", "failed") for r in results):
+                    stages.append("unpaywall")
+                stages += ["residual", "report"]
                 for s in ("pmc", "preprint"):
                     if all((r.get("stages") or {}).get(s) in ("completed", "failed")
-                           and (p.root / sweep.artifact_name(r.get("tag") or "", r.get("run_id"), s)).is_file()
-                           for r in results):
+                           and self._art(p, r, s).is_file() for r in results):
                         stages.append(s)
                 if all(r.get("retired") for r in results):
                     stages.append("processed")
-                # migrate writes a routing CSV only for a chain whose residual has rows: a chain whose
-                # every row was fetched has none, so `routing` is checked only when every chain has rows
-                if p.route_status == "ok" and all(
-                        _has_rows(p.root / sweep.artifact_name(r.get("tag") or "", r.get("run_id"), "residual"))
-                        for r in results):
+                # migrate writes a routing CSV for every chain of the run, a header-only one when the
+                # chain has nothing to route (W5: full routing coverage), so `routing` is expected
+                # whenever the route ran (ok, or nothing to route)
+                if p.route_status in ("ok", "nothing"):
                     stages.append("routing")
-            entry = {"key": p.key, "root": str(p.root), "sources": list(p.sources), "artifact_dir": str(p.root),
-                     "sweep_run_ids": run_ids, "stages": stages}
+            entry = {"key": p.key, "root": str(p.root), "sources": list(p.sources),
+                     "artifact_dir": str(p.art_dir or p.root), "sweep_run_ids": run_ids, "stages": stages}
             if p.lib is not None:
                 entry["lib_dir"] = str(p.lib)
             projects.append(entry)
@@ -2053,10 +2408,7 @@ class _ScheduledRun(_Run):
         self._preflight()
         self._network_canaries(self.effective)
         for p in self.projects:
-            if p.auto_stage:
-                self._auto_stage(p)
-            self._sweep(p)
-            self._route(p)
+            self._project_stages(p)
             self._walk(p)
         self._reverse()
         self._index()
@@ -2101,9 +2453,15 @@ class _ScheduledRun(_Run):
         s2_out = _host_refused(S2_HOST, read_only=True)
         weekly = RANK[self.effective] >= RANK["weekly"]
         monthly = RANK[self.effective] >= RANK["monthly"]
+        if self.sources_override is not None:
+            print(f"  --sources for this run: {', '.join(sorted(config.sources(None, override=self.sources_override)))}")
         for p in self.projects:
             queue = p.root / QUEUE_FILE
             queues, due = self._staged(p)
+            held = lockfile.read(p.root) if p.root.is_dir() else None
+            if held is not None:
+                add(p.key, "lock", f"held: {lockfile.describe(held)} (a real run DEFERS this project's stage, "
+                                   f"sweep, route and ris unless the lock is stale)")
             if not p.auto_stage:
                 add(p.key, "seed", "skip: auto_stage off")
             elif queue.exists() and _data_lines(queue) > 1:
@@ -2120,6 +2478,19 @@ class _ScheduledRun(_Run):
             else:
                 add(p.key, "sweep", "skip: nothing staged")
                 add(p.key, "route", "skip: nothing staged")
+            if RANK[self.effective] < RANK["daily"]:
+                add(p.key, "ris", f"skip: profile {self.effective} (the ris job runs daily and up)")
+            elif p.lib is None:
+                add(p.key, "ris", "skip: no lib_dir")
+            else:
+                todo = self._ris_todo(p)
+                if todo is None:
+                    add(p.key, "ris", f"skip: library not readable: {p.lib}")
+                elif not todo[0]:
+                    add(p.key, "ris", "skip: every holding has a .ris")
+                else:
+                    add(p.key, "ris", f"would write a .ris for up to {self.runner_cfg['ris_limit']} of {todo[0]} "
+                                      f"holding(s) without one (backfill_ris --include-text-only --commit)")
             ok, why = self._walk_due(p, read_only=True)
             if ok and s2_out:
                 add(p.key, "walk", f"skip: {S2_HOST} refused or deferred (would be DEFERRED)")
@@ -2176,19 +2547,22 @@ class _ScheduledRun(_Run):
 
 
 def run(*, profile="daily", projects=None, dry_run=False, scheduled=False, db_writes=None, json_path=None,
-        launcher=None, timeouts=None, force_walks=False) -> dict:
-    """`runner run`. Returns the summary dict (its exit_code is the CLI's exit code)."""
+        launcher=None, timeouts=None, force_walks=False, sources=None) -> dict:
+    """`runner run`. Returns the summary dict (its exit_code is the CLI's exit code). `sources` (a
+    list or a comma-separated string) replaces every project's DEC-31 sources for this run; an
+    invalid list is exit 1 before anything runs."""
     if profile not in RANK:
         print(f"[runner] usage: --profile must be one of {', '.join(PROFILES)}", file=sys.stderr)
         return {"exit_code": EXIT_CONFIG, "error": f"bad profile {profile!r}"}
     try:
-        cfg, keys = load_registry(projects)
+        cfg, keys = load_registry(projects, sources)
     except ConfigProblem as e:
         msg = ledger.redact(str(e))
         print(f"[runner] config: {msg}", file=sys.stderr)
         return {"exit_code": EXIT_CONFIG, "error": msg}
     r = _ScheduledRun(cfg, keys, dry_run=dry_run, launcher=launcher, timeouts=timeouts, json_path=json_path,
-                      db_writes=db_writes, profile=profile, scheduled=scheduled, force_walks=force_walks)
+                      db_writes=db_writes, profile=profile, scheduled=scheduled, force_walks=force_walks,
+                      sources=sources)
     if dry_run:
         return r.plan()
     return r.execute()
@@ -2198,7 +2572,7 @@ def run(*, profile="daily", projects=None, dry_run=False, scheduled=False, db_wr
 def batch_tag(pool_name) -> str:
     """The batch tag for a pool file: drop a leading `lit_pull_queue.` and the `.csv`, lower-case,
     every character outside [a-z0-9_-] becomes '-', leading characters that are neither letters nor
-    digits go, then `b-` and at most 32 characters. lit_pull_queue.ch15_pool.csv -> b-ch15_pool;
+    digits go, then `b-` and at most 32 characters. lit_pull_queue.unit3_pool.csv -> b-unit3_pool;
     2024_cohort_pool.csv -> b-2024_cohort_pool; _ranked_pool.csv -> b-ranked_pool."""
     s = Path(pool_name).name
     if s.lower().startswith("lit_pull_queue."):
@@ -2290,10 +2664,22 @@ class _BatchRun(_ScheduledRun):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         lit_util.atomic_write_csv(str(path), out, list(QUEUE_COLUMNS))
 
-    def _residual_classes(self, tag, run_id, dois):
+    def _art_dirs(self):
+        """The artifact directory (config.artifact_dir), then the project root (older runs)."""
+        return [d for d in dict.fromkeys([self.p.art_dir or self.p.root, self.p.root])]
+
+    def _art_file(self, tag, run_id, stage):
+        """The first existing artifact of (tag, run id, stage) in _art_dirs(), else the artifact dir's path."""
         import sweep
+        name = sweep.artifact_name(tag, run_id, stage)
+        for d in self._art_dirs():
+            if (d / name).is_file():
+                return d / name
+        return self._art_dirs()[0] / name
+
+    def _residual_classes(self, tag, run_id, dois):
         from litpipe import worklists
-        path = self.p.root / sweep.artifact_name(tag, run_id, "residual")
+        path = self._art_file(tag, run_id, "residual")
         cls = {}
         if path.is_file():
             with open(path, encoding="utf-8-sig", newline="") as f:
@@ -2309,7 +2695,7 @@ class _BatchRun(_ScheduledRun):
         from litpipe import worklists
         want = {worklists.doi_key(d) for d in dois}
         hits = []
-        for q in self.p.root.glob(f"lit_pull_queue.{tag}.*.processed.csv"):
+        for q in (q for d in self._art_dirs() for q in d.glob(f"lit_pull_queue.{tag}.*.processed.csv")):
             a = sweep.parse_artifact(q.name)
             if not a or a.tag != tag or a.stage != "processed":
                 continue
@@ -2326,6 +2712,10 @@ class _BatchRun(_ScheduledRun):
         import sweep
         tag = sweep.queue_tag(Path(path).name) or ""
         self.p.sweep = None
+        if self._lock_lost(self.p):
+            self.done.append({"label": label, "batch_path": str(path), "dois": len(dois), "swept": False,
+                              "left_for_next_run": True, "reason": "project lock lost"})
+            return False
         self._sweep(self.p)
         sw = self.p.sweep
         if not sw:
@@ -2341,6 +2731,10 @@ class _BatchRun(_ScheduledRun):
                               "left_for_next_run": True, "reason": why})
             self._job(self.key, "batch", DEGRADED, f"{Path(path).name} not retired ({why}); nothing marked swept; "
                                                    f"left for the next runner batch")
+            return False
+        if self._lock_lost(self.p):       # another process may hold the project now: route nothing
+            self.done.append({"label": label, "batch_path": str(path), "dois": len(dois), "swept": False,
+                              "left_for_next_run": True, "reason": "project lock lost after the sweep"})
             return False
         self._route(self.p, tags=None)
         _checkpoint("after_route")
@@ -2399,7 +2793,7 @@ class _BatchRun(_ScheduledRun):
                 continue
             rid = self._processed_run(tag, dois)
             if rid:
-                routing = self.p.root / sweep.artifact_name(tag, rid, "routing")
+                routing = self._art_file(tag, rid, "routing")
                 if not routing.is_file():          # killed after the sweep, before the route
                     prev = self.p.sweep
                     self.p.sweep = {"exit": 0, "status": OK, "run_id": rid, "results": [{"retired": True, "tag": tag}],
@@ -2447,6 +2841,11 @@ class _BatchRun(_ScheduledRun):
     def _work(self):
         from litpipe import worklists
         self._open()
+        # the project's lock file for the whole invocation, taken before anything is drawn
+        self.lock = self._take_lock(self.p, tool="runner batch")
+        if self.p.lock_deferred:
+            raise _BatchStop(EXIT_CONFIG, f"{self.key}: project lock held: {self.p.lock_deferred}; nothing drawn "
+                                          f"(run runner batch again once it is free)")
         self.pool = worklists.Pool(self.pool_path, registry=self.cfg, cache_dir=config.state_dir(self.cfg))
         self.order, self.order_source = self.runner_cfg["candidate_order"], (
             "projects.json" if self.runner_cfg["candidate_order"] else None)
@@ -2488,6 +2887,7 @@ class _BatchRun(_ScheduledRun):
             self.aborted = f"runner crashed: {type(e).__name__}: {ledger.redact(str(e))[:200]}"
             traceback.print_exc()
         finally:
+            self._release_lock()
             summ = self._finish()
         return summ
 
@@ -2517,6 +2917,9 @@ class _BatchRun(_ScheduledRun):
         self.check(pool)
         print(f"# runner batch --dry-run: project {self.key}, pool {self.pool_path.name}, tag {self.tag}; "
               f"nothing is written or sent")
+        held = lockfile.read(self.p.root) if self.p.root.is_dir() else None
+        if held is not None:
+            print(f"  project lock: {lockfile.describe(held)}; a real runner batch would refuse (exit 1)")
         pend = pool.pending()
         for b in pend:
             exists = Path(b["batch_path"]).exists() if b.get("batch_path") else False
@@ -2534,11 +2937,11 @@ class _BatchRun(_ScheduledRun):
 
 
 def batch(*, project, pool, size=100, batches=1, tag=None, skip_preprint=False, stage_only=False, dry_run=False,
-          json_path=None, launcher=None, timeouts=None) -> dict:
-    """`runner batch` (amendment 11); see the Pool contract in litpipe.worklists."""
+          json_path=None, launcher=None, timeouts=None, sources=None) -> dict:
+    """`runner batch` (amendment 11); see the Pool contract in litpipe.worklists. `sources` as in run()."""
     import sweep
     try:
-        cfg, keys = load_registry([project])
+        cfg, keys = load_registry([project], sources)
     except ConfigProblem as e:
         msg = ledger.redact(str(e))
         print(f"[runner] config: {msg}", file=sys.stderr)
@@ -2554,7 +2957,7 @@ def batch(*, project, pool, size=100, batches=1, tag=None, skip_preprint=False, 
         return {"exit_code": EXIT_CONFIG, "error": "bad size or batches"}
     r = _BatchRun(cfg, project, pool=pool, size=size, batches=batches, tag=t, skip_preprint=skip_preprint,
                   stage_only=stage_only, launcher=launcher, timeouts=timeouts, json_path=json_path,
-                  profile="every_run")
+                  profile="every_run", sources=sources)
     from litpipe import worklists
     try:
         if dry_run:
@@ -2623,15 +3026,28 @@ def status() -> dict:
 
 TASK_NAME = "literature-pipeline nightly"
 UNIT = "litpipe-runner"
-PLATFORMS = ("linux", "windows")
+PLATFORMS = ("linux", "windows", "macos")
 RUN_ARGS = "-m litpipe.runner run --profile daily --scheduled"
 SECRET_ENVS = (("LITPIPE_EMAIL", "required: your contact address"),
                ("S2_API_KEY", "optional: a Semantic Scholar key"),
                ("OPENALEX_API_KEY", "optional: an OpenAlex key"))
 
 
-def current_platform() -> str:
-    return "windows" if os.name == "nt" else "linux"
+def current_platform(os_name=None, sys_platform=None) -> str:
+    """linux, windows or macos (darwin: best-effort, a crontab line only); the arguments are for tests."""
+    if (os_name or os.name) == "nt":
+        return "windows"
+    return "macos" if (sys_platform or sys.platform) == "darwin" else "linux"
+
+
+def _registry_schedule_time():
+    """projects.json runner.schedule_time ("HH:MM", default 01:00). ConfigError when invalid."""
+    return runner_block(config.load())["schedule_time"]
+
+
+def _cron_fields(at):
+    hh, mm = at.split(":")
+    return f"{int(mm)} {int(hh)}"
 
 
 def _checkout_for(platform, checkout):
@@ -2650,15 +3066,20 @@ def _registry_state_dir():
         return "<state_dir>"
 
 
-def _linux_text(checkout, state_dir):
+def _cron_line(co, py, log, at):
     import shlex
+    return (f"{_cron_fields(at)} * * * cd {shlex.quote(co)} && {shlex.quote(py)} {RUN_ARGS} >> "
+            f"{shlex.quote(log)} 2>&1\n")
+
+
+def _linux_text(checkout, state_dir, at=SCHEDULE_TIME):
     co = checkout.rstrip("/") or "/"
     py = f"{co}/.venv/bin/python"
     exec_py = f'"{py}"' if " " in py else py
     log = f"{state_dir.rstrip('/')}/runner/cron.log"
     env_lines = "".join(f"#Environment={name}=<{what}>\n" for name, what in SECRET_ENVS)
     return (
-        "# litpipe runner: ONE nightly run at 01:00 (DEC-03), as a systemd user service and timer.\n"
+        f"# litpipe runner: ONE nightly run at {at} (DEC-03), as a systemd user service and timer.\n"
         "# Printed only: nothing was registered. Values are never printed; set them yourself.\n"
         f"# Save as ~/.config/systemd/user/{UNIT}.service\n"
         "[Unit]\n"
@@ -2679,17 +3100,17 @@ def _linux_text(checkout, state_dir):
         "\n"
         f"# Save as ~/.config/systemd/user/{UNIT}.timer\n"
         "[Unit]\n"
-        "Description=Run the literature pipeline runner nightly at 01:00\n"
+        f"Description=Run the literature pipeline runner nightly at {at}\n"
         "\n"
         "[Timer]\n"
-        "OnCalendar=*-*-* 01:00:00\n"
+        f"OnCalendar=*-*-* {at}:00\n"
         "Persistent=true\n"
         "\n"
         "[Install]\n"
         "WantedBy=timers.target\n"
         "\n"
         f"# Enable it by hand: systemctl --user daemon-reload && systemctl --user enable --now {UNIT}.timer\n"
-        "# Persistent=true runs a 01:00 missed while the machine was off at the next start (the analogue of\n"
+        f"# Persistent=true runs a {at} missed while the machine was off at the next start (the analogue of\n"
         "# start-when-available). A user timer runs with nobody logged in only with lingering:\n"
         "#   loginctl enable-linger \"$USER\"\n"
         "\n"
@@ -2699,10 +3120,27 @@ def _linux_text(checkout, state_dir):
         "# beside it. The systemd unit's cgroup ends it (KillMode=control-group); prefer the timer.\n"
         "# Set the variables at the top of the crontab: "
         + ", ".join(f"{name}=..." for name, _ in SECRET_ENVS) + "\n"
-        f"0 1 * * * cd {shlex.quote(co)} && {shlex.quote(py)} {RUN_ARGS} >> {shlex.quote(log)} 2>&1\n")
+        + _cron_line(co, py, log, at))
 
 
-def _windows_text(checkout):
+def _macos_text(checkout, state_dir, at=SCHEDULE_TIME):
+    """macOS is best-effort (portability principle): a crontab line only, no launchd unit."""
+    co = checkout.rstrip("/") or "/"
+    py = f"{co}/.venv/bin/python"
+    log = f"{state_dir.rstrip('/')}/runner/cron.log"
+    return (
+        f"# litpipe runner: ONE nightly run at {at} (DEC-03), as a crontab line (crontab -e).\n"
+        "# macOS is BEST-EFFORT: no launchd unit is printed and macOS is not tested; Linux and Windows are\n"
+        "# the supported platforms. Printed only: nothing was registered. Values are never printed.\n"
+        f"# cron has no catch-up: a night the machine is asleep or off at {at} is skipped. Nor does cron\n"
+        "# stop a stage when the runner itself is killed with SIGKILL: each stage runs in its own session,\n"
+        "# so it runs on alone (a later runner reports such an orphaned stage on start).\n"
+        "# Set the variables at the top of the crontab: "
+        + ", ".join(f"{name}=..." for name, _ in SECRET_ENVS) + "\n"
+        + _cron_line(co, py, log, at))
+
+
+def _windows_text(checkout, at=SCHEDULE_TIME):
     co = checkout.rstrip("\\") or checkout
     py = f"{co}\\.venv\\Scripts\\python.exe"
     cmdline = f'set PYTHONUTF8=1&& "{py}" {RUN_ARGS}'
@@ -2711,12 +3149,12 @@ def _windows_text(checkout):
     def q(s):                     # a PowerShell single-quoted string doubles its own quote
         return s.replace("'", "''")
     return (
-        "# litpipe runner: ONE nightly run at 01:00 (DEC-03), as a Windows scheduled task.\n"
+        f"# litpipe runner: ONE nightly run at {at} (DEC-03), as a Windows scheduled task.\n"
         "# PowerShell, run once by hand. A scheduled task does not read your shell profile, so PYTHONUTF8 is\n"
         "# set in the command; " + ", ".join(n for n, _ in SECRET_ENVS)
         + " come from your user environment (setx).\n"
         f"$action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument '/c {q(cmdline)}' -WorkingDirectory '{q(co)}'\n"
-        "$trigger = New-ScheduledTaskTrigger -Daily -At 01:00\n"
+        f"$trigger = New-ScheduledTaskTrigger -Daily -At {at}\n"
         "$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries "
         "-DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 20)\n"
         f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $action -Trigger $trigger -Settings $settings "
@@ -2725,26 +3163,39 @@ def _windows_text(checkout):
         f"#   uv run --no-sync --project \"{co}\" python {RUN_ARGS}   (a bare `uv run` syncs first)\n"
         "\n"
         "# schtasks fallback. Its battery settings cannot be set this way (StartWhenAvailable,\n"
-        "# AllowStartIfOnBatteries, DontStopIfGoingOnBatteries): a laptop on battery at 01:00 may skip\n"
+        f"# AllowStartIfOnBatteries, DontStopIfGoingOnBatteries): a laptop on battery at {at} may skip\n"
         "# or stop the run. Prefer the PowerShell form. Quote any path that contains a space.\n"
-        f'schtasks /Create /TN "{TASK_NAME}" /SC DAILY /ST 01:00 /TR "cmd /c {inner}"\n')
+        f'schtasks /Create /TN "{TASK_NAME}" /SC DAILY /ST {at} /TR "cmd /c {inner}"\n')
 
 
-def schedule_text(platform=None, checkout=None) -> str:
+def schedule_text(platform=None, checkout=None, at=None) -> str:
     """The one nightly task (DEC-03) as a template filled from this runner's own location and the
     registry: a systemd user service and timer plus a crontab line on Linux, a Task Scheduler
-    command on Windows. Never registers anything."""
+    command on Windows, a crontab line only on macOS (best-effort). `at` is the local time "HH:MM";
+    default projects.json runner.schedule_time, else 01:00 (raises config.ConfigError when the
+    registry's value is invalid). Never registers anything."""
     platform = platform or current_platform()
     if platform not in PLATFORMS:
         raise ValueError(f"platform must be one of {PLATFORMS}, got {platform!r}")
+    at = (at or _registry_schedule_time()).strip()
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", at):
+        raise config.ConfigError(f"schedule time must be \"HH:MM\" (24-hour), got {at!r}")
     co = _checkout_for(platform, checkout)
     if platform == "windows":
-        return _windows_text(co)
-    return _linux_text(co, _registry_state_dir() if platform == current_platform() else "<state_dir>")
+        return _windows_text(co, at)
+    sd = _registry_state_dir() if platform == current_platform() else "<state_dir>"
+    if platform == "macos":
+        return _macos_text(co, sd, at)
+    return _linux_text(co, sd, at)
 
 
 def schedule_print(platform=None):
-    print(schedule_text(platform))
+    try:
+        text = schedule_text(platform)
+    except config.ConfigError as e:
+        print(f"[runner] config: {ledger.redact(str(e))}", file=sys.stderr)
+        return {"exit_code": EXIT_CONFIG}
+    print(text)
     print("# Printed only: nothing was registered.")
     return {"exit_code": EXIT_OK}
 
@@ -2769,6 +3220,8 @@ def _timeouts(values):
             out[job] = float(secs)
         except ValueError:
             raise _Usage(f"--timeout {v!r}: SECONDS must be a number") from None
+        if out[job] <= 0:
+            raise _Usage(f"--timeout {v!r}: SECONDS must be more than 0")
     return out
 
 
@@ -2790,6 +3243,9 @@ def _parser():
                    help="never run the portfolio.duckdb writers this run")
     r.add_argument("--json", metavar="PATH", help="also write the summary here")
     r.add_argument("--timeout", action="append", metavar="JOB=SECONDS", help="override one stage's timeout")
+    r.add_argument("--sources", default=None, metavar="LIST",
+                   help="comma-separated DEC-31 sources for this run only (every project), passed to sweep and "
+                        "migrate; an invalid list exits 1 before anything runs")
     b = sub.add_parser("batch", help="draw a pool down in batches (resumable)")
     b.add_argument("--project", required=True)
     b.add_argument("--pool", required=True, metavar="CSV")
@@ -2802,11 +3258,14 @@ def _parser():
     b.add_argument("--dry-run", action="store_true")
     b.add_argument("--json", metavar="PATH")
     b.add_argument("--timeout", action="append", metavar="JOB=SECONDS")
+    b.add_argument("--sources", default=None, metavar="LIST",
+                   help="comma-separated DEC-31 sources for this invocation, passed to sweep and migrate")
     sub.add_parser("status", help="live runs, last run per project, refused and deferred hosts, today's counts")
     sp = sub.add_parser("schedule-print", help="print the nightly task as a template (never registers it)")
     sp.add_argument("--platform", choices=PLATFORMS, default=None,
-                    help="linux (a systemd user service and timer, plus a crontab line) or windows (Task "
-                         "Scheduler); default: this machine's")
+                    help="linux (a systemd user service and timer, plus a crontab line), windows (Task "
+                         "Scheduler) or macos (best-effort: a crontab line only); default: this machine's. "
+                         "The time is projects.json runner.schedule_time (default 01:00)")
     s = sub.add_parser("_stage", help=argparse.SUPPRESS)
     s.add_argument("--module", required=True)
     s.add_argument("--kwargs", required=True)
@@ -2838,11 +3297,11 @@ def main(argv=None) -> int:
         return schedule_print(args.platform)["exit_code"]
     if args.command == "run":
         res = run(profile=args.profile, projects=args.project, dry_run=args.dry_run, scheduled=args.scheduled,
-                  db_writes=args.db_writes, json_path=args.json, timeouts=timeouts)
+                  db_writes=args.db_writes, json_path=args.json, timeouts=timeouts, sources=args.sources)
         return res["exit_code"]
     res = batch(project=args.project, pool=args.pool, size=args.size, batches=args.batches, tag=args.tag,
                 skip_preprint=args.skip_preprint, stage_only=args.stage_only, dry_run=args.dry_run,
-                json_path=args.json, timeouts=timeouts)
+                json_path=args.json, timeouts=timeouts, sources=args.sources)
     return res["exit_code"]
 
 

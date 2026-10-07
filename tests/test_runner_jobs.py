@@ -612,7 +612,7 @@ def test_index_fingerprint_changes_with_the_library_and_the_walker_csvs(w):
     (lib / "_forward_citations.csv").write_text("seed_pdf\n", encoding="utf-8")
     d = fp()
     assert d != c
-    (lib / "_resp_forward_citations.csv").write_text("seed_pdf\n", encoding="utf-8")
+    (lib / "_topic_forward_citations.csv").write_text("seed_pdf\n", encoding="utf-8")
     e = fp()
     assert e != d
     (lib / "2016_T.fulltext.json").write_text(json.dumps({"doi": "10.5555/t.1", "text": "jats text"}),
@@ -725,7 +725,7 @@ def test_schedule_print_is_a_template_without_secrets(w, no_process, monkeypatch
 
 
 def test_schedule_print_rejects_another_platform(capsys):
-    assert runner.main(["schedule-print", "--platform", "macos"]) == 1
+    assert runner.main(["schedule-print", "--platform", "freebsd"]) == 1   # W5: macos is accepted (best-effort)
 
 
 # ================================================================ amendment 3: the one-runner rule (unit)

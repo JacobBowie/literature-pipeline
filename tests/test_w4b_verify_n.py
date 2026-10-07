@@ -372,7 +372,7 @@ def spawn_wrapper(w, wrapper, argv, env):
 def test_a_real_kill_at_each_batch_point_then_a_fresh_process_resumes(wr, point):
     w = wr
     w.register(BKEY)
-    pool = w.proot(BKEY) / "lit_pull_queue.ch15_pool.csv"
+    pool = w.proot(BKEY) / "lit_pull_queue.unit3_pool.csv"
     pool.write_bytes(("doi,title,authors,year\n" + "".join(
         f"{d},Pool title {i},Author P,2021\n" for i, d in enumerate(BPOOL))).encode("utf-8"))
     wrapper = w.tmp / "kill_wrapper.py"
@@ -426,7 +426,7 @@ def test_a_retired_batch_whose_sweep_log_holds_a_traceback_stops_the_loop(tmp_pa
     not every step ran). The retired batch is still marked swept; no further batch is drawn."""
     w = World(tmp_path, monkeypatch)
     w.register(BKEY)
-    pool = w.proot(BKEY) / "lit_pull_queue.ch15_pool.csv"
+    pool = w.proot(BKEY) / "lit_pull_queue.unit3_pool.csv"
     pool.write_bytes(("doi,title,authors,year\n" + "".join(
         f"{d},Pool title {i},Author P,2021\n" for i, d in enumerate(BPOOL))).encode("utf-8"))
     w.set_fake("sweep", BKEY, traceback=True)                 # retires its queue, prints a traceback
@@ -523,13 +523,15 @@ def test_two_queues_one_with_preprint_skipped_raise_no_lost_artifacts_alarm(tmp_
     results = []
     for tag, pre in (("", "completed"), ("b-extra", "skipped")):
         stages = {"unpaywall": "completed", "pmc": "completed", "preprint": pre}
-        for s in ("unpaywall", "pmc", "residual", "report", "processed") + (("preprint",) if pre == "completed" else ()):
+        # W5-C1: migrate writes a (header-only) routing CSV for every chain, so `routing` is expected too
+        for s in ("unpaywall", "pmc", "residual", "report", "processed", "routing") + (
+                ("preprint",) if pre == "completed" else ()):
             (p.root / sweep.artifact_name(tag, sid, s)).write_text("doi\n", encoding="utf-8")
         results.append({"tag": tag, "run_id": sid, "retired": True, "stages": stages})
     p.sweep = {"exit": 0, "status": "OK", "run_id": sid, "results": results, "refused": []}
     p.route_status = "nothing"
     ctx = r._local_ctx()
-    assert ctx["projects"][0]["stages"] == ["unpaywall", "residual", "report", "pmc", "processed"]
+    assert ctx["projects"][0]["stages"] == ["unpaywall", "residual", "report", "pmc", "processed", "routing"]
     outs = REAL_CANARIES_RUN("every_run", phase="local", context=ctx, cfg=cfg)
     lost = [o.payload for o in outs if (o.payload or {}).get("id") == "lost_artifacts"]
     assert lost and all(x["status"] == "PASS" for x in lost), lost

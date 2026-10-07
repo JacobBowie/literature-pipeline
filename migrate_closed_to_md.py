@@ -43,11 +43,28 @@ case-insensitively (REG-I25); retry_later appends and updates in place, never re
 Every persisted error string passes through litpipe.ledger.redact (I20: the Unpaywall exception
 text carries the `email=` query value).
 
+Sources (DEC-31): a legacy chain is classified against the project's `sources` (or --sources, the
+sweep's one-run override): a stage the sources omit (unpaywall, pmc, the preprint servers) blocks
+nothing. A chain with nothing to route still gets a header-only routing CSV. The artifacts are read
+from --artifact-dir, else projects.json `artifact_dir` (litpipe.config.artifact_dir), else the root.
+
+The DOI-keyed CSV import (fold-in A3; --import-csv, dry unless --commit): rows of a CSV with
+`project`, `doi` and `suggested_worklist` land in the worklists by the first word of
+suggested_worklist: `ill` in lit_pull_queue.md, `oa-blocked` in lit_pull_queue.oa_blocked.md (each
+in its list's line format, the cause naming the source file), `review` (rows that never reached
+Unpaywall) in lit_pull_queue.retry_later.csv, due at once with attempts 0, or nowhere with
+--review-as list-only. lit_pull_queue.review.md is the identity-flag list and is never written by
+the import. Held DOIs (litpipe.holdings) and DOIs already listed are skipped and counted;
+unregistered projects and malformed rows are counted and listed. --commit takes each project's lock
+file (litpipe.lockfile). See import_csv().
+
 Usage:
   python migrate_closed_to_md.py --project MYPROJ
   python migrate_closed_to_md.py --project MYPROJ --date 2026-05-27          # a legacy dated run
   python migrate_closed_to_md.py --project MYPROJ --run-id 2026-09-30.2      # same flag, a run id
   python migrate_closed_to_md.py --project MYPROJ --tag retry --dry-run
+  python migrate_closed_to_md.py --import-csv swept.csv [--project KEY ...] [--project-map TAIL=KEY ...]
+      [--review-as retry|list-only] [--commit]
 """
 import argparse
 import csv
@@ -114,7 +131,7 @@ RETRY_FIELDS = ["doi", "title", "authors", "year", "destination", "notes", "resi
                 "reason", "not_before", "attempts", "first_seen", "last_seen", "last_run"]
 ROUTING_FIELDS = ["doi", "title", "year", "residual_class", "route", "reason", "held_paths",
                   "not_before", "attempts", "stage_unpaywall", "stage_pmc", "stage_preprint",
-                  "flagged_path", "landing_url"]
+                  "flagged_path", "landing_url", "best_oa_url"]
 
 
 # ---------------------------------------------------------------- redaction (I20)
@@ -385,6 +402,7 @@ def read_report_chain(project_root: Path, sweep_date: str, tag=None, *, project_
             # W2-G: the typed extras (an embargo's release date, a flagged file, a landing page)
             "not_before": uv.release_date if uv.kind is Kind.EMBARGOED else "",
             "flagged_path": _flagged_paths(uv, lib_dir), "landing_url": "",
+            "best_oa_url": (r.get("best_oa_url") or "").strip(),
         }
 
     if pmc_path.exists():
@@ -497,6 +515,7 @@ def read_residual(project_root: Path, run_id: str, tag=None, *, project_dir=None
             # W2-G extras (absent in a W1-D1 residual)
             "flagged_path": [p.strip() for p in (r.get("flagged_path") or "").split(";") if p.strip()],
             "landing_url": (r.get("landing_url") or "").strip(),
+            "best_oa_url": (r.get("best_oa_url") or "").strip(),   # W5 (an older residual: "")
         }
         if cls == IDENTITY_FLAG:
             m = _REASON_STAGE.match(reason)
@@ -529,6 +548,8 @@ def _enrich(typed_rows, chain_rows):
             t["landing_url"] = c["landing_url"]
         if not t.get("not_before_in") and c.get("not_before"):
             t["not_before_in"] = c["not_before"]
+        if not t.get("best_oa_url") and c.get("best_oa_url"):
+            t["best_oa_url"] = c["best_oa_url"]
     return typed_rows
 
 
@@ -588,7 +609,8 @@ def classify_row(row, *, holdmap=None, own_libs=None, default_lib=None, sources=
     `attempts`: sweeps of this row including this one (an ERROR row closes on the third)."""
     sources = set(config.DEFAULT_SOURCES if sources is None else sources)
     signals = list(row["signals"]) if "signals" in row else _legacy_signals(row)
-    enabled = {"pmc": "pmc" in sources, "preprint": bool(sources & PREPRINT_SOURCES)}
+    enabled = {"unpaywall": "unpaywall" in sources, "pmc": "pmc" in sources,
+               "preprint": bool(sources & PREPRINT_SOURCES)}
     # A missing report (or row) of an enabled stage: the stage did not attempt the row, so the row
     # is PENDING and the queue stays for a re-sweep. A stage the project excludes blocks nothing.
     missing = [f"{stage} {why}" for stage, why in (row.get("missing") or {}).items()
@@ -736,8 +758,14 @@ def doi_url(doi):
 
 
 def _oa_link(r):
+    """The worklist link, the first that applies: a manual preprint's landing page (W2b landing_url),
+    Unpaywall's best_oa_url from the same response (the page a person opens for hybrid OA), the
+    article page of a PMC copy that refused us, else doi.org."""
     if r.get("landing_url") and _is_manual(r):   # the preprint's landing page (W2b landing_url)
         return r["landing_url"]
+    best = str(r.get("best_oa_url") or "").strip()
+    if best.lower().startswith(("https://", "http://")):
+        return best
     if r.get("pmcid") and any(s["stage"] == "pmc" and s["kind"] is Kind.REFUSED for s in r.get("signals", ())):
         return f"https://pmc.ncbi.nlm.nih.gov/articles/{r['pmcid']}/"
     return doi_url(r["doi"])
@@ -870,7 +898,7 @@ def _waits_on_manual_refusal(r):
     """True when the only sources still open for a TRANSIENT or OA_BLOCKED row are hosts refused
     until cleared: every signal is terminal (NO_MATCH, NOT_AVAILABLE, NOT_AT_RA), a skipped or
     aliased source, or such a refusal, and at least one is a refusal. Retrying such a row daily
-    only repeats its Unpaywall and PMC lookups (FRED's 405 arXiv rows, ledger 2026-10-05)."""
+    only repeats its Unpaywall and PMC lookups (a project with hundreds of arXiv rows, 2026-10-05)."""
     sigs = r.get("signals") or ()
     if r["residual_class"] not in (TRANSIENT, OA_BLOCKED) or not sigs:
         return False
@@ -986,11 +1014,14 @@ def _new_rows(rows, present):
 
 
 def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use_holdings=True,
-        holdmap=None, cfg=None, today=None, artifact_dir=None) -> dict:
+        holdmap=None, cfg=None, today=None, artifact_dir=None, sources=None) -> dict:
     """Route one project's run. Returns {status, project, run_id, chains, counts, written, rows}.
     status: "ok", "nothing" (no artifacts or no residuals), "config" (aborted, nothing written),
     or "error". A chain with sweep's typed residual CSV routes by its `residual_class` (W1-D1);
-    a legacy chain is classified here from its stage reports."""
+    a legacy chain is classified here from its stage reports, gated on the project's DEC-31
+    sources (`sources`: the run's one-run override, a list or a comma-separated string). Every
+    chain of the run that has nothing to route still gets a header-only routing CSV (unless
+    dry_run), so a chain whose every row was fetched leaves the same artifact set as any other."""
     cfg = cfg if cfg is not None else lit_util.load_projects_config(CONFIG_PATH)
     projects = cfg.get("projects", {})
     res = {"status": "ok", "project": project, "run_id": run_id, "chains": [], "counts": {},
@@ -1001,7 +1032,16 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
     project_root = project_dir(project, pcfg)
     if not project_root.exists():
         return {**res, "status": "error", "error": f"project root missing: {project_root}"}
-    art_dir = resolve_artifact_dir(project_root, artifact_dir)
+    try:
+        if artifact_dir:                                   # sweep --artifact-dir (one run)
+            art_dir = resolve_artifact_dir(project_root, artifact_dir)
+        elif cfg.get("artifact_dir") or pcfg.get("artifact_dir"):
+            art_dir = Path(config.artifact_dir(project, cfg=cfg))
+        else:
+            art_dir = project_root                         # unset: the project root, exactly as before
+    except config.ConfigError as e:
+        print(f"[ERR] {project}: {e}", file=sys.stderr)
+        return {**res, "status": "config", "error": str(e)}
     run_id = run_id or latest_sweep_date(art_dir)
     res["run_id"] = run_id
     if not run_id:
@@ -1010,6 +1050,16 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
     # not_before counts from the later of the clock and the run's own date, so sweep --date and
     # migrate stay in lockstep (a run dated ahead of the clock never re-admits its rows the same day)
     today = today or max(datetime.date.today(), datetime.date.fromisoformat(run_id[:10]))
+
+    def empty_routing(tag):
+        """A header-only routing CSV for a chain of this run that has nothing to route."""
+        if dry_run or not any(artifact_path(art_dir, run_id, s, tag).exists()
+                              for s in ("residual", "unpaywall", "report")):
+            return
+        path = artifact_path(art_dir, run_id, "routing", tag)
+        if not path.exists():
+            lit_util.atomic_write_csv(str(path), [], ROUTING_FIELDS)
+        res["written"][path.name] = 0
 
     def chain_rows(tag):
         if tag is None and art_dir == project_root:
@@ -1030,6 +1080,8 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
     res["rows"] = len(rows)
     if not rows:
         print(f"[--] {project} sweep {run_id}: no closed/failed residuals")
+        for tag in by_chain:
+            empty_routing(tag)
         return {**res, "status": "nothing"}
     for tag, rs in by_chain.items():
         for r in rs:
@@ -1040,7 +1092,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
     legacy = [r for r in rows if r.get("tag") not in typed_chains]
     if legacy:
         try:
-            sources = config.sources(project, cfg=cfg)
+            sources = config.sources(project, override=sources, cfg=cfg)
         except config.ConfigError as e:
             print(f"[ERR] {project}: {e}", file=sys.stderr)
             return {**res, "status": "config", "error": str(e)}
@@ -1111,6 +1163,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
 
     for tag, rs in by_chain.items():
         if not rs:
+            empty_routing(tag)
             continue
         path = artifact_path(art_dir, run_id, "routing", tag)
         out = [{
@@ -1121,6 +1174,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
             "stage_unpaywall": r.get("stage_unpaywall", ""), "stage_pmc": r.get("stage_pmc", ""),
             "stage_preprint": r.get("stage_preprint", ""),
             "flagged_path": " | ".join(r.get("flagged_path") or ()), "landing_url": r.get("landing_url", ""),
+            "best_oa_url": r.get("best_oa_url", ""),
         } for r in rs]
         if not dry_run:
             lit_util.atomic_write_csv(str(path), [{k: redact(v) for k, v in o.items()} for o in out],
@@ -1142,9 +1196,310 @@ def _counts(rows):
     return c
 
 
+# ---------------------------------------------------------------- the DOI-keyed CSV import (fold-in A3)
+IMPORT_TARGETS = ("ill", "oa-blocked", "review")
+IMPORT_REQUIRED = ("project", "doi", "suggested_worklist")
+REVIEW_AS = ("retry", "list-only")
+EXIT_IMPORT_LOCKED = 4
+IMPORT_SKIPS = ("held", "listed")
+
+
+class ImportProblem(ValueError):
+    """The import cannot run (usage or configuration): exit 2, nothing read further or written."""
+
+
+def _import_target(value):
+    """`ill`, `oa-blocked` or `review` from a suggested_worklist cell, read by its FIRST word
+    ("review (never reached Unpaywall; ...)" is review); None for anything else."""
+    first = re.split(r"[\s(;,:]+", str(value or "").strip(), maxsplit=1)[0].lower()
+    return first if first in IMPORT_TARGETS else None
+
+
+def resolve_import_project(value, keys, project_map=None):
+    """(registry key, "") or (None, why) for a CSV `project` value: --project-map (the value exactly)
+    first, then a registry key, then the last path component of exactly one registered key.
+    why: "blank", "unregistered" or "ambiguous"."""
+    v = str(value or "").strip()
+    if not v:
+        return None, "blank"
+    pm = project_map or {}
+    if v in pm:
+        return pm[v], ""
+    if v in keys:
+        return v, ""
+    tail = v.replace("\\", "/").rstrip("/").split("/")[-1]
+    hits = [k for k in keys if k.split("/")[-1] == tail]
+    if len(hits) == 1:
+        return hits[0], ""
+    return None, "ambiguous" if hits else "unregistered"
+
+
+def _import_line_ill(r, source):
+    year = f" ({r['year']})" if r.get("year") else ""
+    why = f"imported from {source}" + (f"; last oa_status {r['last_oa_status']}" if r.get("last_oa_status") else "")
+    return f"- [ ] **{_title(r, 200)}**{year} — DOI `{r['doi']}` — {redact(why)}"
+
+
+def render_import_ill_block(date, rows, source):
+    """The ILL section for imported rows, in the ILL list's line format (the `DOI \\`<doi>\\`` token
+    is what dedup reads)."""
+    if not rows:
+        return ""
+    lines = ["", "---", "", f"## Imported {date}: {len(rows)} closed-access (from `{source}`)", "",
+             f"Imported by `migrate_closed_to_md.py --import-csv` from `{source}`: swept earlier and never "
+             "listed. Every enabled fetch stage found no copy. ILLIAD candidates.", ""]
+    lines += [_import_line_ill(r, source) for r in rows]
+    lines.append("")
+    return "\n".join(lines)
+
+
+def render_import_oa_block(date, rows, source):
+    """The browser-worklist section for imported rows, in render_oa_blocked_block's line format;
+    the cause says "imported" and names the source file."""
+    if not rows:
+        return ""
+    lines = ["", f"## Imported {date} from `{source}`, {_n_rows(rows)}", ""]
+    for r in rows:
+        year = f" ({r['year']})" if r.get("year") else ""
+        via = f"import:{r['last_oa_status']}" if r.get("last_oa_status") else "import"
+        lines.append(f"- [ ] **{_title(r)}**{year} [{r['doi']}]({_oa_link(r)}) cause "
+                     f"`{redact('imported from ' + source)}` via `{redact(via)}`")
+    return "\n".join(lines) + "\n"
+
+
+def _queued_dois(project_root):
+    """Normalised DOIs in the project's retry_later file and its live queues (sweep's discovery)."""
+    out = {_key(e.get("doi")) for e in read_retry_later(project_root)[1] if e.get("doi")}
+    try:
+        sw = _sweep()
+        for q in sw.discover_queues(project_root):
+            out.update(_key(r.get("doi")) for r in sw.read_queue(q)[1] if r.get("doi"))
+    except (OSError, UnicodeDecodeError, csv.Error):
+        pass
+    return out
+
+
+def _append_retry_rows(project_root, rows):
+    fields, existing = read_retry_later(project_root)
+    fields = RETRY_FIELDS + [f for f in fields if f not in RETRY_FIELDS]
+    lit_util.atomic_write_csv(str(Path(project_root) / RETRY_LATER_NAME),
+                              [{k: redact(v) for k, v in e.items() if k in fields} for e in existing + rows],
+                              fields)
+
+
+def import_csv(path, *, projects=None, project_map=None, review_as="retry", commit=False, cfg=None,
+               holdmap=None, use_holdings=True, today=None, stale_s=None) -> dict:
+    """Import a DOI-keyed CSV of swept-but-unlisted rows into the projects' worklists (fold-in A3).
+
+    The CSV has `project`, `doi` and `suggested_worklist` (optional `title`, `year`, `first_swept`,
+    `last_oa_status`; `last_error` is never read). A `project` value resolves by
+    resolve_import_project; `suggested_worklist` by its first word: `ill` rows go to the ILL list
+    (lit_pull_queue.md) and `oa-blocked` rows to the browser worklist (lit_pull_queue.oa_blocked.md), in
+    the lists' own line formats with a cause naming the source file; `review` rows never reached
+    Unpaywall, so they go to lit_pull_queue.retry_later.csv with not_before = the run date and
+    attempts 0 (the next sweep tries them), or nowhere with review_as="list-only" (counted only).
+    lit_pull_queue.review.md is the identity-flag list and is never written here.
+
+    Skipped and counted: a DOI held now (litpipe.holdings content: a PDF or a text-only sidecar), a
+    DOI already listed in the target (any DOI form; for review: retry_later or a live queue; a DOI
+    repeated in the CSV counts as listed after its first row). Unregistered projects and malformed
+    rows are counted and listed, never written. Every text field passes litpipe.ledger.redact. The
+    input file is only read. Dry by default; commit=True takes each project's lock file
+    (litpipe.lockfile) and writes; a held lock skips that project (status "locked"). A second commit
+    writes nothing. Raises ImportProblem on a usage or configuration error."""
+    path = Path(path)
+    source = redact(path.name)
+    cfg = cfg if cfg is not None else lit_util.load_projects_config(CONFIG_PATH)
+    registry = cfg.get("projects") or {}
+    if review_as not in REVIEW_AS:
+        raise ImportProblem(f"--review-as must be one of {', '.join(REVIEW_AS)}, got {review_as!r}")
+    pm = dict(project_map or {})
+    bad_map = sorted(v for v in pm.values() if v not in registry)
+    if bad_map:
+        raise ImportProblem(f"--project-map names unregistered project(s): {bad_map}")
+    want = list(projects or [])
+    unknown = [k for k in want if k not in registry]
+    if unknown:
+        raise ImportProblem(f"--project not in projects.json: {unknown}")
+    try:
+        with open(path, encoding="utf-8-sig", newline="") as f:
+            rdr = csv.DictReader(f)
+            fields = list(rdr.fieldnames or [])
+            raw_rows = list(rdr)
+    except (OSError, UnicodeDecodeError, csv.Error) as e:
+        raise ImportProblem(f"cannot read {source}: {type(e).__name__}") from None
+    missing = [c for c in IMPORT_REQUIRED if c not in fields]
+    if missing:
+        raise ImportProblem(f"{source} lacks the column(s) {missing} (needs {', '.join(IMPORT_REQUIRED)})")
+    today = today or datetime.date.today()
+    iso = today.isoformat()
+    res = {"status": "ok", "source": source, "commit": bool(commit), "review_as": review_as, "date": iso,
+           "rows": len(raw_rows), "by_target": dict.fromkeys(IMPORT_TARGETS, 0), "projects": {},
+           "unregistered": {}, "malformed": [], "not_selected": 0, "locked": {}, "written": {}}
+
+    plan = {}
+    keys = list(registry)
+    for n, r in enumerate(raw_rows, start=2):           # line 1 is the header
+        key, why = resolve_import_project(r.get("project"), keys, pm)
+        target = _import_target(r.get("suggested_worklist"))
+        raw_doi = str(r.get("doi") or "").strip()
+        doi = _doi.normalise(raw_doi) if raw_doi and not raw_doi.upper().startswith("NO_DOI") else None
+        if why == "blank" or target is None or not doi or not lit_util.is_valid_doi(doi):
+            what = ("blank project" if why == "blank" else "suggested_worklist is not ill, oa-blocked or review"
+                    if target is None else f"invalid DOI {redact(raw_doi)[:80]!r}")
+            res["malformed"].append(f"line {n}: {what}")
+            continue
+        res["by_target"][target] += 1
+        if key is None:
+            label = redact(str(r.get("project") or "").strip())[:120] + (" (ambiguous)" if why == "ambiguous" else "")
+            res["unregistered"][label] = res["unregistered"].get(label, 0) + 1
+            continue
+        if want and key not in want:
+            res["not_selected"] += 1
+            continue
+        rec = {"doi": doi, "doi_norm": _key(doi), "title": redact(r.get("title") or "").strip(),
+               "year": redact(r.get("year") or "").strip()[:4],
+               "first_seen": redact(r.get("first_swept") or "").strip()[:10],
+               "last_oa_status": re.sub(r"[^A-Za-z_ -]", "", redact(r.get("last_oa_status") or "")).strip()[:40]}
+        plan.setdefault(key, {t: [] for t in IMPORT_TARGETS})[target].append(rec)
+
+    hm = holdmap
+    if hm is None and use_holdings and plan:
+        try:
+            hm = holdings.build(registry=cfg, write_cache=bool(commit))
+        except Exception as e:  # noqa: BLE001 - say so: held DOIs cannot be skipped without the map
+            raise ImportProblem(f"holdings map unavailable ({type(e).__name__}); pass --no-holdings to "
+                                f"import without the held check") from None
+
+    from litpipe import lockfile
+    for key, by_target in plan.items():
+        entry = registry.get(key) or {}
+        root = project_dir(key, entry)
+        counts = {t: {"write": 0, "held": 0, "held_text_only": 0, "listed": 0} for t in IMPORT_TARGETS}
+        res["projects"][key] = counts
+        if not root.is_dir():
+            res["locked"][key] = f"project root missing: {root}"
+            continue
+        lock = None
+        if commit:
+            try:
+                lock = lockfile.Lock(root, tool="migrate import", stale_s=stale_s).acquire()
+            except lockfile.LockHeld as e:
+                res["locked"][key] = lockfile.describe(e.record)
+                res["status"] = "locked"
+                continue
+        try:
+            ill_md, oa_md = root / ILL_NAME, root / OA_BLOCKED_NAME
+            present = {
+                "ill": existing_dois(ill_md.read_text(encoding="utf-8")) if ill_md.exists() else set(),
+                "oa-blocked": existing_dois(oa_md.read_text(encoding="utf-8")) if oa_md.exists() else set(),
+                "review": _queued_dois(root)}
+            new = {}
+            for t in IMPORT_TARGETS:
+                keep = []
+                for rec in by_target[t]:
+                    held = hm.content(rec["doi"]) if hm is not None else []
+                    if held:
+                        counts[t]["held"] += 1
+                        counts[t]["held_text_only"] += not any(h.has_pdf for h in held)
+                        continue
+                    if rec["doi_norm"] in present[t]:
+                        counts[t]["listed"] += 1
+                        continue
+                    present[t].add(rec["doi_norm"])
+                    keep.append(rec)
+                counts[t]["write"] = len(keep)
+                new[t] = keep
+            if review_as == "list-only":
+                counts["review"]["list_only"], counts["review"]["write"] = counts["review"]["write"], 0
+                new["review"] = []
+            if not commit:
+                continue
+            if new["ill"] and _append_md(ill_md, key, [render_import_ill_block(iso, new["ill"], source)], False):
+                res["written"][f"{key}/{ILL_NAME}"] = len(new["ill"])
+            if new["oa-blocked"] and _append_md(oa_md, key, [render_import_oa_block(iso, new["oa-blocked"], source)],
+                                                False):
+                res["written"][f"{key}/{OA_BLOCKED_NAME}"] = len(new["oa-blocked"])
+            if new["review"]:
+                dest = ""
+                if entry.get("lib_dir"):
+                    dest = os.path.relpath(lit_util.lib_paths(key, entry)[1], root).replace(os.sep, "/")
+                _append_retry_rows(root, [{
+                    "doi": rec["doi"], "title": rec["title"], "authors": "", "year": rec["year"],
+                    "destination": dest, "notes": f"imported from {source}", "residual_class": TRANSIENT,
+                    "reason": f"imported from {source}: never reached Unpaywall", "not_before": iso,
+                    "attempts": "0", "first_seen": rec["first_seen"] or iso, "last_seen": iso,
+                    "last_run": f"import:{source}"} for rec in new["review"]])
+                res["written"][f"{key}/{RETRY_LATER_NAME}"] = len(new["review"])
+        finally:
+            if lock is not None:
+                lock.release()
+    return res
+
+
+def print_import(res, limit=20):
+    """The import's report: per project and target, what it would write (or wrote) and what it skipped."""
+    verb = "wrote" if res["commit"] else "would write"
+    review_to = ("lit_pull_queue.retry_later.csv (not_before " + res["date"] + ", attempts 0)"
+                 if res["review_as"] == "retry" else "nowhere (--review-as list-only: counted only)")
+    print(f"[import] {res['source']}: {res['rows']} row(s) (ill {res['by_target']['ill']}, oa-blocked "
+          f"{res['by_target']['oa-blocked']}, review {res['by_target']['review']}); review rows go to {review_to}")
+    for key, counts in res["projects"].items():
+        print(f"  {key}" + (f"  NOT WRITTEN: {res['locked'][key]}" if key in res["locked"] else ""))
+        for t in IMPORT_TARGETS:
+            c = counts[t]
+            extra = f", list-only {c['list_only']}" if "list_only" in c else ""
+            print(f"    {t:<11} {verb} {c['write']:>5}; skipped: held {c['held']} (text-only "
+                  f"{c['held_text_only']}), listed {c['listed']}{extra}")
+    n_unreg = sum(res["unregistered"].values())
+    print(f"  unregistered: {n_unreg} row(s)" + (": " + ", ".join(
+        f"{k} ({v})" for k, v in list(res["unregistered"].items())[:limit]) if n_unreg else ""))
+    print(f"  malformed: {len(res['malformed'])} row(s)")
+    for m in res["malformed"][:limit]:
+        print(f"    {m}")
+    if len(res["malformed"]) > limit:
+        print(f"    ... {len(res['malformed']) - limit} more")
+    if res["not_selected"]:
+        print(f"  not selected (--project): {res['not_selected']} row(s)")
+    if not res["commit"]:
+        print("DRY RUN: nothing written. Re-run with --commit to write (each project's lock is taken).")
+
+
+def _project_map(values):
+    out = {}
+    for v in values or ():
+        tail, sep, key = str(v).partition("=")
+        if not sep or not tail.strip() or not key.strip():
+            raise ImportProblem(f"--project-map takes TAIL=KEY, got {v!r}")
+        out[tail.strip()] = key.strip()
+    return out
+
+
+def main_import(args, cfg):
+    """--import-csv: exit 0 done (dry or written), 2 usage or configuration, 4 a project's lock was held."""
+    try:
+        res = import_csv(args.import_csv, projects=args.project, project_map=_project_map(args.project_map),
+                         review_as=args.review_as, commit=args.commit, cfg=cfg,
+                         use_holdings=not args.no_holdings)
+    except ImportProblem as e:
+        print(f"[ERR] {e}", file=sys.stderr)
+        return 2
+    print_import(res)
+    return EXIT_IMPORT_LOCKED if res["locked"] and args.commit else 0
+
+
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
-    ap.add_argument("--project", required=True)
+    ap = argparse.ArgumentParser(
+        description=(__doc__ or "").splitlines()[0],
+        epilog="--import-csv PATH (fold-in A3): import a DOI-keyed CSV (project, doi, suggested_worklist; "
+               "optional title, year, first_swept, last_oa_status) into the worklists: ill rows to "
+               "lit_pull_queue.md, oa-blocked rows to lit_pull_queue.oa_blocked.md, review rows to "
+               "lit_pull_queue.retry_later.csv (due at once, attempts 0) or nowhere with --review-as "
+               "list-only. Held and already-listed DOIs are skipped and counted. A dry run unless "
+               "--commit; exit 0 done, 2 usage or configuration, 4 a project's lock file was held.")
+    ap.add_argument("--project", action="append", default=None,
+                    help="the project to route (routing: exactly one); with --import-csv, only these "
+                         "projects' rows (repeatable)")
     ap.add_argument("--date", "--run-id", dest="date", default=None,
                     help="run id: YYYY-MM-DD (legacy dated runs) or YYYY-MM-DD.N; defaults to the latest run")
     ap.add_argument("--tag", action="append", default=None,
@@ -1157,7 +1512,24 @@ def main(argv=None):
                     help="where the run's artifacts are (sweep --artifact-dir: absolute, or relative "
                          "to the project); the .md lists and retry_later stay in the project root")
     ap.add_argument("--dry-run", action="store_true", help="classify and print; write nothing")
+    ap.add_argument("--sources", default=None, metavar="LIST",
+                    help="the run's DEC-31 sources (sweep --sources, one run): a stage the list omits "
+                         "blocks nothing; default: the project's own `sources`")
+    ap.add_argument("--import-csv", default=None, metavar="PATH",
+                    help="import a DOI-keyed CSV into the worklists (see below); dry unless --commit")
+    ap.add_argument("--project-map", action="append", default=None, metavar="TAIL=KEY",
+                    help="with --import-csv: read the CSV project value TAIL as the registry key KEY")
+    ap.add_argument("--review-as", choices=REVIEW_AS, default="retry",
+                    help="with --import-csv: review rows go to retry_later (retry, the default) or nowhere "
+                         "(list-only: counted only)")
+    ap.add_argument("--commit", action="store_true", help="with --import-csv: write (default: dry run)")
     args = ap.parse_args(argv)
+    if args.import_csv:
+        return main_import(args, lit_util.load_projects_config(CONFIG_PATH))
+    if not args.project or len(args.project) != 1:
+        print("[ERR] routing takes exactly one --project", file=sys.stderr)
+        return 2
+    project = args.project[0]
     if args.date and not re.fullmatch(RUN_ID_RE, args.date):
         print(f"[ERR] --date must be YYYY-MM-DD or YYYY-MM-DD.N, got {args.date!r}", file=sys.stderr)
         return 2
@@ -1167,12 +1539,12 @@ def main(argv=None):
         return 2
 
     cfg = lit_util.load_projects_config(CONFIG_PATH)
-    if args.project not in cfg.get("projects", {}):
-        print(f"[ERR] '{args.project}' not in projects.json", file=sys.stderr)
+    if project not in cfg.get("projects", {}):
+        print(f"[ERR] '{project}' not in projects.json", file=sys.stderr)
         return 2
-    res = run(args.project, run_id=args.date, tags=args.tag, dry_run=args.dry_run,
+    res = run(project, run_id=args.date, tags=args.tag, dry_run=args.dry_run,
               skip_preprint=args.skip_preprint, use_holdings=not args.no_holdings, cfg=cfg,
-              artifact_dir=args.artifact_dir)
+              artifact_dir=args.artifact_dir, sources=args.sources)
     if res["status"] == "error":
         print(f"[ERR] {res['error']}", file=sys.stderr)
         return 2

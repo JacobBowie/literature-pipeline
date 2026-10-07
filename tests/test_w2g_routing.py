@@ -779,4 +779,4 @@ def test_the_residual_keeps_its_columns_and_appends_the_extras(tmp_path, monkeyp
         header = next(csv.reader(f))
     w1 = ["doi", "title", "authors", "year", "destination", "notes", "citation_count", "residual_class",
           "reason", "stages", "held_at", "skipped_sources", "attempts", "run_id"]
-    assert header == w1 + ["not_before", "flagged_path", "landing_url"]
+    assert header == w1 + ["not_before", "flagged_path", "landing_url", "best_oa_url"]   # W5-C1 appends best_oa_url

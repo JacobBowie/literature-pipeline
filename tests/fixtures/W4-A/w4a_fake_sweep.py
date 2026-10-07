@@ -22,9 +22,9 @@ def _write(path, rows, fields):
 
 
 def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=True, migrate=False,
-        artifact_dir=None, allow_destination=False, candidate_order=None):
+        artifact_dir=None, allow_destination=False, candidate_order=None, sources=None):
     common.log("sweep", project=project, date=date, loose_ends=loose_ends, candidate_order=candidate_order,
-               skip_preprint=skip_preprint)
+               skip_preprint=skip_preprint, sources=sources)
     s = common.spec("sweep", project)
     common.behave(s)
     import lit_util
@@ -34,11 +34,16 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
     queues = S.discover_queues(root)
     if not queues:
         return {"exit_code": 1, "projects": {}, "ignored": [], "admitted": {}}
-    run_id = S.choose_run_id(S.run_id_dirs(root, root), date)
+    # the run's artifacts go where the real sweep puts them (projects.json artifact_dir, W5)
+    adir = S.project_artifact_dir(project, root, artifact_dir, common.registry())
+    adir.mkdir(parents=True, exist_ok=True)
+    run_id = S.choose_run_id(S.run_id_dirs(root, adir), date)
     classes_of = {k.lower(): v for k, v in (s.get("classes") or {}).items()}
     default = s.get("default_class", "fetched")
     retire = s.get("retire", True)
-    stages = {"unpaywall": "completed", "pmc": "completed", "preprint": "skipped", "extract": "completed",
+    srcs = S.project_sources(project, common.registry(), sources)    # DEC-31, as the real sweep reads it
+    stages = {"unpaywall": "completed" if "unpaywall" in srcs else "skipped",
+              "pmc": "completed" if "pmc" in srcs else "skipped", "preprint": "skipped", "extract": "completed",
               **(s.get("stages") or {})}
     results = []
     for q in queues:
@@ -46,7 +51,7 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
         _, rows = S.read_queue(q)
 
         def art(stage):
-            return root / S.artifact_name(tag, run_id, stage)
+            return adir / S.artifact_name(tag, run_id, stage)
         counts = Counter()
         residual = []
         upw = []
@@ -57,7 +62,8 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
                         "oa_status": "OA" if cls == "fetched" else "CLOSED"})
             if cls != "fetched":
                 residual.append({**r, "residual_class": cls, "reason": "stand-in", "run_id": run_id})
-        _write(art("unpaywall"), upw, ["doi", "downloaded", "oa_status"])
+        if stages.get("unpaywall") in ("completed", "failed"):
+            _write(art("unpaywall"), upw, ["doi", "downloaded", "oa_status"])
         if stages.get("pmc") in ("completed", "failed"):
             _write(art("pmc"), [{"doi": u["doi"], "downloaded": "False"} for u in upw], ["doi", "downloaded"])
         _write(art("residual"), residual, FIELDS)

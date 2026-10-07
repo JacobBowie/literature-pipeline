@@ -2,7 +2,7 @@
 
 Before the 2026-07-14 fix, find_queues walked PROJECTS.iterdir() (top-level dirs
 only) and compared `child.name != only_project`, so a registered subproject with a
-slash key ('Physiological_Data/Yitts') could never be found and its queue was
+slash key ('Parent/Sub') could never be found and its queue was
 silently never swept -- a permanent no-op the orchestrator read as success.
 """
 import json
@@ -112,11 +112,11 @@ def test_find_queues_ignores_artifacts_drafts_and_reserved_names(tmp_path, monke
     root = _setup_registry(tmp_path, monkeypatch, {"Top": {"lib_dir": "lit"}})
     for name in ("lit_pull_queue.draft.csv", "lit_pull_queue.s09_fwd.draft.csv",
                  "lit_pull_queue.retry_later.csv", "lit_pull_queue.2026-09-30.report.csv",
-                 "lit_pull_queue.rerun-2026-08-25.csv", "lit_pull_queue.4501_bodycomp_pool.csv",
+                 "lit_pull_queue.rerun-2026-08-25.csv", "lit_pull_queue.2024_cohort_pool.csv",
                  "lit_pull_queue.bak.csv", "lit_pull_queue.Upper.csv"):
         _stage_named(root, "Top", name)
     ignored = []
-    pool = _stage_named(root, "Top", "lit_pull_queue.ch15_pool.csv",
+    pool = _stage_named(root, "Top", "lit_pull_queue.unit3_pool.csv",
                         header="doi,title,year,venue,authors,cited_by")
     assert list(sweep.find_queues(only_project="Top", ignored=ignored)) == []
     assert ignored == [(pool, "not a queue (no destination column)")]

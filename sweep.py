@@ -16,25 +16,51 @@ Each invocation picks one run id per project: YYYY-MM-DD for the first run of th
 YYYY-MM-DD.2, .3, ..., the first id no artifact uses, so a same-day re-sweep never overwrites an
 earlier record. Every artifact of the run carries it:
     lit_pull_queue[.<tag>].<run_id>.<stage>.csv
-    stage: normalized, unpaywall, pmc, preprint, residual, report, processed
+    stage: normalized, unpaywall, pmc, preprint, residual, report, processed (and pmc_input,
+           PMC's input when the sources omit unpaywall)
 The dated names of earlier versions (lit_pull_queue.<date>.<stage>.csv and the same-day
 lit_pull_queue.<date>.processed.<n>.csv) stay readable (parse_artifact).
+
+The artifacts go to the project root, or to projects.json `artifact_dir` when it is set
+(litpipe.config.artifact_dir: per project, else global; a global absolute path holds one folder per
+project), or to --artifact-dir for one run. The queue files, retry_later and the worklist .md
+files always stay in the project root.
+
+The lock: every project with something staged is swept under its lock file,
+<project root>/lit_pull_queue.lock (litpipe.lockfile: host, pid, run id, start and heartbeat;
+stale after 2 h, projects.json runner.lock_stale_s), taken before the retry_later admission and the
+queue discovery and released after --migrate. A lock another live process holds (the scheduled
+runner, a sweep on another machine) skips that project untouched, as exit 4's "refused before
+fetching", naming the holder's host, tool and heartbeat age; a runner's stage child joins its
+runner's lock (the same run id). A lock lost while the project runs (another process took it over)
+stops that project's later stages as an abort (exit 3, the queue kept, no LOOSE_ENDS line, no
+routing). --dry-run takes no lock and only reports a held one.
+
+Sources (DEC-31): each project's `sources` list (default unpaywall + pmc), or --sources for one
+run, gates every stage. A stage whose source is not listed is skipped, as --skip-preprint skips the
+preprint stage: the report reads "skipped (the project's sources omit <stage>)", the residual lists
+it in skipped_sources, and it never blocks retirement. Without Unpaywall, PMC's input is built from
+the queue (lit_pull_queue[.<tag>].<run_id>.pmc_input.csv: each row's DEC-14 filename, and
+SKIP_EXISTS where the library already holds the paper). A sources list that leaves no sweep stage
+(an empty list, or openalex_content only) refuses the project's queues before fetching (exit 4).
 
 Per queue: a row with an invalid or placeholder DOI (NO_DOI_*) is skipped (INVALID_DOI); a row
 held in another registered library is not fetched (HELD_ELSEWHERE, with the path); a blank title
 or author list is filled from CrossRef/DataCite, and a title that stays blank is not fetched
 (NO_METADATA; a source that could not answer is asked once more in the run first). The rest go
-through Unpaywall v2, PMC and the preprint stage, then PDF text extraction. The preprint stage
-runs (with --project) only when the project's `sources` name a preprint server (DEC-31: a project
-with no `sources` key has unpaywall and pmc only), or for the rows with a 10.48550/ (arXiv) DOI,
-which reach arXiv whatever the sources (DEC-09); --skip-preprint skips it outright.
+through Unpaywall v2, PMC and the preprint stage (each when the sources list it), then PDF text
+extraction. The preprint stage runs (with --project) only when the project's `sources` name a
+preprint server (DEC-31: a project with no `sources` key has unpaywall and pmc only), or for the
+rows with a 10.48550/ (arXiv) DOI, which reach arXiv whatever the sources (DEC-09); --skip-preprint
+skips it outright.
 
 Every row that was not fetched gets a residual class (dispatch 0.5) in the residual CSV, read
 from each stage report's typed columns (outcome, detail, identity, release_date, landing_url)
 when present and from the legacy columns (error / status through from_legacy) otherwise. The
 residual CSV also carries not_before (an embargo's release date), flagged_path (a file the
-identity check flagged) and landing_url (the page a person opens for a manual preprint). The
-report counts rows per class and per stage, SKIP_EXISTS apart from fetched.
+identity check flagged), landing_url (the page a person opens for a manual preprint) and, last,
+best_oa_url (copied from the Unpaywall report's column of that name; empty when the report has
+none). The report counts rows per class and per stage, SKIP_EXISTS apart from fetched.
 The queue retires (renamed to its .processed.csv) when every fetch stage completed and every row
 has a class. A deliberately skipped stage (--skip-preprint, or a project whose sources name no
 preprint server) does not block retirement; a failed or crashed stage does, and the queue stays
@@ -59,6 +85,7 @@ import lit_util
 lit_util.utf8_stdout()
 
 from litpipe.outcomes import Kind, from_legacy  # noqa: E402
+from litpipe import lockfile as _lockfile  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 CONFIG_PATH = HERE / "projects.json"
@@ -72,12 +99,15 @@ EXIT_CODES_HELP = """exit codes:
   0  every stage of every queue completed, including when nothing was fetched or nothing was
      staged (a bare sweep with no queue is an idle run)
   1  --project named a project with nothing to sweep
-  2  usage or configuration error (bad arguments, an invalid `sources` list, a CONFIG outcome
-     such as Unpaywall 422, or a stage that exited 2; each aborts the run)
-  3  a stage failed or crashed (unpaywall, pmc, preprint, pdf extract, or --migrate); the queue
-     is left in place for the next sweep unless only the extract or migrate step failed
+  2  usage or configuration error (bad arguments, an invalid `sources` list or --sources, an
+     invalid artifact_dir or runner.lock_stale_s, a CONFIG outcome such as Unpaywall 422, or a
+     stage that exited 2; each aborts the run)
+  3  a stage failed or crashed (unpaywall, pmc, preprint, pdf extract, or --migrate), or a
+     project's lock was lost mid-run; the queue is left in place for the next sweep unless only
+     the extract or migrate step failed
   4  a queue was refused before fetching (no destination; a destination outside the project or
-     not the registry library for the project); it is left in place
+     not the registry library for the project; sources that name no sweep stage), or a project
+     was skipped because another live process holds its lock file; it is left in place
 When several apply, the first of 2, 3, 4 wins.
 
 Each project's run id is printed as `[sweep] run_id=<id> project=<key>`, so a wrapper can find
@@ -93,12 +123,15 @@ DATE_LIKE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 RESERVED_TAGS = frozenset({
     "template", "draft", "retry_later", "bak", "processed", "normalized", "unpaywall", "pmc",
     "preprint", "residual", "report", "oa_blocked", "review", "corrections"})
-ARTIFACT_STAGES = ("normalized", "unpaywall", "pmc", "preprint", "residual", "report", "processed")
+ARTIFACT_STAGES = ("normalized", "unpaywall", "pmc", "preprint", "residual", "report", "processed",
+                   "pmc_input")
+PMC_INPUT_STAGE = "pmc_input"   # PMC's input when the project's sources omit unpaywall (DEC-31)
 _ARTIFACT_RE = re.compile(
     r"lit_pull_queue(?:\.(?P<tag>[a-z][a-z0-9_-]{0,31}))?"
     r"\.(?P<date>\d{4}-\d{2}-\d{2})(?:\.(?P<seq>\d+))?"
     r"\.(?P<stage>[a-z_]+)(?:\.(?P<legacy_seq>\d+))?\.csv")
 PREPRINT_SOURCES = frozenset({"europepmc_preprints", "biorxiv", "medrxiv", "osf", "sportrxiv", "arxiv"})
+SWEEP_SOURCES = frozenset({"unpaywall", "pmc"}) | PREPRINT_SOURCES   # sources a sweep stage serves
 ARXIV_DOI_PREFIX = "10.48550/"   # DEC-09: arXiv DOIs reach arXiv whatever the project's sources
 CANDIDATE_ORDERS = ("repository", "publisher")   # unpaywall_fetch_v2 --candidate-order (DEC-11)
 
@@ -261,7 +294,7 @@ def _project_roots(only_project=None, cfg=None):
 def discover_queues(root, ignored=None):
     """Live queues in one project directory: lit_pull_queue.csv first, then tagged queues by name.
     A tag-shaped file without `doi` and `destination` columns is not a queue (a consumer keeps candidate
-    pools such as lit_pull_queue.ch15_pool.csv beside its batches); it is appended to `ignored`
+    pools such as lit_pull_queue.unit3_pool.csv beside its batches); it is appended to `ignored`
     as (path, reason) and never swept."""
     root = Path(root)
     if not root.is_dir():
@@ -288,7 +321,7 @@ def find_queues(only_project=None, ignored=None):
 
     Registry-driven (2026-07-14, A1 fix): resolve each projects.json key via
     lit_util.project_root (tail-aware), so a subproject key like
-    'Physiological_Data/Yitts' resolves to <Projects>/Physiological_Data/Yitts and
+    'Parent/Sub' resolves to <Projects>/Parent/Sub and
     ITS queue is found. Replaces the old PROJECTS.iterdir() filesystem walk, which
     only saw top-level dirs and whose `child.name` compare could never match a slash
     key -- so a registered subproject's queue was silently never swept (a permanent
@@ -807,18 +840,21 @@ def classify(verdicts, attempts=1):
     return "TRANSIENT", f"error (run {attempts} of {ERROR_RUNS_TO_TERMINAL}) {err.stage}: {err.raw}"
 
 
-RESIDUAL_EXTRA_FIELDS = ("not_before", "flagged_path", "landing_url")
+RESIDUAL_EXTRA_FIELDS = ("not_before", "flagged_path", "landing_url", "best_oa_url")
 
 
-def residual_extras(verdicts, cls, lib_dir=None):
-    """The residual CSV's per-row extras for a classified row (W2-G):
+def residual_extras(verdicts, cls, lib_dir=None, best_oa_url=""):
+    """The residual CSV's per-row extras for a classified row (W2-G; best_oa_url W5-C1):
     not_before    an embargo's release date when the row is TRANSIENT on an embargo ("" when the
                   date is unknown: migrate applies its default delay)
     flagged_path  the library path of every identity-flagged file, "; "-joined (the file stays put;
                   its evidence is <stem>.identity.json, or pmc's <stem>.fulltext.json identity_*)
-    landing_url   the page a person opens for a manual preprint"""
+    landing_url   the page a person opens for a manual preprint
+    best_oa_url   the Unpaywall report's `best_oa_url` for the row (the URL of the same response's
+                  best_oa_location), copied as it is; "" when the report has no such column"""
     vs = _enabled(verdicts)
     out = dict.fromkeys(RESIDUAL_EXTRA_FIELDS, "")
+    out["best_oa_url"] = str(best_oa_url or "").strip()
     if cls == "TRANSIENT" and any(v.kind is Kind.EMBARGOED for v in vs):
         out["not_before"] = _embargo(vs)[1]
     files = [v.flagged_file for v in vs if v.identity and v.flagged_file]
@@ -878,6 +914,61 @@ def _artifact_dir(project_dir, artifact_dir):
     return p if p.is_absolute() else Path(project_dir) / p
 
 
+def project_artifact_dir(key, project_dir, artifact_dir=None, cfg=None):
+    """Where a project's run artifacts go: --artifact-dir for one run (relative: under the project),
+    else projects.json `artifact_dir` (litpipe.config.artifact_dir: per project, else global; unset:
+    the project root, as before), else the project root (an unregistered --project dir)."""
+    if artifact_dir:
+        return _artifact_dir(project_dir, artifact_dir)
+    if key is not None and key in ((cfg or {}).get("projects") or {}):
+        from litpipe import config as lp_config
+        return Path(lp_config.artifact_dir(key, cfg=cfg))
+    return Path(project_dir)
+
+
+PMC_INPUT_FIELDS = ("doi", "title", "authors", "year", "filename", "oa_status", "downloaded")
+
+
+def build_pmc_input(rows, lib_dir, out_csv):
+    """PMC's --report-in when the project's sources omit unpaywall (DEC-31). pmc_fetch takes two things
+    from the Unpaywall report: each row's DEC-14 filename, and the own-library check (it skips rows
+    whose oa_status is SKIP_EXISTS). So each queue row gets the filename unpaywall_fetch_v2.build_filename
+    gives it, and SKIP_EXISTS when the library already holds the paper: the stage's library index
+    (a `.ris` or identity sidecar naming the DOI, when the stage has one), else a file at that name
+    (or the legacy name) that unpaywall_fetch_v2.existing_holds judges "same". Writes `out_csv` and
+    returns the normalised DOIs held."""
+    import unpaywall_fetch_v2 as U
+    lib_dir = Path(lib_dir)
+    try:
+        existing = set(os.listdir(lib_dir))
+    except OSError:
+        existing = set()
+    index_fn = getattr(U, "library_index", None)
+    try:
+        index = index_fn(str(lib_dir)) if index_fn is not None and existing else {}
+    except Exception:   # noqa: BLE001 - the index is a shortcut; the per-file check still runs
+        index = {}
+    legacy = getattr(U, "legacy_build_filename", None)
+    out, held = [], set()
+    for r in rows:
+        doi = (r.get("doi") or "").strip()
+        title, authors, year = r.get("title") or "", r.get("authors") or "", r.get("year") or ""
+        fn = U.build_filename(year, authors, title)
+        hit = index.get(_doi.normalise(doi) or doi)
+        if not hit:
+            names = [fn] + ([legacy(year, authors, title)] if legacy is not None else [])
+            for name in dict.fromkeys(names):
+                if name in existing and U.existing_holds(str(lib_dir / name), doi, title) == "same":
+                    hit = name
+                    break
+        if hit:
+            held.add(lit_util.normalize_doi(doi))
+        out.append({"doi": doi, "title": title, "authors": authors, "year": year, "filename": hit or fn,
+                    "oa_status": "SKIP_EXISTS" if hit else "", "downloaded": "False"})
+    _write_csv(out_csv, out, PMC_INPUT_FIELDS)
+    return held
+
+
 def _refuse(msg):
     print(f"  ERR {msg}", file=sys.stderr)
     return None
@@ -898,16 +989,21 @@ def is_arxiv_doi(doi):
 def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_preprint=False, *,
                  key=None, registry=None, run_id=None, holdings=None, artifact_dir=None,
                  allow_destination=False, skip_reason=None, preprint_arxiv_only=False,
-                 history=None, candidate_order=None):
+                 history=None, candidate_order=None, sources=None, stop=None):
     """Run unpaywall_v2 -> pmc_fetch -> preprint_fetch -> pdf extract against one queue and
     classify every row. Returns a result dict, or None when the queue is refused before any
     fetch (no destination, a destination that escapes the project or, given `key` and
     `registry`, is not the registry library for `key`, unless `allow_destination`).
 
     `preprint_arxiv_only` (DEC-31: the project's sources name no preprint server) sends only the
-    10.48550/ rows to the preprint stage, and skips it when there are none. `history` is
-    {doi: attempts} from retry_later before admission (default: read it now), so a DOI re-queued
-    fresh keeps its count."""
+    10.48550/ rows to the preprint stage, and skips it when there are none. `sources` (DEC-31, the
+    project's sources set; None: unpaywall and pmc both run, as before) skips the Unpaywall or PMC
+    stage the set omits, as --skip-preprint skips the preprint stage: the stage reads "skipped (the
+    project's sources omit <stage>)" in the report and is listed in the residual's skipped_sources;
+    without Unpaywall, PMC's input is built from the queue (build_pmc_input). `stop` (a callable)
+    is asked before each stage: True (the project's lock was lost) stops the queue as an abort, its
+    later stages not_run and the queue kept. `history` is {doi: attempts} from retry_later before
+    admission (default: read it now), so a DOI re-queued fresh keeps its count."""
     project_dir = Path(project_dir)
     queue_csv = Path(queue_csv)
     tag = queue_tag(queue_csv.name) or ""
@@ -965,26 +1061,56 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
     report_unpw, report_pmc, report_ppr = names["unpaywall"], names["pmc"], names["preprint"]
     residual_csv, summary_csv = names["residual"], names["report"]
     preprint_input, gated = [], set()   # gated: rows the DEC-31 gate kept from the preprint stage
+    src = None if sources is None else {str(s).strip().lower() for s in sources}
+    pre_held = set()                    # DOIs the library holds already (sweep's own check, no Unpaywall)
+    lock_lost = False
 
-    # Stage 1: Unpaywall. It always runs (legacy behaviour; with no rows it writes an empty report).
+    def _stopped(stage):
+        """True when `stop` says the project's lock was lost: this stage and the later ones do not run."""
+        nonlocal lock_lost
+        if lock_lost or (stop is not None and stop()):
+            lock_lost = True
+            stage_note.setdefault(stage, "project lock lost: not run")
+            return True
+        return False
+
+    # DEC-31: a stage whose source the project's sources omit is skipped, as --skip-preprint is
+    for s in ("unpaywall", "pmc"):
+        if src is not None and s not in src:
+            status[s] = "skipped"
+            stage_note[s] = f"the project's sources omit {s}"
+    if status["unpaywall"] == "skipped":
+        print(f"  [SKIP] unpaywall stage skipped ({stage_note['unpaywall']})")
+    if status["pmc"] == "skipped":
+        print(f"  [SKIP] pmc stage skipped ({stage_note['pmc']})")
+
+    # Stage 1: Unpaywall (with no rows it writes an empty report).
     # DEC-11: --candidate-order only when given (the stage's own default is repository).
-    r1 = _run_stage([py, str(HERE / "unpaywall_fetch_v2.py"),
-                     "--top-n", str(len(to_fetch) + 5),
-                     "--triage", str(norm_csv),
-                     "--lib-dir", str(lib_dir),
-                     "--report", str(report_unpw),
-                     "--base-dir", str(project_dir)]
-                    + (["--candidate-order", candidate_order] if candidate_order else []))
-    status["unpaywall"] = _stage_status(r1, report_unpw)
-    if status["unpaywall"] != "completed":
-        print(f"  ERR unpaywall stage {status['unpaywall']} (exit {r1.returncode}, report "
-              f"{'present' if report_unpw.exists() else 'MISSING'}); PMC and preprint cannot run:\n"
-              f"{(r1.stderr or '')[-500:]}")
+    if status["unpaywall"] != "skipped" and not _stopped("unpaywall"):
+        r1 = _run_stage([py, str(HERE / "unpaywall_fetch_v2.py"),
+                         "--top-n", str(len(to_fetch) + 5),
+                         "--triage", str(norm_csv),
+                         "--lib-dir", str(lib_dir),
+                         "--report", str(report_unpw),
+                         "--base-dir", str(project_dir)]
+                        + (["--candidate-order", candidate_order] if candidate_order else []))
+        status["unpaywall"] = _stage_status(r1, report_unpw)
+        if status["unpaywall"] != "completed":
+            print(f"  ERR unpaywall stage {status['unpaywall']} (exit {r1.returncode}, report "
+                  f"{'present' if report_unpw.exists() else 'MISSING'}); PMC and preprint cannot run:\n"
+                  f"{(r1.stderr or '')[-500:]}")
+    # the later stages run when Unpaywall completed or the project's sources skip it
+    upstream_ok = status["unpaywall"] in ("completed", "skipped")
 
-    if status["unpaywall"] == "completed":
-        # Stage 2: PMC (reads the unpaywall report to find the rows still missing)
+    if upstream_ok and status["pmc"] != "skipped" and not _stopped("pmc"):
+        # Stage 2: PMC (reads the unpaywall report to find the rows still missing; without
+        # Unpaywall, an input built from the queue with the same filename and own-library check)
+        pmc_in = report_unpw
+        if status["unpaywall"] == "skipped":
+            pmc_in = names[PMC_INPUT_STAGE]
+            pre_held = build_pmc_input(to_fetch, lib_dir, pmc_in)
         r2 = _run_stage([py, str(HERE / "pmc_fetch.py"),
-                         "--report-in", str(report_unpw),
+                         "--report-in", str(pmc_in),
                          "--lib-dir", str(lib_dir),
                          "--report-out", str(report_pmc),
                          "--base-dir", str(project_dir)])
@@ -995,13 +1121,14 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
                   f"report={'present' if report_pmc.exists() else 'MISSING'}); the queue stays "
                   f"for a re-sweep." + (f"\n{r2.stderr[-400:]}" if r2.stderr else ""))
 
-    if status["unpaywall"] == "completed":
+    if upstream_ok and not lock_lost:
         # Stage 3: preprint_fetch for the rows neither Unpaywall nor PMC got.
         # T5b (2026-06-25 audit): an already-present paper reports oa_status=SKIP_EXISTS
         # (unpaywall) or skipped/winning_source=ALREADY_EXISTS (pmc) with downloaded=False; treat
         # those as got, or a _preprint duplicate is fetched. An identity-flagged file is not got.
         got = {d for d, r in _index(report_unpw).items() if fetched_by(unpaywall_verdict(r))}
         got |= {d for d, r in _index(report_pmc).items() if fetched_by(pmc_verdict(r))}
+        got |= pre_held
         preprint_input = [r for r in to_fetch if lit_util.normalize_doi(r.get("doi")) not in got]
         if preprint_arxiv_only and not skip_preprint:
             # DEC-31: no preprint server in the project's sources; DEC-09: arXiv DOIs go anyway
@@ -1022,6 +1149,8 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
         elif preprint_input and status["pmc"] == "config":
             # the run aborts at PMC's CONFIG: the stage is not run, and its rows are PENDING
             print(f"  [SKIP] preprint stage not run: the run aborts (PMC exited {EXIT_USAGE}, CONFIG)")
+        elif preprint_input and _stopped("preprint"):
+            pass                                  # not_run: the queue stays (project lock lost)
         elif preprint_input:
             _write_csv(residual_csv, preprint_input, fields)
             cmd = [py, str(HERE / "preprint_fetch.py"),
@@ -1040,7 +1169,7 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
             status["preprint"] = "not_needed"
             gated = set()
 
-    if status["unpaywall"] == "completed" and "config" not in status.values():
+    if upstream_ok and "config" not in status.values() and not _stopped("extract"):
         # Stage 4: PDF text extraction for PDFs in lib_dir without a .fulltext.json sidecar.
         # Indexing only and idempotent, so a failure does not keep the queue; it does set the
         # exit code. A CONFIG stage aborts the run, so it does not run then.
@@ -1098,8 +1227,10 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
                     "preprint": d in ppr_dois}
         vfun = {"unpaywall": lambda: uv, "pmc": lambda: pmc_verdict(p_idx.get(d)),
                 "preprint": lambda: preprint_verdict(r_idx.get(d))}
+        if d in pre_held:   # sources without unpaywall: sweep's own-library check found it held
+            verdicts.append(Verdict("pmc", Kind.OK, "SKIP_EXISTS", skip_exists=True))
         for s in _STAGE_ORDER:
-            if status[s] in ("skipped", "not_needed") or not expected[s]:
+            if d in pre_held or status[s] in ("skipped", "not_needed") or not expected[s]:
                 continue
             v = vfun[s]()
             if v is None:
@@ -1119,7 +1250,8 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
             skipped = (["preprint"] if d in gated else []) + [
                 v.stage for v in verdicts if v.excluded_source]
             _residual_row(r, cls, reason, stages_txt, skipped=skipped,
-                          extras=residual_extras(verdicts, cls, lib_dir))
+                          extras=residual_extras(verdicts, cls, lib_dir,
+                                                 best_oa_url=_cell(u_row, "best_oa_url") if u_row else ""))
     _write_csv(residual_csv, residual, res_fields)
 
     # ---- counts and the report (a flagged file is never a download, whatever its row says)
@@ -1132,14 +1264,18 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
                             _n(r_idx, "preprint", "downloaded"))
     sk_unpw, sk_pmc, sk_ppr = (_n(u_idx, "unpaywall", "skip_exists"), _n(p_idx, "pmc", "skip_exists"),
                                _n(r_idx, "preprint", "skip_exists"))
+    sk_pmc += len(pre_held)   # held before PMC ran (sweep's own-library check, no Unpaywall stage)
     n_total, n_skip = n_unpw + n_pmc + n_ppr, sk_unpw + sk_pmc + sk_ppr
 
     failed = [s for s in ("unpaywall", "pmc", "preprint", "extract") if status[s] == "failed"]
     blocking = [s for s in _STAGE_ORDER if status[s] in ("failed", "not_run", "config")]
     config_error = config_rows > 0 or "config" in status.values()
-    retired = not blocking and not classes["PENDING"] and not config_error
+    retired = not blocking and not classes["PENDING"] and not config_error and not lock_lost
     if retired:
         keep_reason = ""
+    elif lock_lost:
+        keep_reason = "project lock lost (another process holds the project): " + (
+            ", ".join(f"{s} {status[s]}" for s in blocking) or "stopped before the extract step")
     elif blocking:
         keep_reason = ", ".join(f"{s} {status[s]}" for s in blocking)
     elif config_error:
@@ -1150,7 +1286,10 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
                                "the project's sources name no preprint server")
 
     def _st(s):
-        note = skip_why if status[s] == "skipped" else stage_note.get(s)
+        if status[s] == "skipped":
+            note = skip_why if s == "preprint" else stage_note.get(s)
+        else:
+            note = stage_note.get(s)
         return status[s] + (f" ({note})" if note else "")
 
     rep = [("run", "run_id", "", run_id), ("run", "queue", "", queue_csv.name),
@@ -1181,7 +1320,8 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
               "residual": str(residual_csv), "processed": None, "partial": not retired,
               "retired": retired, "run_id": run_id, "tag": tag, "queue": queue_csv.name,
               "stages": dict(status), "failed_stages": failed, "classes": dict(classes),
-              "config_error": config_error, "keep_reason": keep_reason}
+              "config_error": config_error, "keep_reason": keep_reason, "lock_lost": lock_lost,
+              "sources": None if src is None else sorted(src)}
     if not retired:
         print(f"  [WARN] {keep_reason}; LEAVING {queue_csv.name} in place for the next sweep "
               f"(NOT renamed to .processed).")
@@ -1273,7 +1413,8 @@ def loose_end_line(key, results, refused):
             tot[k] += r.get(k, 0)
         for c, n in r["classes"].items():
             tot[c] += n
-    ppr_skipped = all(r["stages"].get("preprint") == "skipped" for r in results)
+    skipped_stages = [s for s in _STAGE_ORDER
+                      if results and all(r["stages"].get(s) == "skipped" for r in results)]
     tail = [f"{tot[c]} {label}" for c, label in (
         ("TERMINAL_CLOSED", "closed"), ("OA_BLOCKED", "OA-blocked"), ("TRANSIENT", "transient"),
         ("TEXT_ONLY", "text-only"), ("HELD_ELSEWHERE", "held elsewhere"),
@@ -1281,43 +1422,65 @@ def loose_end_line(key, results, refused):
         ("INVALID_DOI", "invalid DOI")) if tot[c]]
     if tot["skip_exists"]:
         tail.insert(0, f"{tot['skip_exists']} already held")
-    if ppr_skipped:
-        tail.append("preprint skipped")
+    tail += [f"{s} skipped" for s in skipped_stages]
     return (f"{LOOSE_DONE} {key}/ — {tot['downloaded']}/{tot['rows']} fetched (Unpaywall "
             f"{tot['unpaywall']}, PMC {tot['pmc']}, Preprint {tot['preprint']})"
             + (f"; {', '.join(tail)}" if tail else "") + f". Report: {reports}")
 
 
 # ---------------------------------------------------------------- the run
-def _preprint_excluded(key, cfg):
-    """DEC-31: True when the project's sources (its own `sources` list, else the default
-    unpaywall + pmc) name no preprint server. The preprint stage then runs only for rows with a
-    10.48550/ DOI (DEC-09: arXiv rows reach arXiv whatever the sources), and is skipped when
-    there are none. Raises litpipe.config.ConfigError on an invalid `sources` list."""
+def project_sources(key, cfg, override=None) -> set:
+    """DEC-31: the sources a sweep of `key` uses. `override` (sweep --sources, one run) replaces
+    everything; else the project's own `sources` list, else the default unpaywall + pmc (an
+    unregistered --project dir gets the default too). Raises litpipe.config.ConfigError on an
+    invalid list."""
     from litpipe import config as lp_config
+    if override is not None:
+        return lp_config.sources(key, override=override, cfg=cfg)
     if key not in ((cfg or {}).get("projects") or {}):
-        return True   # an unregistered --project dir (find_queues' backward-compatible path)
-    return not (lp_config.sources(key, cfg=cfg) & PREPRINT_SOURCES)
+        return set(lp_config.DEFAULT_SOURCES)
+    return lp_config.sources(key, cfg=cfg)
 
 
-def migrate_command(key, run_id, artifact_dir=None, skip_preprint=False):
+def _preprint_excluded(key, cfg, override=None):
+    """DEC-31: True when the project's sources (its own `sources` list, else the default
+    unpaywall + pmc; `override` for one run) name no preprint server. The preprint stage then runs
+    only for rows with a 10.48550/ DOI (DEC-09: arXiv rows reach arXiv whatever the sources), and is
+    skipped when there are none. Raises litpipe.config.ConfigError on an invalid `sources` list."""
+    return not (project_sources(key, cfg, override) & PREPRINT_SOURCES)
+
+
+def migrate_command(key, run_id, artifact_dir=None, skip_preprint=False, sources=None):
     cmd = [sys.executable, str(HERE / "migrate_closed_to_md.py"), "--project", key, "--date", run_id]
     if artifact_dir:
         cmd += ["--artifact-dir", str(artifact_dir)]
     if skip_preprint:   # a deliberately skipped stage's missing report must not block routing
         cmd += ["--skip-preprint"]
+    if sources is not None:   # the run's sources (a one-run --sources): migrate gates on the same set
+        cmd += ["--sources", ",".join(sorted(sources))]
     return cmd
 
 
+def _lock_note(record):
+    return _lockfile.describe(record)
+
+
 def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=True,
-        migrate=False, artifact_dir=None, allow_destination=False, candidate_order=None):
+        migrate=False, artifact_dir=None, allow_destination=False, candidate_order=None, sources=None):
     """The whole sweep (dispatch 0.5 stage function). Returns {"exit_code", "projects",
     "ignored", "admitted"}; main() parses argv and calls this. `candidate_order` ("repository" or
-    "publisher", DEC-11) goes to the Unpaywall stage only when given."""
+    "publisher", DEC-11) goes to the Unpaywall stage only when given. `sources` (a list or a
+    comma-separated string) replaces every project's DEC-31 sources for this run.
+
+    Each project with something staged runs under its lock file (litpipe.lockfile,
+    lit_pull_queue.lock in the project root): retry_later admission, queue discovery, the stages
+    and --migrate. A lock another live process holds skips that project (exit 4's "refused before
+    fetching": nothing of it is touched). A dry run takes no lock and writes nothing."""
+    empty = {"exit_code": EXIT_USAGE, "projects": {}, "ignored": [], "admitted": {}}
     if candidate_order is not None and candidate_order not in CANDIDATE_ORDERS:
         print(f"ERR --candidate-order must be one of {', '.join(CANDIDATE_ORDERS)}, got {candidate_order!r}",
               file=sys.stderr)
-        return {"exit_code": EXIT_USAGE, "projects": {}, "ignored": [], "admitted": {}}
+        return empty
     today = date or datetime.date.today().isoformat()
     out = {"exit_code": EXIT_OK, "projects": {}, "ignored": [], "admitted": {}}
     try:
@@ -1333,47 +1496,223 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
               "directory and one run id namespace)", file=sys.stderr)
         out["exit_code"] = EXIT_USAGE
         return out
+    from litpipe import config as lp_config
+    if sources is not None:
+        try:
+            lp_config.sources(None, override=sources)
+        except lp_config.ConfigError as e:
+            print(f"ERR --sources: {e}", file=sys.stderr)
+            out["exit_code"] = EXIT_USAGE
+            return out
 
     from ris_emit import warn_if_default_email
     warn_if_default_email()
 
     cfg_full = lit_util.load_projects_config(CONFIG_PATH, missing_ok=True)
     registry = cfg_full.get("projects") or {}
+    try:
+        stale_s = _lockfile.stale_s_from(cfg_full)
+    except lp_config.ConfigError as e:
+        print(f"ERR {e}", file=sys.stderr)
+        out["exit_code"] = EXIT_USAGE
+        return out
 
-    # Due retry_later rows become the `retry` tagged queue before discovery. Each project's
-    # retry_later attempts are read first: admission removes the due rows, and a DOI also
-    # re-queued fresh must keep its count.
+    # Read-only look first (no lock, nothing written): which projects have anything staged, and the
+    # tag-shaped files that are not queues.
+    candidates = []
     due_dry = 0
-    histories = {}
-    for key, root in _project_roots(project, registry):
-        histories[key] = retry_history(root)
-        if dry_run:
-            _, due, waiting, bad = split_retry_later(root, today)
-            if due or bad:
-                print(f"  DRY {key}: would admit {len(due)} due retry_later row(s)"
-                      + (f"; {len(bad)} with an unreadable not_before" if bad else ""))
-            due_dry += len(due)
-            continue
-        default_dest = None
-        entry = registry.get(key) or {}
-        if entry.get("lib_dir"):
-            default_dest = os.path.relpath(lit_util.lib_paths(key, entry)[1], root).replace(os.sep, "/")
-        adm = admit_retries(root, today, default_destination=default_dest)
-        if adm["admitted"] or adm["unreadable_not_before"]:
-            print(f"  {key}: admitted {adm['admitted']} due retry_later row(s) as "
-                  f"lit_pull_queue.{RETRY_TAG}.csv"
-                  + (f"; {adm['unreadable_not_before']} with an unreadable not_before stay"
-                     if adm["unreadable_not_before"] else ""))
-        out["admitted"][key] = adm
-
-    queues = list(find_queues(only_project=project))
     ignored = []
-    for _key, root in _project_roots(project, registry):
-        discover_queues(root, ignored)
+    for key, root in _project_roots(project, registry):
+        pre_q = discover_queues(root, ignored)
+        _, due, _waiting, bad = split_retry_later(root, today) if Path(root).is_dir() else ([], [], [], [])
+        if dry_run and (due or bad):
+            print(f"  DRY {key}: would admit {len(due)} due retry_later row(s)"
+                  + (f"; {len(bad)} with an unreadable not_before" if bad else ""))
+        due_dry += len(due) if dry_run else 0
+        if pre_q or due:
+            candidates.append((key, root, pre_q))
     for p, why in ignored:
         print(f"  [skip] {p.parent.name}/{p.name}: {why}; left alone")
         out["ignored"].append((str(p), why))
-    if not queues:
+
+    holdings, hold_loaded = None, False
+    failed_any = refused_any = config_abort = False
+    any_queue = False
+    warned_loose = False
+    for key, proj, pre_q in candidates:
+        try:
+            srcs = project_sources(key, cfg_full, sources)
+            excluded = not (srcs & PREPRINT_SOURCES)
+            art_dir = project_artifact_dir(key, proj, artifact_dir, cfg_full)
+        except lp_config.ConfigError as e:   # an invalid `sources` list or artifact_dir
+            print(f"  ERR {key}: {e}", file=sys.stderr)
+            out["exit_code"] = EXIT_USAGE
+            return out
+        gate_sources = srcs if (sources is not None or key in registry) else None
+
+        if dry_run:
+            held = _lockfile.read(proj)
+            if held is not None:
+                print(f"  DRY {key}: {_lock_note(held)}; a real sweep would skip this project")
+            if not (srcs & SWEEP_SOURCES):
+                print(f"  DRY {key}: the project's sources name no sweep stage; a real sweep would refuse "
+                      f"its {len(pre_q)} queue(s) before fetching (exit 4)")
+                any_queue = any_queue or bool(pre_q)
+                refused_any = refused_any or bool(pre_q)
+                continue
+            qs = pre_q
+        if not dry_run and not (srcs & SWEEP_SOURCES):
+            # DEC-31: no sweep stage serves these sources ([], or openalex_content only): every queue
+            # is refused before fetching and kept; nothing is admitted or written
+            print(f"\n=== {key} ===")
+            names = [q.name for q in pre_q]
+            print(f"  ERR {key}: the project's sources ({', '.join(sorted(srcs)) or 'none'}) name no sweep "
+                  f"stage (unpaywall, pmc or a preprint server); {len(names)} queue(s) kept, nothing fetched",
+                  file=sys.stderr)
+            refused_any = True
+            out["projects"][key] = {"run_id": None, "results": [], "refused": names, "loose_end": None,
+                                    "migrate": None, "no_sweep_stage": True}
+            any_queue = any_queue or bool(names)
+            continue
+
+        lock = None
+        if not dry_run:
+            try:
+                lock = _lockfile.Lock(proj, tool="sweep", stale_s=stale_s).acquire()
+            except _lockfile.LockHeld as e:
+                print(f"\n=== {key} ===")
+                print(f"  SKIP {key}: {_lock_note(e.record)}; nothing of this project is touched this run "
+                      f"(refused before fetching)", file=sys.stderr)
+                refused_any = True
+                any_queue = True
+                out["projects"][key] = {"run_id": None, "results": [], "refused": [], "loose_end": None,
+                                        "migrate": None, "lock_held": e.record}
+                continue
+        try:
+            if not dry_run:
+                # Due retry_later rows become the `retry` tagged queue before discovery. The project's
+                # retry_later attempts are read first: admission removes the due rows, and a DOI also
+                # re-queued fresh must keep its count.
+                history = retry_history(proj)
+                default_dest = None
+                entry = registry.get(key) or {}
+                if entry.get("lib_dir"):
+                    default_dest = os.path.relpath(lit_util.lib_paths(key, entry)[1], proj).replace(os.sep, "/")
+                adm = admit_retries(proj, today, default_destination=default_dest)
+                if adm["admitted"] or adm["unreadable_not_before"]:
+                    print(f"  {key}: admitted {adm['admitted']} due retry_later row(s) as "
+                          f"lit_pull_queue.{RETRY_TAG}.csv"
+                          + (f"; {adm['unreadable_not_before']} with an unreadable not_before stay"
+                             if adm["unreadable_not_before"] else ""))
+                out["admitted"][key] = adm
+                qs = discover_queues(proj)
+            else:
+                history = retry_history(proj)
+            if not qs:
+                continue
+            any_queue = True
+            print(f"Found {len(qs)} queue(s) in {key}:")
+            for q in qs:
+                print(f"  {key}/{q.name}")
+            if loose_ends and not dry_run and not warned_loose and resolve_loose_ends_path() is None:
+                warned_loose = True
+                print("[litpipe] no `loose_ends` key in projects.json -- cross-project "
+                      "lit-pull log is off this run; see the literature-pipeline skill to "
+                      "enable it.", file=sys.stderr)
+            print(f"\n=== {key} ===")
+            run_id = choose_run_id(run_id_dirs(proj, art_dir), today)
+            print(f"[sweep] run_id={run_id} project={key}")
+            if not dry_run and not hold_loaded:
+                holdings, why = _load_holdings(registry)
+                hold_loaded = True
+                if holdings is None:
+                    print(f"  [hold-check] off this run: {why}; rows held in another library are "
+                          f"fetched again")
+            stop = (lambda lk=lock: lk.lost.is_set()) if lock is not None else None
+            results, refused = [], []
+            lost = False
+            for q in qs:
+                if len(qs) > 1:
+                    print(f"\n  --- {q.name} ---")
+                if stop is not None and stop():
+                    lost = True
+                    break
+                res = run_pipeline(proj, q, dry_run=dry_run, run_date=today,
+                                   skip_preprint=skip_preprint, key=key,
+                                   registry=registry, run_id=run_id, holdings=holdings,
+                                   artifact_dir=art_dir, allow_destination=allow_destination,
+                                   skip_reason=None if skip_preprint else (
+                                       "the project's sources list names no preprint server"
+                                       if excluded else None),
+                                   preprint_arxiv_only=excluded, history=history,
+                                   candidate_order=candidate_order, sources=gate_sources, stop=stop)
+                if res is None:
+                    refused.append(q.name)
+                    refused_any = True
+                    continue
+                results.append(res)
+                if res.get("dry"):
+                    continue
+                if res["failed_stages"]:
+                    failed_any = True
+                if res.get("lock_lost"):
+                    lost = True
+                    break
+                if res["config_error"]:
+                    config_abort = True
+                    break
+            proj_out = {"run_id": run_id, "results": results, "refused": refused,
+                        "loose_end": None, "migrate": None}
+            out["projects"][key] = proj_out
+            if dry_run:
+                continue
+            if lost or (lock is not None and lock.lost.is_set()):
+                # the project's lock was lost: another process may hold it now, so nothing more of the
+                # project is written (no LOOSE_ENDS line, no routing); its queues stay
+                proj_out["lock_lost"] = lock.lost_reason if lock is not None else "lost"
+                print(f"  ERR {key}: project lock lost ({proj_out['lock_lost']}); the project's work "
+                      f"stops as an abort, its queues stay", file=sys.stderr)
+                failed_any = True
+                continue
+            line = loose_end_line(key, results, refused)
+            if line and loose_ends:
+                dest, why = write_loose_end(key, line)
+                if dest:
+                    print(f"\n  {dest} updated: {line}")
+                elif why == "unchanged":
+                    print(f"\n  LOOSE_ENDS unchanged (same state as the last {key} line)")
+                proj_out["loose_end"] = line if dest else None
+            if results:
+                cmd = migrate_command(key, run_id, artifact_dir, skip_preprint or excluded,
+                                      sources=srcs if sources is not None else None)
+                proj_out["migrate"] = cmd
+                if config_abort and not any(r.get("retired") for r in results):
+                    # CONFIG aborts the run: nothing is routed (a stage that exited 2 may have left
+                    # no CONFIG row for migrate to see)
+                    print("  migrate not run: CONFIG aborts the run; the queue stays for a re-sweep "
+                          "once the configuration is fixed")
+                elif migrate:
+                    # a CONFIG abort after a queue of this run retired: route the run now (a later
+                    # run has another run id); the CONFIG queue's rows are PENDING (route none) and
+                    # migrate refuses any chain that carries a CONFIG row
+                    print(f"  -> migrate: {shlex.join(cmd)}")
+                    rm = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                                        errors="replace", env=_stage_env())
+                    print(rm.stdout[-1500:] if rm.stdout else "")
+                    if rm.returncode != 0:
+                        print(f"  ERR migrate failed (exit {rm.returncode}):\n{(rm.stderr or '')[-500:]}")
+                        failed_any = True
+                else:
+                    print(f"  next: route this run's residuals with\n    {shlex.join(cmd)}")
+        finally:
+            if lock is not None:
+                lock.release()
+        if config_abort:
+            print("  ERR a source refused our configuration (CONFIG); aborting the run",
+                  file=sys.stderr)
+            break
+
+    if not any_queue:
         scope = project or "any project"
         print(f"No lit_pull_queue.csv found in {scope}.")
         # A1 defense-in-depth: an explicit --project with no queue is a failure the
@@ -1382,102 +1721,6 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
         if project and not due_dry:
             out["exit_code"] = EXIT_NO_QUEUE
         return out
-
-    print(f"Found {len(queues)} queue(s):\n")
-    for key, proj, q in queues:
-        print(f"  {key}/{q.name}")
-    print()
-    if loose_ends and not dry_run and resolve_loose_ends_path() is None:
-        print("[litpipe] no `loose_ends` key in projects.json -- cross-project "
-              "lit-pull log is off this run; see the literature-pipeline skill to "
-              "enable it.", file=sys.stderr)
-
-    grouped = {}
-    for key, proj, q in queues:
-        grouped.setdefault((key, proj), []).append(q)
-
-    holdings, hold_loaded = None, False
-    failed_any = refused_any = config_abort = False
-    for (key, proj), qs in grouped.items():
-        print(f"\n=== {key} ===")
-        try:
-            excluded = _preprint_excluded(key, cfg_full)
-        except Exception as e:   # litpipe.config.ConfigError: an invalid `sources` list
-            print(f"  ERR {key}: {e}", file=sys.stderr)
-            out["exit_code"] = EXIT_USAGE
-            return out
-        art_dir = _artifact_dir(proj, artifact_dir)
-        run_id = choose_run_id(run_id_dirs(proj, art_dir), today)
-        print(f"[sweep] run_id={run_id} project={key}")
-        if not dry_run and not hold_loaded:
-            holdings, why = _load_holdings(registry)
-            hold_loaded = True
-            if holdings is None:
-                print(f"  [hold-check] off this run: {why}; rows held in another library are "
-                      f"fetched again")
-        results, refused = [], []
-        for q in qs:
-            if len(qs) > 1:
-                print(f"\n  --- {q.name} ---")
-            res = run_pipeline(proj, q, dry_run=dry_run, run_date=today,
-                               skip_preprint=skip_preprint, key=key,
-                               registry=registry, run_id=run_id, holdings=holdings,
-                               artifact_dir=artifact_dir, allow_destination=allow_destination,
-                               skip_reason=None if skip_preprint else (
-                                   "the project's sources list names no preprint server"
-                                   if excluded else None),
-                               preprint_arxiv_only=excluded, history=histories.get(key),
-                               candidate_order=candidate_order)
-            if res is None:
-                refused.append(q.name)
-                refused_any = True
-                continue
-            results.append(res)
-            if res.get("dry"):
-                continue
-            if res["failed_stages"]:
-                failed_any = True
-            if res["config_error"]:
-                config_abort = True
-                break
-        proj_out = {"run_id": run_id, "results": results, "refused": refused,
-                    "loose_end": None, "migrate": None}
-        out["projects"][key] = proj_out
-        if dry_run:
-            continue
-        line = loose_end_line(key, results, refused)
-        if line and loose_ends:
-            dest, why = write_loose_end(key, line)
-            if dest:
-                print(f"\n  {dest} updated: {line}")
-            elif why == "unchanged":
-                print(f"\n  LOOSE_ENDS unchanged (same state as the last {key} line)")
-            proj_out["loose_end"] = line if dest else None
-        if results:
-            cmd = migrate_command(key, run_id, artifact_dir, skip_preprint or excluded)
-            proj_out["migrate"] = cmd
-            if config_abort and not any(r.get("retired") for r in results):
-                # CONFIG aborts the run: nothing is routed (a stage that exited 2 may have left
-                # no CONFIG row for migrate to see)
-                print("  migrate not run: CONFIG aborts the run; the queue stays for a re-sweep "
-                      "once the configuration is fixed")
-            elif migrate:
-                # a CONFIG abort after a queue of this run retired: route the run now (a later
-                # run has another run id); the CONFIG queue's rows are PENDING (route none) and
-                # migrate refuses any chain that carries a CONFIG row
-                print(f"  -> migrate: {shlex.join(cmd)}")
-                rm = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                                    errors="replace", env=_stage_env())
-                print(rm.stdout[-1500:] if rm.stdout else "")
-                if rm.returncode != 0:
-                    print(f"  ERR migrate failed (exit {rm.returncode}):\n{(rm.stderr or '')[-500:]}")
-                    failed_any = True
-            else:
-                print(f"  next: route this run's residuals with\n    {shlex.join(cmd)}")
-        if config_abort:
-            print("  ERR a source refused our configuration (CONFIG); aborting the run",
-                  file=sys.stderr)
-            break
 
     if config_abort:
         out["exit_code"] = EXIT_USAGE
@@ -1515,7 +1758,8 @@ def main(argv=None):
                          "without it the exact command is printed.")
     ap.add_argument("--artifact-dir", default=None,
                     help="Directory for this run's artifacts (relative paths are under each "
-                         "project; default: the project directory, as before).")
+                         "project; default: projects.json artifact_dir, else the project directory, "
+                         "as before).")
     ap.add_argument("--allow-destination", action="store_true",
                     help="Sweep a queue whose destination is not the registry library for its "
                          "project (refused by default: a doubled subproject tail lands a shadow "
@@ -1523,11 +1767,16 @@ def main(argv=None):
     ap.add_argument("--candidate-order", choices=CANDIDATE_ORDERS, default=None,
                     help="Unpaywall candidate order, passed to the Unpaywall stage (DEC-11; the stage's "
                          "default is repository). Omitted: the stage decides.")
+    ap.add_argument("--sources", default=None, metavar="LIST",
+                    help="Comma-separated fetch sources for this run only, replacing every project's "
+                         "`sources` (DEC-31): unpaywall, pmc, europepmc_preprints, biorxiv, medrxiv, osf, "
+                         "sportrxiv, arxiv, openalex_content. A stage whose source is not listed is skipped "
+                         "(reported, not a failure); an invalid list exits 2.")
     args = ap.parse_args(argv)
     res = run(project=args.project, dry_run=args.dry_run, skip_preprint=args.skip_preprint,
               date=args.date, loose_ends=not args.no_loose_ends, migrate=args.migrate,
               artifact_dir=args.artifact_dir, allow_destination=args.allow_destination,
-              candidate_order=args.candidate_order)
+              candidate_order=args.candidate_order, sources=args.sources)
     return res["exit_code"]
 
 

@@ -24,7 +24,9 @@ Order of one call (dispatch W1-A1 step 3):
   8. validate(payload) on a 2xx: None/True passes; False or a reason string is OUTAGE (an empty 200,
      HTML instead of JSON); a Kind, or (Kind, detail), sets that kind (expect_pdf returns REFUSED for
      an HTML wall);
-  9. one ledger line per attempt (litpipe.ledger, redacted); state.release after each attempt.
+  9. one ledger line per attempt (litpipe.ledger, redacted); state.release after each attempt. While
+     a body is drained the attempt's lease is renewed (state.renew(slot), when the state has it) at
+     least every state.LEASE_S / 3, so a slow stream never outlives its lease.
 
 Status mapping of a final response: 2xx OK (202 REFUSED: a queued/challenge answer, as legacy
 HTTP_202); 403/406/429 REFUSED; 404/410 NO_MATCH; 5xx OUTAGE; other 4xx and 3xx ERROR; a host's
@@ -42,6 +44,7 @@ import http.client
 import json as _json
 import os
 import random
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -249,9 +252,43 @@ class _Raw:
     error: str = ""
 
 
+class _LeaseRenewer:
+    """Renews the attempt's state lease while a body is drained (W4-A forward): litpipe.state holds
+    ONE lease around a whole transfer and lets it lapse after LEASE_S, so a slow stream renews it at
+    least every LEASE_S / 3 (checked at every chunk; a chunk read waits at most the read timeout).
+    The state's `renew(slot)` is called through getattr: a state without one (a test fake) is simply
+    not renewed. A failed renewal never fails the transfer."""
+
+    def __init__(self, st, slot):
+        self.renew = getattr(st, "renew", None)
+        self.slot = slot
+        self.every = float(getattr(st, "LEASE_S", 1800.0)) / 3.0
+        self.last = CLOCK.monotonic()
+        self.renewals = 0
+
+    def tick(self):
+        if self.renew is None:
+            return
+        now = CLOCK.monotonic()
+        if now - self.last < self.every:
+            return
+        self.last = now
+        try:
+            self.renew(self.slot)
+            self.renewals += 1
+        except Exception:   # noqa: BLE001 - the lease may lapse; the transfer goes on
+            pass
+
+
+_LOCAL = threading.local()            # the renewer of the attempt this thread is draining
+
+
 def _drain(chunks, cap):
     first, parts, total, trunc = b"", [], 0, False
+    renewer = getattr(_LOCAL, "renewer", None)
     for c in chunks:
+        if renewer is not None:
+            renewer.tick()
         if not c:
             continue
         if not first:
@@ -474,7 +511,7 @@ def request(method, url, *, params=None, json=None, headers=None, timeout=(10, 3
     while True:
         host = pol.host
         try:
-            st.acquire(host)
+            slot = st.acquire(host)
         except budget_exc as e:
             ra = getattr(e, "retry_after", None)
             call.log(pol, url, "not_sent", kind=Kind.DEFERRED, note=f"deferred by state: {e}")
@@ -484,7 +521,11 @@ def request(method, url, *, params=None, json=None, headers=None, timeout=(10, 3
         try:
             ts = ledger.now_iso()
             t_send = time.perf_counter()
-            raw = _TRANSPORTS[pol.transport](method, url, hdrs, body, timeout, max_bytes)
+            _LOCAL.renewer = _LeaseRenewer(st, slot)
+            try:
+                raw = _TRANSPORTS[pol.transport](method, url, hdrs, body, timeout, max_bytes)
+            finally:
+                _LOCAL.renewer = None
             elapsed_ms = round((time.perf_counter() - t_send) * 1000, 1)
             ok = not raw.error and 0 < raw.status < 400
             act = _decide(raw, pol, url, retries, transport_fails, st, cfg, max_bytes, validate, call.hops)

@@ -40,7 +40,7 @@ def w(tmp_path, monkeypatch):
     return world
 
 
-def make_pool(w, name="lit_pull_queue.ch15_pool.csv", dois=POOL_DOIS, where=None, destination=False):
+def make_pool(w, name="lit_pull_queue.unit3_pool.csv", dois=POOL_DOIS, where=None, destination=False):
     d = where or w.proot(KEY)
     d.mkdir(parents=True, exist_ok=True)
     p = d / name
@@ -72,9 +72,9 @@ def pool_status(pool, w):
 
 # ================================================================ the tag
 @pytest.mark.parametrize("name,tag", [
-    ("lit_pull_queue.ch15_pool.csv", "b-ch15_pool"),
-    ("4501_bodycomp_pool.csv", "b-4501_bodycomp_pool"),
-    ("_resp_ranked_pool.csv", "b-resp_ranked_pool"),
+    ("lit_pull_queue.unit3_pool.csv", "b-unit3_pool"),
+    ("2024_cohort_pool.csv", "b-2024_cohort_pool"),
+    ("_ranked_pool.csv", "b-ranked_pool"),
     ("Mixed Case Pool!.csv", "b-mixed-case-pool-"),
     ("lit_pull_queue." + "x" * 40 + ".csv", "b-" + "x" * 30),
 ])
@@ -82,7 +82,7 @@ def test_batch_tag(name, tag):
     assert runner.batch_tag(name) == tag and len(tag) <= 32
 
 
-@pytest.mark.parametrize("name", ["lit_pull_queue.ch15_pool.csv", "4501_bodycomp_pool.csv", "_resp_ranked_pool.csv"])
+@pytest.mark.parametrize("name", ["lit_pull_queue.unit3_pool.csv", "2024_cohort_pool.csv", "_ranked_pool.csv"])
 def test_the_consumers_real_pool_names_give_valid_tags(w, name):
     import sweep
     assert sweep.is_valid_tag(runner.batch_tag(name))
@@ -103,7 +103,7 @@ def test_a_tag_that_is_not_a_valid_queue_tag_exits_1_before_any_write(w):
 def test_the_batch_queue_never_overwrites_the_pool(w):
     pool = make_pool(w)
     before = w.listing()
-    assert batch(pool, "--tag", "ch15_pool") == 1             # lit_pull_queue.ch15_pool.csv IS the pool
+    assert batch(pool, "--tag", "unit3_pool") == 1             # lit_pull_queue.unit3_pool.csv IS the pool
     assert w.listing() == before
 
 
@@ -128,7 +128,7 @@ def test_another_staged_queue_exits_1_but_retry_does_not(w):
 
 def test_an_untracked_file_at_the_batch_path_is_never_written_over(w):
     pool = make_pool(w)
-    stray = w.proot(KEY) / "lit_pull_queue.b-ch15_pool.csv"
+    stray = w.proot(KEY) / "lit_pull_queue.b-unit3_pool.csv"
     stray.write_text("doi,title\n10.5555/hand.0001,Hand\n", encoding="utf-8")   # no destination: not a queue
     assert batch(pool) == 1
     assert stray.read_text(encoding="utf-8") == "doi,title\n10.5555/hand.0001,Hand\n"
@@ -145,7 +145,7 @@ def test_three_batches_of_two_draw_the_pool_down(w):
     assert st["classes"] == {"TERMINAL_CLOSED": 1, "fetched": 5}
     sweeps = w.calls("sweep")
     assert len(sweeps) == 3 and all(c["loose_ends"] is False for c in sweeps)
-    q = list(w.proot(KEY).glob("lit_pull_queue.b-ch15_pool.*.processed.csv"))
+    q = list(w.proot(KEY).glob("lit_pull_queue.b-unit3_pool.*.processed.csv"))
     assert len(q) == 3
     rows = list(csv.DictReader(io.StringIO(q[0].read_text(encoding="utf-8"))))
     assert list(rows[0]) == ["doi", "title", "authors", "year", "destination", "notes"]
@@ -214,7 +214,7 @@ def test_a_batch_not_retired_marks_nothing_stops_and_is_left_for_the_next_run(w)
 def test_stage_only_then_a_hand_curated_file_marks_the_removed_rows_curated_out(w):
     pool = make_pool(w)
     assert batch(pool, "--size", "3", "--stage-only") == 0
-    bfile = w.proot(KEY) / "lit_pull_queue.b-ch15_pool.csv"
+    bfile = w.proot(KEY) / "lit_pull_queue.b-unit3_pool.csv"
     assert bfile.is_file() and w.calls("sweep") == [] and pool_status(pool, w)["pending"] == 3
     assert batch(pool, "--size", "3", "--stage-only") == 0          # pending: nothing new staged
     assert pool_status(pool, w)["pending"] == 3 and w.calls("sweep") == []
@@ -232,7 +232,7 @@ def test_stage_only_then_a_hand_curated_file_marks_the_removed_rows_curated_out(
 def test_a_doi_the_batch_did_not_stage_exits_1_naming_it(w, capsys):
     pool = make_pool(w)
     batch(pool, "--size", "2", "--stage-only")
-    bfile = w.proot(KEY) / "lit_pull_queue.b-ch15_pool.csv"
+    bfile = w.proot(KEY) / "lit_pull_queue.b-unit3_pool.csv"
     with open(bfile, "a", encoding="utf-8") as f:
         f.write("10.5555/sneaked.0099,Sneaked,X,2020,literature,n\n")
     assert batch(pool, "--size", "2") == 1
@@ -254,8 +254,8 @@ def test_batch_dry_run_writes_nothing(w, capsys):
     assert batch(pool, "--size", "2", "--dry-run") == 0
     assert w.listing() == before
     out = capsys.readouterr().out
-    assert "next batch: 2 DOI(s)" in out and "lit_pull_queue.b-ch15_pool.csv" in out
-    assert not (pool.parent / "lit_pull_queue.ch15_pool.drawdown.json").exists()
+    assert "next batch: 2 DOI(s)" in out and "lit_pull_queue.b-unit3_pool.csv" in out
+    assert not (pool.parent / "lit_pull_queue.unit3_pool.drawdown.json").exists()
 
 
 def test_skip_preprint_passes_through_to_sweep_and_route(w):

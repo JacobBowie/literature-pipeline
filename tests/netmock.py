@@ -201,6 +201,12 @@ class FakeState:
         self.released.append((host, ok))
         self.next_allowed[host] = self.clock.time() + self._interval(host)   # from the END of the attempt
 
+    LEASE_S = 1800.0                        # litpipe.state's lease length (W5-C1: net renews during long bodies)
+
+    def renew(self, slot):
+        self.calls.append(("renew", slot))
+        return True
+
     def defer(self, host, until):
         self.calls.append(("defer", host, until))
         self.deferred[host] = until

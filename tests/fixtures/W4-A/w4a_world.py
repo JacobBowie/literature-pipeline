@@ -20,7 +20,8 @@ HARNESS = FIX / "run_runner.py"
 REPO = FIX.parent.parent.parent
 STANDINS = {"seed": "w4a_fake_seed", "sweep": "w4a_fake_sweep", "route": "w4a_fake_route",
             "walk": "w4a_fake_walk", "reverse": "w4a_fake_reverse", "index": "w4a_fake_index",
-            "abstracts": "w4a_fake_abstracts", "recommendations": "w4a_fake_recs", "audit": "w4a_fake_audit"}
+            "abstracts": "w4a_fake_abstracts", "recommendations": "w4a_fake_recs", "audit": "w4a_fake_audit",
+            "ris": "w4a_fake_ris"}
 ARXIV_HOSTS = ("export.arxiv.org", "arxiv.org", "www.arxiv.org")
 QUEUE_HEADER = "doi,title,authors,year,destination,notes\n"
 

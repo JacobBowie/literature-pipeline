@@ -362,9 +362,9 @@ def test_a_row_missing_from_a_present_pmc_report_is_not_closed(env):
 # ---------------------------------------------------------------- retry_later
 def test_retry_later_appends_updates_in_place_and_keeps_other_rows(env):
     rl = env.proj / mig.RETRY_LATER_NAME
-    write_csv(rl, mig.RETRY_FIELDS + ["jacob_note"], [
+    write_csv(rl, mig.RETRY_FIELDS + ["owner_note"], [
         {"doi": "10.5555/keep-me", "title": "Kept", "residual_class": "TRANSIENT", "not_before": "2026-09-01",
-         "first_seen": "2026-08-01", "jacob_note": "hand note"},
+         "first_seen": "2026-08-01", "owner_note": "hand note"},
         {"doi": "https://doi.org/10.1234/R403", "title": "Old title", "first_seen": "2026-09-01",
          "residual_class": "TRANSIENT", "not_before": "2026-09-02"},
     ])
@@ -373,7 +373,7 @@ def test_retry_later_appends_updates_in_place_and_keeps_other_rows(env):
     route(env)
     rows = retry_rows(env)
     assert [holdings.doi_key(r["doi"]) for r in rows] == ["10.5555/keep-me", "10.1234/r403", "10.1234/rdns9"]
-    assert rows[0]["jacob_note"] == "hand note" and rows[0]["not_before"] == "2026-09-01"
+    assert rows[0]["owner_note"] == "hand note" and rows[0]["not_before"] == "2026-09-01"
     assert rows[1]["residual_class"] == "OA_BLOCKED" and rows[1]["first_seen"] == "2026-09-01"
     assert rows[1]["last_seen"] == TODAY.isoformat() and rows[1]["not_before"] == "2026-10-03"
     route(env)   # idempotent: a second pass adds nothing
@@ -430,9 +430,9 @@ def test_run_ids_and_tagged_chains(env):
 
 def test_tag_flag_routes_only_that_chain(env, monkeypatch):
     chain(env.proj, "2026-09-30.2", [row("10.1234/untagged9")])
-    chain(env.proj, "2026-09-30.2", [row("10.1234/tagged9")], tag="ch15")
+    chain(env.proj, "2026-09-30.2", [row("10.1234/tagged9")], tag="unit3")
     monkeypatch.setattr("sys.argv", ["migrate_closed_to_md.py", "--project", "P", "--run-id", "2026-09-30.2",
-                                     "--tag", "ch15", "--no-holdings"])
+                                     "--tag", "unit3", "--no-holdings"])
     assert mig.main() == 0
     assert holdings.extract_dois(text(env.proj / mig.ILL_NAME)) == ["10.1234/tagged9"]
 
@@ -548,9 +548,9 @@ def test_artifact_dir(env, monkeypatch, absolute):
 
 def test_a_typed_residual_alone_is_found(env):
     """A run whose Unpaywall stage failed writes only the typed residual (every row PENDING)."""
-    typed_residual(env.proj, [typed("10.1234/p9", "PENDING", "unpaywall failed")], run_id="2026-09-30.3", tag="ch15")
+    typed_residual(env.proj, [typed("10.1234/p9", "PENDING", "unpaywall failed")], run_id="2026-09-30.3", tag="unit3")
     assert mig.latest_sweep_date(env.proj) == "2026-09-30.3"
-    assert mig.find_tags(env.proj, "2026-09-30.3") == ["ch15"]
+    assert mig.find_tags(env.proj, "2026-09-30.3") == ["unit3"]
     assert route(env)["counts"] == {"PENDING": 1}
 
 
@@ -570,7 +570,7 @@ def test_typed_config_row_aborts(env):
 
 
 # ---------------------------------------------------------------- a host refused until cleared (W4-0)
-# FRED's 405 arXiv rows (ledger 2026-10-05): with export.arxiv.org refused by hand (litpipe.hosts
+# A project's 405 arXiv rows (2026-10-05): with export.arxiv.org refused by hand (litpipe.hosts
 # refusal_persistence "manual"), the preprint stage sends nothing, and each row came back the next day
 # (TRANSIENT) or in 3 days (OA_BLOCKED), repeating its Unpaywall and PMC lookups while the refusal stood.
 # Row shapes: preprint_fetch's legacy token and the W2-G typed fixture (tests/fixtures/W2-G/typed.preprint.csv).
