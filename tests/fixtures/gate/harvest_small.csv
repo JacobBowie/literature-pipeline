@@ -1,0 +1,25 @@
+seed_doi,seed_label,seed_chapter,citing_paper_id,citing_doi,citing_title,citing_year,citing_authors,citing_venue,citing_cited_by,citing_abstract,source,citing_oa,seed_n_cites
+10.5555/seed.1,Seed One 2001,Unit1,p01,10.5555/rain.1,Rainfall timing and crop yield,2019,A. Field; B. Grower,Journal of Weather Studies,10,,s2,true,3
+10.5555/seed.2,Seed Two 2005,Unit1,p01,10.5555/rain.1,Rainfall timing and crop yield,2019,A. Field; B. Grower,Journal of Weather Studies,12,,s2,true,2
+10.5555/seed.1,Seed One 2001,Unit1,p02,10.5555/drought.1,Drought stress in maize seedlings,2020,C. Dry,Plant Water Letters,5,,s2,false,3
+10.5555/seed.2,Seed Two 2005,Unit1,p03,10.5555/frost.1,Frost damage to orchard blossoms,2018,D. Cold,Orchard Science,7,,s2,,2
+10.5555/seed.3,Seed Three 2010,Unit2,p04,10.5555/mixed.1,Rainfall and drought indices compared,2021,E. Index,Climate Methods,3,,s2,true,4
+10.5555/seed.1,Seed One 2001,Unit1,p05,10.5555/off.1,A survey of tractor maintenance,2020,F. Wrench,Farm Machinery Notes,50,,s2,false,3
+10.5555/seed.2,Seed Two 2005,Unit1,p06,10.5555/lab.1,Drought tolerance genes in vitro,2019,G. Lab,Molecular Plant Reports,8,,s2,false,2
+10.5555/seed.3,Seed Three 2010,Unit2,p07,10.5555/frost.old,Frost and frozen soil infiltration,2009,H. Ice,Soil Physics Archive,30,,s2,false,4
+10.5555/seed.1,Seed One 2001,Unit1,p08,,Rainfall with no identifier,2020,I. Blank,Unknown,1,,s2,,3
+10.5555/seed.1,Seed One 2001,Unit1,p09,10.5555/notitle.1,,2020,J. Empty,Unknown,0,,s2,,3
+10.5555/seed.1,Seed One 2001,Unit1,p10,10.5555/rain.2,Rainfall interception by canopies,2022,K. Leaf,Forest Hydrology,4,,s2,true,3
+10.5555/seed.3,Seed Three 2010,Unit2,p10,10.5555/rain.2,Rainfall interception by canopies,2022,K. Leaf,Forest Hydrology,4,,s2,true,4
+10.5555/seed.1,Seed One 2001,Unit1,p11,10.5555/frost.2,Late frost risk under warming,2023,L. Spring,Phenology Today,2,,s2,true,3
+10.5555/seed.2,Seed Two 2005,Unit1,p12,10.5555/mixed.2,Drought and rainfall variability in grasslands,2016,M. Grass,Rangeland Ecology,9,,s2,false,2
+10.5555/seed.3,Seed Three 2010,Unit2,p13,10.5555/off.2,Soil carbon after harvest,2017,N. Carbon,Soil Biology,1,,s2,false,4
+10.5555/seed.2,Seed Two 2005,Unit1,p14,10.5555/frost.3,Frost hardiness of winter wheat,2015,O. Wheat,Cereal Research,6,,s2,,2
+10.5555/seed.3,Seed Three 2010,Unit2,p15,10.5555/rain.3,Rainfall erosivity maps,,P. Map,Geomorphology Notes,0,,s2,,4
+10.5555/seed.1,Seed One 2001,Unit1,p16,10.5555/frost.4,Hail and frost insurance claims,2021,Q. Claim,Risk and Insurance,11,,s2,false,3
+10.5555/seed.2,Seed Two 2005,Unit1,p17,10.5555/drought.2,Drought early warning systems,2022,R. Alert,Hazard Systems,14,,s2,true,2
+10.5555/seed.3,Seed Three 2010,Unit2,p17,10.5555/drought.2,Drought early warning systems,2022,R. Alert,Hazard Systems,15,,s2,true,4
+10.5555/seed.1,Seed One 2001,Unit1,p18,10.5555/frost.old2,Frost heave in road foundations,2005,S. Road,Pavement Engineering,20,,s2,false,3
+10.5555/seed.2,Seed Two 2005,Unit1,p19,10.5555/rain.old,Rainfall records from early weather stations,2001,T. Gauge,Historical Climatology,9,,s2,false,2
+10.5555/seed.3,Seed Three 2010,Unit2,p20,10.5555/drought.3,Drought legacy effects on forests,2018,U. Tree,Forest Ecology,7,,s2,true,4
+10.5555/seed.1,Seed One 2001,Unit1,p21,10.5555/rain.4,Rainfall &amp; runoff in small catchments,2020,V. Runoff,Catchment Science,3,,s2,true,3

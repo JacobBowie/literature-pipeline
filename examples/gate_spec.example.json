@@ -1,0 +1,54 @@
+{
+  "schema": "litpipe.gate/1",
+  "name": "demo",
+  "description": "A worked example: three weather topics, one exclusion, controls and one older-literature lane.",
+  "input": {
+    "harvest": {"scope": "demo"},
+    "seeds_manifest": "_demo_forward_seeds.json",
+    "doi_key": "lower"
+  },
+  "collapse": {"record_row": "first_with_title", "cited_by": "max"},
+  "years": {"min": 2015, "max": null, "unparsed": "keep", "scope": "record"},
+  "topics": [
+    {"name": "rain", "chapter": "Unit1", "substrings": ["rainfall", "precipitat"],
+     "controls": {"hit": ["Rainfall timing and crop yield", "Precipitation trends in uplands"]}},
+    {"name": "drought", "chapter": "Unit1", "phrases": ["drought", "water deficit"],
+     "controls": {"hit": ["Drought stress in maize seedlings"], "miss": ["Droughtmaster cattle breeding records"]}},
+    {"name": "frost", "chapter": "Unit2", "regex": ["\\bfrost\\w*", "\\bfreez(?:e|ing)\\b"],
+     "controls": {"hit": ["Frost damage to orchard blossoms"], "miss": ["Defrosting freezers efficiently"]}}
+  ],
+  "exclude": [
+    {"name": "lab_only", "phrases": ["in vitro", "cell culture"],
+     "controls": {"hit": ["Drought tolerance genes in vitro"]}}
+  ],
+  "controls": {
+    "match_none": ["A survey of tractor maintenance"],
+    "exclude_none": ["Drought stress in maize seedlings"],
+    "contentless": true,
+    "minimum": "gate"
+  },
+  "holdings": {"filter": true, "scope": "project"},
+  "rank": [{"field": "n_seeds", "order": "desc"}, {"field": "cited_by", "order": "desc"}],
+  "quotas": {
+    "target": 6,
+    "assign": "rarest_match",
+    "caps": "declared",
+    "declared": [{"topic": "rain", "cap": 2}, {"topic": "drought", "cap": 2}, {"topic": "frost", "cap": 2}],
+    "default_cap": null,
+    "allocation_order": "bucket_size_desc"
+  },
+  "chapter_budgets": {"Unit1": 4, "Unit2": 2},
+  "order": {"method": "round_robin", "bucket_order": "size_asc"},
+  "lanes": [
+    {"name": "older", "topics": ["frost", "rain"], "size": 2,
+     "years": {"min": 2000, "max": 2014, "unparsed": "drop", "scope": "row"},
+     "rank": [{"field": "year", "order": "desc"}, {"field": "n_seeds", "order": "desc"}]}
+  ],
+  "reports": {
+    "direction_split": [
+      {"topic": "drought", "sides": [{"name": "harms", "words": ["stress", "loss", "damage"]},
+                                     {"name": "helps", "words": ["tolerance", "warning"]}], "match": "substring"}
+    ]
+  },
+  "output": {"notes_template": "gate={gate}; lane={lane}; topic={assigned_topic}; n_seeds={n_seeds}; ch={chapters}"}
+}

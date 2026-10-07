@@ -1,0 +1,6 @@
+{
+  "10.5555/seed.1": {"label": "Seed One 2001", "chapter": "Unit1", "status": "OK", "n_descendants": 12},
+  "10.5555/seed.2": {"label": "Seed Two 2005", "chapter": "Unit1", "status": "TRUNCATED", "n_descendants": 1000},
+  "10.5555/seed.3": {"label": "Seed Three 2010", "chapter": "Unit2", "status": "OK", "n_descendants": 9},
+  "10.5555/seed.4": {"label": "Seed Four 2012", "chapter": "Unit2", "status": "S2_RESOLVE_FAIL", "detail": "HTTP 404"}
+}

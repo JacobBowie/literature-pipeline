@@ -70,6 +70,10 @@ SURFACE = {
                        ["RESULT_TABLE", "STAGE_MODULES", "ProcessTree"]),
     "run_daily": (["run", "main", "exit_code", "queue_data_rows"], []),
     "build_priority_paywall_queue": (["lib_dois", "load_libs", "run", "main"], ["LIBS", "ROOT", "CONFIG_PATH"]),
+    # W5: the pool-selection gate (the VAP fold-in's engine)
+    "litpipe.gate": (["run", "main", "load_spec", "gate", "plan", "promote", "read_snapshot", "doi_key_fn",
+                      "compile_pattern"],
+                     ["SCHEMA", "ENGINE_VERSION", "SpecError", "GateAbort", "GateError"]),
 }
 
 CASES = [(mod, name, True) for mod, (fns, _) in SURFACE.items() for name in fns] + \
