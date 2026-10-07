@@ -1,0 +1,15 @@
+{
+  "queue_doi": "10.1234/teaching.supp.2022",
+  "pdf": "2022_Author_TeachingSupplement.pdf",
+  "source": "preprint",
+  "source_url": "https://example.org/teaching_supp.pdf",
+  "host": "example.org",
+  "host_type": "repository",
+  "version": "publishedVersion",
+  "checked_at": "2026-10-01T12:00:00Z",
+  "n_pages": 40,
+  "doc_kind": "SUPPLEMENT",
+  "identity": "OK",
+  "identity_score": 1.0,
+  "identity_evidence": {"pdf_dois": ["10.1234/teaching.supp.2022"], "title_similarity": 0.92}
+}

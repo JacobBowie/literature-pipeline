@@ -24,14 +24,34 @@ def test_is_jats_sourced():
               "sections": [], "n_formulas": 0, "tables": []}) is False
     assert f({}) is False
     assert f(None) is False
+    # W4-C: n_formulas is a count; a hand-written "0" is not JATS structure, "2" is
+    assert f({"extractor": "PyMuPDF", "n_formulas": "0"}) is False
+    assert f({"n_formulas": "2"}) is True
 
 
-def _drive(monkeypatch, lib, *, refresh, text="pdf body text"):
+# W4-C: the text-validity gate runs on every extraction, so the mocked extractor returns a
+# realistic multi-paragraph text (a three-word toy text is rightly read as no text layer).
+PDF_BODY = (
+    "Skeletal muscle adapts to repeated bouts of exercise through changes in mitochondrial "
+    "content, capillary density and the activity of oxidative enzymes. In this study we "
+    "examined twelve healthy volunteers who completed six weeks of interval training on a "
+    "cycle ergometer, three sessions each week.\n\n"
+    "Biopsies were taken from the vastus lateralis before and after the intervention. Citrate "
+    "synthase activity increased by roughly thirty percent, while resting glycogen content "
+    "rose in parallel. Peak oxygen uptake improved modestly, and time to exhaustion at a fixed "
+    "workload was extended in every participant.\n\n"
+    "These findings suggest that brief, intense training can produce peripheral adaptations "
+    "comparable to traditional endurance programs, although the central cardiovascular "
+    "responses differed. Further work should address sex differences and older adults.\n")
+NEW_BODY = PDF_BODY.replace("twelve healthy volunteers", "fourteen trained cyclists")
+
+
+def _drive(monkeypatch, lib, *, refresh, text=PDF_BODY):
     """Run extract_pdf_fulltext.main() over `lib` with the extractors mocked (no real PDF/JATS)."""
     monkeypatch.setattr(E, "try_parse_jats_sibling", lambda p: (None, "no_xml_sibling"))
     monkeypatch.setattr(E, "extract", lambda p: (text, "pdfminer.six", "ok"))
     monkeypatch.setattr(E, "detect_math_indicators", lambda t, p: {})
-    monkeypatch.setattr(E, "clean_pdf_text", lambda t: t)
+    monkeypatch.setattr(E, "clean_pdf_text", lambda t, **kw: t)
     argv = ["extract_pdf_fulltext.py", "--lib-dir", str(lib)]
     if refresh:
         argv.append("--refresh")
@@ -58,9 +78,9 @@ def test_d2_refresh_still_updates_pdf_sidecar(tmp_path, monkeypatch):
     (lib / "p.fulltext.json").write_text(json.dumps(
         {"doi": "10.1/x", "text": "old pdf text", "extractor": "pdfminer.six",
          "extracted_from_pdf": True, "sections": [], "n_formulas": 0}), encoding="utf-8")
-    _drive(monkeypatch, lib, refresh=True, text="new pdf text")
+    _drive(monkeypatch, lib, refresh=True, text=NEW_BODY)
     after = json.loads((lib / "p.fulltext.json").read_text(encoding="utf-8"))
-    assert after["text"] == "new pdf text"                 # re-extracted
+    assert after["text"] == NEW_BODY                       # re-extracted
     assert after["doi"] == "10.1/x"                        # RC5: enriched DOI preserved
 
 
@@ -71,7 +91,7 @@ def test_gap2_seeds_doi_from_ris(tmp_path, monkeypatch):
     _drive(monkeypatch, lib, refresh=False)                # fresh sidecar
     sc = json.loads((lib / "p.fulltext.json").read_text(encoding="utf-8"))
     assert sc["doi"] == "10.48550/arxiv.2401.00001"        # Gap2: born WITH the .ris DOI (lowercased)
-    assert sc["text"] == "pdf body text"
+    assert sc["text"] == PDF_BODY
 
 
 def test_gap2_no_ris_leaves_doi_empty(tmp_path, monkeypatch):
@@ -93,10 +113,10 @@ def test_gap2_refresh_preserves_enriched_doi_over_stale_ris(tmp_path, monkeypatc
         {"doi": "10.1234/enriched-correct", "text": "old", "extractor": "pdfminer.six",
          "extracted_from_pdf": True, "sections": [], "n_formulas": 0, "tables": []}), encoding="utf-8")
     (lib / "p.ris").write_text("DO  - 10.5555/stale-preprint\n", encoding="utf-8")   # divergent
-    _drive(monkeypatch, lib, refresh=True, text="new pdf text")
+    _drive(monkeypatch, lib, refresh=True, text=NEW_BODY)
     sc = json.loads((lib / "p.fulltext.json").read_text(encoding="utf-8"))
     assert sc["doi"] == "10.1234/enriched-correct"         # enriched DOI preserved, NOT the .ris one
-    assert sc["text"] == "new pdf text"                    # text still refreshed
+    assert sc["text"] == NEW_BODY                          # text still refreshed
 
 
 def test_gap2_rejects_malformed_ris_doi(tmp_path, monkeypatch):

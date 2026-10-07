@@ -9,14 +9,21 @@ Fixes:
      string matching misses "training". Validated: 19-127 hyphen-line-break breaks per paper.
   3. Bare page-number lines — Pourteymour 2017 had 149 such lines in extracted text.
 
+  4. Non-breaking and thin spaces (on by default, W4-C): U+00A0, U+2007, U+2009 and U+202F
+     become a plain space and U+200B (zero-width space) is dropped, so a search for
+     "10 mg" or "VO2max" matches the printed text. Not destructive: no visible character changes.
+
 Optional (off by default):
   - Smart-quote and dash normalization (' ' " " — – → ' ' " " - -).
     Off because we haven't validated it as a real-world problem yet.
 
 Usage:
     from pdf_text_clean import clean_pdf_text
-    raw = "\\n".join(p.get_text() for p in fitz.open(path))
+    raw = "\\n".join(p.get_text() for p in pymupdf.open(path))
     clean = clean_pdf_text(raw)
+
+The module imports only the standard library at top level: litpipe.text imports LIGATURES from
+it, and audit_portfolio imports it too.
 """
 import re
 
@@ -30,6 +37,16 @@ LIGATURES = {
     0xFB04: "ffl",  # ﬄ
     0xFB05: "st",   # ﬅ (long s + t)
     0xFB06: "st",   # ﬆ
+}
+
+# Space characters a PDF text layer carries that a plain-text search does not match: three
+# fixed-width spaces become an ordinary space, and the zero-width space is dropped.
+SPACES = {
+    0x00A0: " ",   # no-break space
+    0x2007: " ",   # figure space
+    0x2009: " ",   # thin space
+    0x202F: " ",   # narrow no-break space
+    0x200B: None,  # zero-width space (dropped)
 }
 
 # Smart-quote / dash table for the optional pass.
@@ -49,14 +66,16 @@ def clean_pdf_text(text: str,
                     expand_ligatures: bool = True,
                     aggressive_dehyphenate: bool = False,
                     strip_page_numbers: bool = False,
-                    normalize_typography: bool = False) -> str:
+                    normalize_typography: bool = False,
+                    normalize_spaces: bool = True) -> str:
     """Post-process pymupdf-extracted text for clean string matching.
 
     Each transformation is independently toggleable in case a downstream consumer
     needs the raw form (e.g., preserving "—" semantics in dialog).
 
-    Ligature expansion is the only non-destructive transform, so it stays on by
-    default. The other three are DESTRUCTIVE and default OFF (RC7, 2026-06-05 audit):
+    Ligature expansion and space normalization (SPACES: no-break, figure, thin and narrow
+    no-break spaces to a space, the zero-width space dropped) are non-destructive, so they
+    stay on by default. The other three are DESTRUCTIVE and default OFF (RC7, 2026-06-05 audit):
       - aggressive_dehyphenate fuses words across a line-break hyphen, which also
         fuses real compounds ("core-\\nbody" -> "corebody").
       - strip_page_numbers deletes any lone 1-4-digit line, which silently removes
@@ -68,6 +87,8 @@ def clean_pdf_text(text: str,
     """
     if expand_ligatures:
         text = text.translate(LIGATURES)
+    if normalize_spaces:
+        text = text.translate(SPACES)
     if aggressive_dehyphenate:
         # word-<whitespace>newline<whitespace>word → wordword
         # Matches a layout-induced line break after a hyphen, but ALSO fuses real
@@ -103,8 +124,8 @@ if __name__ == "__main__":
         print("pdf_text_clean is a library module; import clean_pdf_text from it, "
               "or pass a PDF path to run a quick before/after diff.", file=sys.stderr)
         sys.exit(0)
-    import fitz
-    with fitz.open(args.pdf) as doc:
+    import pymupdf
+    with pymupdf.open(args.pdf) as doc:
         raw = "\n".join(p.get_text() for p in doc)
     before = report_issues(raw)
     clean = clean_pdf_text(raw)

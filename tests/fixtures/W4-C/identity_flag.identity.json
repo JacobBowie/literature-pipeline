@@ -1,0 +1,15 @@
+{
+  "queue_doi": "10.1234/teaching.flag.2021",
+  "pdf": "2021_Author_TeachingFlag.pdf",
+  "source": "unpaywall",
+  "source_url": "https://example.org/teaching_flag.pdf",
+  "host": "example.org",
+  "host_type": "repository",
+  "version": "acceptedVersion",
+  "checked_at": "2026-10-01T12:00:00Z",
+  "n_pages": 12,
+  "doc_kind": "AAM",
+  "identity": "FLAG",
+  "identity_score": 0.31,
+  "identity_evidence": {"pdf_dois": ["10.5555/research.other.2019"], "title_similarity": 0.31}
+}
