@@ -229,7 +229,9 @@ def oracle(db, *, key, mode, scope=None, year_min=2010, min_seeds=None, min_cite
     floor = S.DEFAULT_MIN_SEEDS[mode] if min_seeds is None else min_seeds
 
     def base_ok(r):
-        return (r["doi"] not in held and r["title"] is not None and re.fullmatch("[A-Za-z]", r["title"][:1])
+        # W5-C3 (C086): a title starts with a letter of any script (RE2 \p{L}, str.isalpha), so the
+        # GREEK row ("β-Alanine and heat") is drafted; the DIGIT row still is not
+        return (r["doi"] not in held and r["title"] is not None and r["title"][:1].isalpha()
                 and r["rank"] >= floor and (r["cites"] or 0) >= min_cites)
 
     def dated(r):
@@ -354,7 +356,7 @@ def test_the_openalex_walked_scoped_row_reaches_the_scope_draft_with_its_metadat
     assert by[SC_Z]["year"] == ""
     assert all(r["destination"] == "literature/" for r in rows)
     src = next(ln for ln in head if ln.startswith("# Source:"))
-    assert "differs from the walker's _ch01_descendants.csv only by OA" in src
+    assert "differs from the walker's _ch01_descendants.csv by OA and tie-breaks" in src
     assert next(ln for ln in head if ln.startswith("# Order:")) == f"# Order: {S.ORDER_TEXT['scope']}"
 
 

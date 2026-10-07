@@ -421,7 +421,7 @@ def test_scope_reads_only_that_scope_in_its_order(world):
     assert dois_of(rows) == ["10.5555/k.0001", "10.5555/k.0002", "10.5555/k.0003", "10.5555/k.0004"]
     n = notes_of(rows[0])
     assert (n["scope"], n["n_seeds_scope"], n["src"]) == ("ch01", "2", "scope:ch01")
-    assert any("only by OA" in ln for ln in head)
+    assert any("by OA and tie-breaks" in ln for ln in head)
     assert summary_of(out)["scope"] == "ch01"
 
 

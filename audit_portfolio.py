@@ -1,4 +1,4 @@
-"""Portfolio-wide audit of literature-pipeline outputs: the health check Jacob (and later the
+"""Portfolio-wide audit of literature-pipeline outputs: the health check the maintainer (and the
 scheduled runner) reads to decide whether the pipeline is healthy.
 
 For every active project in projects.json it reports, per library (top level only):
@@ -9,6 +9,8 @@ For every active project in projects.json it reports, per library (top level onl
     with identity FLAG or doc_kind SUPPLEMENT (unpaywall, preprint), and a `<stem>.fulltext.json`
     with identity FLAG (pmc)
   - PDF integrity (every PDF: %PDF magic, under 10 KB) and sidecar integrity (parse, content)
+  - sidecars waiting for OCR (`needs_ocr: true`, written empty by extract_pdf_fulltext's text
+    validity gate): their own INFO line, the count and the first stems; not "empty" sidecars
   - pairing: orphan sidecars, orphan `.ris`, orphan `.identity.json`, PDFs without sidecar or `.ris`
   - text damage: sidecars and `.ris` carrying a ligature (U+FB00 to U+FB06), a no-break space,
     a character reference (`litpipe.text.unescape` changes it) or a markup tag
@@ -16,8 +18,11 @@ For every active project in projects.json it reports, per library (top level onl
   - `_mismatch/` quarantine folders (DEC-07; restoring them is a separate, live step)
   - filename quality, and deep checks (DOI consistency, filename versus `.ris` metadata)
   - queue history: sweep's class counts (`report.csv` rows with section=class) and residual items
-    (`residual.csv`, a blank class is UNKNOWN), from the project dir, `--artifact-dir` and
-    `_archive/*/lit_sweep_exhaust/`; legacy runs with no residual fall back to the stage reports
+    (`residual.csv`, a blank class is UNKNOWN), from the project dir, the project's artifact
+    folder (projects.json `artifact_dir`, litpipe.config.artifact_dir), `--artifact-dir`, and any
+    archive folder a `--report-dir` names (searched with its subfolders; a run there counts for
+    a project when its report names that project's library, and with --project a run that names
+    no library counts too); legacy runs with no residual fall back to the stage reports
     (`outcome`, else `litpipe.outcomes.from_legacy`); fetched queue titles against their `.ris`
   - the index (portfolio.duckdb, opened read-only): freshness (`index_runs` when present, else
     max(refreshed_at)) against the newest library file and the file count, and a DB-versus-disk
@@ -34,6 +39,7 @@ Usage:
   python audit_portfolio.py --project research_a   # one project (a subproject tail works too)
   python audit_portfolio.py --json out.json     # also write machine-readable output
   python audit_portfolio.py --full              # print every item, not the first 20
+  python audit_portfolio.py --project research_a --report-dir <archive folder>   # archived reports
 """
 import argparse
 import csv
@@ -179,6 +185,18 @@ def has_content(d):
                                        for k in ("text", "abstract", "body"))
 
 
+def needs_ocr(d):
+    """A sidecar extract_pdf_fulltext's text-validity gate wrote empty for OCR (`needs_ocr: true`)."""
+    return isinstance(d, dict) and d.get("needs_ocr") is True
+
+
+def ocr_line(names, first=3):
+    """The needs_ocr line's detail: the count and the first stems."""
+    stems = [n[:-len(SIDECAR)] if n.lower().endswith(SIDECAR) else n for n in names[:first]]
+    more = f", +{len(names) - first} more" if len(names) > first else ""
+    return f"{len(names)} (first: {', '.join(stems)}{more}; extract_pdf_fulltext.py --ocr)"
+
+
 def is_text_only_sidecar(d):
     """The shared TEXT_ONLY predicate (DEC-08) for a `.fulltext.json` whose PDF is absent: it is a
     JSON object, is not identity-flagged, carries non-empty `text`, and was not extracted from a
@@ -269,6 +287,7 @@ def scan_library(lib) -> dict:
         "n_pdfs": 0, "n_sidecars": 0, "n_ris": 0, "n_identity": 0,
         "pdf_names": [], "pdf_holdings": 0, "text_only": [], "text_only_with_ris": 0,
         "flags": [], "fake_pdfs": [], "tiny_pdfs": [], "bad_sidecars": [], "empty_sidecars": [],
+        "needs_ocr": [],
         "bad_identity": [], "orphan_sidecars": [], "orphan_ris": [], "orphan_identity": [],
         "pdfs_no_sidecar": [], "pdfs_no_ris": [],
         "damage": {"sidecar": {k: [] for k in DAMAGE_KINDS}, "ris": {k: [] for k in DAMAGE_KINDS}},
@@ -344,8 +363,11 @@ def scan_library(lib) -> dict:
             out["damage"]["sidecar"][k].append(name)
         if r["flag"]:
             continue
+        ocr = needs_ocr(d)
+        if ocr:
+            out["needs_ocr"].append(name)
         if stem in pdfs:
-            if not has_content(d):
+            if not has_content(d) and not ocr:      # an OCR to-do is empty by design, not damage
                 out["empty_sidecars"].append(name)
         elif is_text_only_sidecar(d):
             r["text_only"] = True
@@ -479,43 +501,49 @@ def deep_audit_lib(lib: Path, scan=None) -> dict:
 
 
 # ---------------------------------------------------------------- queue history
-def report_dirs(name, entry, projects=None, artifact_dir=None):
-    """[(dir, mode)] where this project's sweep reports may sit. mode "own": every run there is the
-    project's; "by_destination": a parent's archive shared by its subprojects, where a run counts
-    only when its report names this project's library (legacy runs there are unattributed).
-
-    Searched: the project dir; `artifact_dir` (relative to the project dir, or absolute); the
-    project's `_archive/*/lit_sweep_exhaust/` folders (subfolders named after a registered child's
-    tail belong to that child); and, for a subproject, the parent's
-    `_archive/*/lit_sweep_exhaust/<tail>/` (all of it) and `_archive/*/lit_sweep_exhaust/` itself."""
+def project_artifact_dir(name, entry, registry=None):
+    """Where sweep writes this project's run artifacts: litpipe.config.artifact_dir(key, cfg) when
+    that accessor exists (projects.json "artifact_dir", global or per project; unset is the project
+    root), else the project root. `registry` is the whole loaded projects.json."""
     root = lit_util.project_root(name, entry)
-    out = [(root, "own")]
+    fn = getattr(litconfig, "artifact_dir", None)
+    if fn is None:
+        return root
+    cfg = registry if registry is not None else {"projects": {name: entry}}
+    try:
+        return Path(fn(name, cfg))
+    except ValueError as e:                # config.ConfigError: say so, read the project root
+        print(f"[WARN] {name}: artifact_dir unusable ({e}); reading the project folder only", file=sys.stderr)
+        return root
+
+
+def _walk(top):
+    return [Path(dirpath) for dirpath, _dirs, _files in os.walk(top)]
+
+
+def report_dirs(name, entry, projects=None, artifact_dir=None, extra_dirs=None, registry=None,
+                claim_unnamed=False):
+    """[(dir, mode)] where this project's sweep reports may sit. mode "own": every run there is the
+    project's; "by_destination": a folder that may hold several projects' runs, where a run counts
+    only when its report names this project's library (a legacy run naming none is unattributed);
+    "claimed": the same, except that a run naming no library counts too (`claim_unnamed`: the
+    caller asked about this one project).
+
+    Searched: the project dir; its artifact folder (project_artifact_dir); `artifact_dir`
+    (relative to the project dir, or absolute); each of `extra_dirs` (--report-dir) with its
+    subfolders. No archive layout is built in: archived reports are read where a --report-dir
+    names them."""
+    root = lit_util.project_root(name, entry)
+    if registry is None and projects is not None:
+        registry = {"projects": projects}
+    out = [(root, "own"), (project_artifact_dir(name, entry, registry), "own")]
     if artifact_dir:
         p = Path(artifact_dir).expanduser()
         out.append((p if p.is_absolute() else root / p, "own"))
-    child_tails = set()
-    for k, v in (projects or {}).items():
-        if isinstance(v, dict) and v.get("parent") == name:
-            child_tails.add((k[len(name):].lstrip("/\\") or Path(k).name).casefold())
-
-    def walk(top, skip_tails=()):
-        found = []
-        for dirpath, dirs, _files in os.walk(top):
-            if Path(dirpath) == Path(top):
-                dirs[:] = [d for d in dirs if d.casefold() not in skip_tails]
-            found.append(Path(dirpath))
-        return found
-
-    for ex in sorted(root.glob("_archive/*/lit_sweep_exhaust")):
-        out += [(d, "own") for d in walk(ex, child_tails)]
-    parent = entry.get("parent")
-    if parent:
-        tail = name[len(parent):].lstrip("/\\") or Path(name).name
-        for ex in sorted((lit_util.PROJECTS_ROOT / parent).glob("_archive/*/lit_sweep_exhaust")):
-            out.append((ex, "by_destination"))
-            for sub in ex.iterdir() if ex.is_dir() else ():
-                if sub.is_dir() and sub.name.casefold() == tail.casefold():
-                    out += [(d, "own") for d in walk(sub)]
+    for extra in extra_dirs or ():
+        p = Path(extra).expanduser()
+        top = p if p.is_absolute() else root / p
+        out += [(d, "claimed" if claim_unnamed else "by_destination") for d in _walk(top)]
     seen, uniq = set(), []
     for d, mode in out:
         k = os.path.normcase(os.path.abspath(d))
@@ -747,26 +775,32 @@ def title_check(runs, scan) -> dict:
 
 
 def audit_queue(proj, *, entry=None, name=None, projects=None, artifact_dir=None, lib=None,
-                scan=None) -> dict:
+                scan=None, extra_dirs=None, registry=None, claim_unnamed=False) -> dict:
     """Sweep history for one project: every run found in `report_dirs`, the latest run of each
     queue (tag) with its class counts and residual items, and the title check. `proj` is the
-    project dir (used alone, it is the only directory searched)."""
+    project dir (used alone, it is the only directory searched besides `artifact_dir` and
+    `extra_dirs`)."""
     if name is not None and entry is not None:
-        dirs = report_dirs(name, entry, projects, artifact_dir)
+        dirs = report_dirs(name, entry, projects, artifact_dir, extra_dirs, registry, claim_unnamed)
     else:
         dirs = [(Path(proj), "own")]
         if artifact_dir:
             p = Path(artifact_dir).expanduser()
             dirs.append((p if p.is_absolute() else Path(proj) / p, "own"))
+        for extra in extra_dirs or ():
+            dirs += [(d, "claimed" if claim_unnamed else "by_destination") for d in _walk(Path(extra))]
     runs = find_runs(dirs)
     lib_key = os.path.normcase(os.path.abspath(lib)) if lib else None
     mine, unattributed = [], []
     summaries = {}
     for r in runs:
-        if r["mode"] == "by_destination":
+        if r["mode"] in ("by_destination", "claimed"):
             s = summarise_run(r)
             dest = s.get("destination")
             if dest and lib_key and os.path.normcase(os.path.abspath(dest)) == lib_key:
+                mine.append(r)
+                summaries[id(r)] = s
+            elif not dest and r["mode"] == "claimed":
                 mine.append(r)
                 summaries[id(r)] = s
             elif not dest:
@@ -805,7 +839,9 @@ def default_db_path(cfg=None):
 
 def _local_naive(v):
     """A DB timestamp (datetime, date, ISO string or epoch) as a local naive datetime, else None.
-    The index writes local naive time (datetime.now())."""
+    The index writes `index_runs.finished_at` as an aware UTC instant (TIMESTAMPTZ), converted to
+    local time here; the fallback `paper_locations.refreshed_at` is local naive time
+    (datetime.now()) and is taken as it is."""
     if v is None:
         return None
     if isinstance(v, (int, float)):
@@ -967,6 +1003,8 @@ def fmt_report(audit: dict, queue: dict, index=None, full=False) -> str:
              fmt=lambda t: f"{t[0]}: {t[1]}")
     if audit["empty_sidecars"]:
         emit(lines, "WARN", "empty-content sidecars", audit["empty_sidecars"], full)
+    if audit.get("needs_ocr"):
+        lines.append(f"  INFO needs_ocr sidecars: {ocr_line(audit['needs_ocr'])}")
     if audit["orphan_sidecars"]:
         emit(lines, "WARN", "orphan sidecars (no PDF, not text-only)", audit["orphan_sidecars"], full)
     if audit["text_only"]:
@@ -1078,12 +1116,13 @@ def portfolio_holdings(cfg, names):
 
 # ---------------------------------------------------------------- run / main
 def run(project=None, json_path=None, full=False, artifact_dir=None, db=None, holdings=True,
-        **_ignored) -> dict:
+        report_dirs=None, **_ignored) -> dict:
     """Audit the portfolio (or one project), print the report, write `json_path` if given.
     Returns the result dict; result["exit_code"] is 1 on any FAIL, 2 when `project` matches no
     active registered project, else 0."""
     cfg = load_registry()
     projects = cfg.get("projects", {}) or {}
+    report_dirs = [os.path.abspath(os.path.expanduser(str(d))) for d in (report_dirs or ())]
     libs, missing = discover(projects, project)
     if project and not libs and not missing:
         print(f"[ERR] no active registered project matches {project!r}", file=sys.stderr)
@@ -1102,7 +1141,8 @@ def run(project=None, json_path=None, full=False, artifact_dir=None, db=None, ho
             for fn in files:
                 portfolio_doi.setdefault(doi, []).append((name, fn))
         q = audit_queue(lit_util.project_root(name, p), entry=p, name=name, projects=projects,
-                        artifact_dir=artifact_dir, lib=lib, scan=a)
+                        artifact_dir=artifact_dir, lib=lib, scan=a, extra_dirs=report_dirs,
+                        registry=cfg, claim_unnamed=bool(project) and len(libs) == 1)
         entries.append({"audit": a, "queue": q, "index": None})
 
     try:
@@ -1149,6 +1189,9 @@ def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full):
     n_hold_pdf = sum(a["pdf_holdings"] for a in audits)
     n_text = sum(len(a["text_only"]) for a in audits)
     lines.append(f"  holdings (files): {n_hold_pdf} with PDF, {n_text} text-only (INFO)")
+    ocr = [f"[{a['project']}] {n}" for a in audits for n in a.get("needs_ocr", [])]
+    if ocr:
+        lines.append(f"  INFO needs_ocr sidecars: {ocr_line(ocr)}")
     if hold:
         if hold.get("error"):
             lines.append(f"  WARN holdings map failed: {hold['error']}")
@@ -1186,8 +1229,8 @@ def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full):
     unattr = [u for e in entries for u in e["queue"]["unattributed"]]
     uniq_unattr = list({(u["dir"], u["tag"], u["run_id"]): u for u in unattr}.values())
     if uniq_unattr:
-        emit(lines, "INFO", "archived legacy runs in a shared parent archive, not attributed "
-             "(pass --artifact-dir to read them for one project)", uniq_unattr, full,
+        emit(lines, "INFO", "legacy runs in a --report-dir folder that name no library, not attributed "
+             "(pass --project with --report-dir to count them for one project)", uniq_unattr, full,
              fmt=lambda u: f"{u['run_id']} {u['tag']} {u['dir']}")
 
     if idx["error"]:
@@ -1249,7 +1292,7 @@ def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full):
     print("\n".join(lines))
     return {"fail": sorted(set(fail_names)), "missing": [m["project"] for m in missing],
             "break": [f[7:] for f in flags if f.startswith("BREAK")],
-            "holdings_files": {"pdf": n_hold_pdf, "text_only": n_text},
+            "holdings_files": {"pdf": n_hold_pdf, "text_only": n_text}, "needs_ocr": len(ocr),
             "identity_flags": len(all_flags), "mismatch_files": len(mm),
             "damage": {kf: {k: sum(len(a["damage"][kf][k]) for a in audits) for k in DAMAGE_KINDS}
                        for kf in ("sidecar", "ris")},
@@ -1268,7 +1311,13 @@ def build_parser():
                     help="Print every item of every check (default: count plus the first 20).")
     ap.add_argument("--artifact-dir", default=None,
                     help="Also read sweep reports from this directory (relative to each project "
-                         "dir, or absolute), as sweep's --artifact-dir writes them.")
+                         "dir, or absolute), as sweep's --artifact-dir writes them. The projects.json "
+                         "artifact_dir is read without it.")
+    ap.add_argument("--report-dir", dest="report_dirs", action="append", default=None, metavar="DIR",
+                    help="Also read archived sweep reports under DIR (relative to the current folder) "
+                         "and its subfolders (repeatable). "
+                         "A run there counts for a project when its report names that project's "
+                         "library; with --project, a run that names no library counts too.")
     ap.add_argument("--db", default=None,
                     help="Index DB to check, opened read-only (default: <db_dir>/portfolio.duckdb).")
     ap.add_argument("--no-holdings", dest="holdings", action="store_false",

@@ -8,8 +8,12 @@ Library (one is required; there is no default library):
                    lit_util.lib_paths, so a subproject key works); the report goes to the project's
                    own folder (lit_util.project_root) unless --report-dir says otherwise.
 
-Per PDF in --downloads (default ~/Downloads) modified at or after --cutoff (default: today at local
-midnight), in name order:
+Per PDF in --downloads modified at or after --cutoff, in name order. The defaults (the Downloads
+folder in your home directory, and today at local midnight) serve one workflow: papers saved by
+a browser today. A shared drop folder or an older batch is the same tool with --downloads and
+--cutoff set.
+  0. A file without `%PDF` in its first 1,024 bytes (a web page saved as `.pdf`) is NOT_PDF:
+     left where it is, before any reading or identity check (the extract_pdf_fulltext rule).
   1. Read up to 6 pages with PyMuPDF. Cover sheets are set aside: interlibrary-loan covers (the
      Title 17 copyright notice, ILLiad / RapidX fields; one arrived with two cover pages), Taylor &
      Francis "This article was downloaded by" pages, JSTOR covers, and any page that is little more
@@ -24,39 +28,57 @@ midnight), in name order:
      notice) never counts. When no DOI's title is confirmed, a Crossref bibliographic search on the
      article's opening text is tried, and its best record is accepted on the same title test.
      Failing both, a file that prints exactly one DOI, on its first article page, takes that DOI
-     (litpipe.identity.check: the DOI is printed). Otherwise a file with candidate DOIs is
-     IDENTITY_FLAG and one with none is UNKNOWN_LEAVE. A supplement (litpipe.identity.doc_kind) is
-     IDENTITY_FLAG too. Flagged files stay in Downloads and are listed for review; --doi resolves
-     one by hand.
+     (litpipe.identity.check: the DOI is printed). A DOI printed only on a cover sheet is taken
+     only when its record's title is printed on the article pages: an interlibrary-loan slip can
+     carry its own, unrelated DOI, so a cover DOI is never a sole-DOI or review candidate. Otherwise
+     a file with candidate article DOIs is IDENTITY_FLAG and one with none is UNKNOWN_LEAVE. A
+     supplement (litpipe.identity.doc_kind) is IDENTITY_FLAG too. Flagged files stay in Downloads
+     and are listed for review; --doi resolves one by hand.
   3. Dedup, against a holdings map built fresh (litpipe.holdings.build, no cache):
        DUP_DOI      the destination library holds the DOI with a PDF;
        DUP_IN_RUN   an earlier file in this run is the same DOI (never imported twice);
+       HELD_ELSEWHERE  another library holds the DOI (a PDF or a text-only holding; an identity-
+                    flagged file is not a holding): skipped, the file left in Downloads, the
+                    holding library named in the report (decision C10). --import-held-elsewhere
+                    imports such a copy anyway, for one run;
        DUP_TITLE / DUP_FUZZY  a destination PDF with no DOI on record has the same title (exact,
                     or similarity 0.85+) and no conflicting year;
        a text-only holding of the DOI in the destination (audit_portfolio.is_text_only_sidecar)
-                    takes the PDF: the PDF gets the holding's stem and its sidecar gets has_pdf;
-       held_elsewhere  another library holds it: reported, and the file is still imported.
+                    takes the PDF: the PDF gets the holding's stem and its sidecar gets has_pdf.
   4. Name: unpaywall_fetch_v2.build_filename (DEC-14/15) from the record's first personal author
      (a group placeholder such as "Writing Committee Members" is skipped; an author that leaves the
      name Unknown falls back to the record's own family name), year and title. Display strings go
      through litpipe.text.display_field, so no name carries markup. unpaywall_fetch_v2.resolve_dest
      keeps it collision-safe.
-  5. With --execute: move the PDF, write `<stem>.fulltext.json` (text through
+  5. With --execute, the companions first (decision C7): `<stem>.fulltext.json` (text through
      pdf_text_clean.clean_pdf_text, so no ligature survives; has_pdf and extracted_from_pdf true;
-     the identity verdict) and `<stem>.ris` (ris_emit.build_ris / write_ris). An existing `.ris` is
-     never replaced (DEC-29); an existing sidecar is kept and only gains has_pdf.
+     the identity verdict) and `<stem>.ris` (ris_emit.build_ris / write_ris), then the PDF. An
+     existing `.ris` is never replaced (DEC-29); an existing sidecar is kept and only gains
+     has_pdf. When any write fails, what this run wrote is removed again (an existing sidecar is
+     restored, a new `.ris` and its manifest record are removed), the PDF stays in Downloads and
+     the row is ERR_WRITE.
+  6. Cover sheets, identified by content (cover_tag), never by position: the interlibrary-loan
+     slips (`ill`) and the publisher download notices (`tandf`, `jstor`) are not part of the
+     paper. Their text never reaches the sidecar. With --execute the filed PDF is written without
+     those pages (PyMuPDF, a new file put in place atomically) and the untouched original is kept
+     under `<library>/_archive/originals/<new name>`; --keep-covers files the PDF whole. A page
+     that is only a copyright notice is not stripped, and nothing is stripped when every scanned
+     page looked like a cover.
 Dry run is the default (--dry-run is accepted and changes nothing): nothing is moved and nothing
 is written to the library, Downloads or the pipeline state; the report is still written, as
-`_downloads_import_<date>_DRYRUN.csv`, for review before --execute.
+`_downloads_import_<run id>_DRYRUN.csv`, for review before --execute.
 
 Every request goes through litpipe.net (via ris_emit): one identity (LITPIPE_EMAIL), pacing, the
 ledger. A metadata source that cannot answer (ris_emit.MetadataUnavailable) is META_UNAVAILABLE:
 counted, the file left in Downloads, the run continues.
 
-Report `_downloads_import_<YYYY-MM-DD>[_DRYRUN].csv`, columns: source, size_kb, action, doi, year,
-first_au, title, new_name, dup_match, note (the legacy ten), then identity, doc_kind, meta_source,
-held_elsewhere, ris, outcome, detail. Actions: MOVED / WOULD_MOVE, DUP_DOI, DUP_IN_RUN, DUP_TITLE,
-DUP_FUZZY, IDENTITY_FLAG, UNKNOWN_LEAVE, META_UNAVAILABLE, BOILERPLATE, ERR_READ.
+Report `_downloads_import_<run id>[_DRYRUN].csv`, where the run id is the date for the first run of
+the day and `<date>.N` after (as sweep names its artifacts), so a second run never overwrites the
+first. Columns: source, size_kb, action, doi, year, first_au, title, new_name, dup_match, note
+(the legacy ten), then identity, doc_kind, meta_source, held_elsewhere, ris, outcome, detail,
+covers_stripped, archived_original. Actions: MOVED / WOULD_MOVE, DUP_DOI, DUP_IN_RUN,
+HELD_ELSEWHERE, DUP_TITLE, DUP_FUZZY, IDENTITY_FLAG, UNKNOWN_LEAVE, META_UNAVAILABLE, BOILERPLATE,
+NOT_PDF, ERR_READ, ERR_WRITE.
 
 Exit codes: 0 the run completed (row outcomes are in the report); 1 usage or configuration (no
 library, both or neither of --lib-dir and --project, an unknown project or missing registry, a
@@ -68,6 +90,7 @@ Usage:
   python import_downloads.py --lib-dir <library> --cutoff 2026-10-05T09:30 --execute
   python import_downloads.py --project <KEY> --report-dir <dir> --execute
   python import_downloads.py --lib-dir <library> --cutoff <time> --doi 10.xxxx/yyyy --execute
+  python import_downloads.py --lib-dir <library> --downloads <folder> --cutoff 2026-09-01 --execute
 """
 import argparse
 import collections
@@ -104,7 +127,14 @@ TITLE_THRESHOLD = _identity.TITLE_THRESHOLD
 DEST_KEY = "__import_destination__"
 REPORT_FIELDS = ["source", "size_kb", "action", "doi", "year", "first_au", "title", "new_name",
                  "dup_match", "note", "identity", "doc_kind", "meta_source", "held_elsewhere", "ris",
-                 "outcome", "detail"]
+                 "outcome", "detail", "covers_stripped", "archived_original"]
+PDF_MAGIC = b"%PDF"
+PDF_MAGIC_WINDOW = 1024   # extract_pdf_fulltext's rule: the magic within the first 1,024 bytes
+# Cover tags whose pages are not part of the paper: interlibrary-loan slips and the publisher
+# download notices cover_tag names. A 'copyright_notice' page is kept (it can be an article page
+# with little text left once a watermark line is removed).
+STRIP_COVER_TAGS = frozenset({"ill", "tandf", "jstor"})
+ARCHIVE_ORIGINALS = ("_archive", "originals")   # under the library: originals of stripped PDFs
 NO_LIBRARY = ("import_downloads: no library given; pass --lib-dir PATH or --project KEY "
               "(there is no default library)")
 
@@ -213,12 +243,29 @@ class Scan:
     def cover_text(self):
         return "\n".join(self.pages[i] for i in sorted(self.covers))
 
+    def strip_pages(self):
+        """Indices of the cover pages that are not part of the paper (STRIP_COVER_TAGS), chosen by
+        content. Empty when every scanned page looked like a cover (the scan then reads them all
+        as the article), and never every page of the document."""
+        if not self.pages or len(self.covers) >= len(self.pages):
+            return []
+        idx = sorted(i for i, tag in self.covers.items() if tag in STRIP_COVER_TAGS)
+        return idx if len(idx) < self.n_pages else []
+
+
+def is_pdf_file(path):
+    """(True, head) when `%PDF` is in the file's first PDF_MAGIC_WINDOW bytes, else (False, head).
+    Raises OSError."""
+    with open(path, "rb") as fh:
+        head = fh.read(PDF_MAGIC_WINDOW)
+    return PDF_MAGIC in head, head
+
 
 def scan_pdf(path) -> Scan:
     """The first SCAN_PAGES pages, cover sheets set aside. Raises PdfError."""
     try:
-        import fitz
-        doc = fitz.open(str(path))
+        import pymupdf
+        doc = pymupdf.open(str(path))
     except Exception as e:
         raise PdfError(f"{type(e).__name__}: {e}") from None
     try:
@@ -241,22 +288,43 @@ def scan_pdf(path) -> Scan:
     return Scan(n, pages, covers, article)
 
 
-def full_text(path) -> tuple:
-    """(raw text of every page, page count). Raises PdfError. make_sidecar cleans it (the one
-    place sidecar text is written)."""
+def full_text(path, skip=()) -> tuple:
+    """(raw text of every page not in `skip`, page count, pages used). Raises PdfError.
+    make_sidecar cleans it (the one place sidecar text is written)."""
+    skip = set(skip)
     try:
-        import fitz
-        doc = fitz.open(str(path))
+        import pymupdf
+        doc = pymupdf.open(str(path))
     except Exception as e:
         raise PdfError(f"{type(e).__name__}: {e}") from None
     try:
-        parts = [p.get_text() for p in doc]
+        parts = [p.get_text() for i, p in enumerate(doc) if i not in skip]
         n = doc.page_count
     except Exception as e:
         raise PdfError(f"{type(e).__name__}: {e}") from None
     finally:
         doc.close()
-    return "\n\n".join(parts), n
+    return "\n\n".join(parts), n, len(parts)
+
+
+def write_without_pages(src, drop, out):
+    """Write `src` without the pages in `drop` to `out` (a new file; `src` is never written).
+    Raises PdfError or OSError."""
+    import pymupdf
+    try:
+        doc = pymupdf.open(str(src))
+    except Exception as e:
+        raise PdfError(f"{type(e).__name__}: {e}") from None
+    try:
+        keep = [i for i in range(doc.page_count) if i not in set(drop)]
+        doc.select(keep)
+        doc.save(str(out), garbage=3, deflate=True)
+    except OSError:
+        raise
+    except Exception as e:
+        raise PdfError(f"{type(e).__name__}: {e}") from None
+    finally:
+        doc.close()
 
 
 # ------------------------------------------------------------------------------ identity
@@ -357,10 +425,16 @@ def identify(scan, forced=None) -> Ident:
             if v.decision == _identity.Decision.OK:
                 return Ident("OK", meta.get("doi") or d, meta, src, v, "sole_doi",
                              f"the only DOI printed; title not confirmed ({score:.2f})")
-    if unconfirmed:
-        d = unconfirmed[0][0]
-        v = _identity.check(art, d, queue_title=unconfirmed[0][2].get("title"))
+    # A DOI printed only on a cover sheet is never a review candidate: an interlibrary-loan slip
+    # can print its own, unrelated DOI (one named a 1985 conference paper as a 2012 law article),
+    # so with its title not on the article pages it says nothing about this file.
+    article_unconfirmed = [u for u in unconfirmed if u[1] == "article"]
+    if article_unconfirmed:
+        d = article_unconfirmed[0][0]
+        v = _identity.check(art, d, queue_title=article_unconfirmed[0][2].get("title"))
         return Ident("FLAG", "", {}, "", v, "", "; ".join(tried))
+    if unconfirmed:
+        tried.append("cover-sheet DOI(s) not taken: their record titles are not printed in the article")
     why = "; ".join(tried) if tried else ("no DOI and no usable text (a scan? OCR it, or pass --doi)"
                                            if len(_snippet(scan)) < 20 else "no DOI printed")
     return Ident("UNKNOWN", detail=why)
@@ -488,8 +562,13 @@ class Destination:
                     return Path(h.path), rec
         return None
 
+    def elsewhere_holdings(self, doi):
+        """Content holdings of `doi` in other libraries; an identity-flagged PDF is not one."""
+        return [h for h in self.hm.content(doi)
+                if not self.here(h) and not (h.kind == holdings.PDF and _flagged_pdf(h.path))]
+
     def elsewhere(self, doi):
-        return [str(h.path) for h in self.hm.content(doi) if not self.here(h)]
+        return [str(h.path) for h in self.elsewhere_holdings(doi)]
 
     def doi_less_titles(self):
         """[(pdf name, normalised title, year)] for destination PDFs with no DOI on record."""
@@ -570,6 +649,125 @@ def _mark_has_pdf(sidecar_path, rec, source_filename):
     lit_util.atomic_write_json(str(sidecar_path), rec)
 
 
+class WriteFailed(Exception):
+    """A write of one import failed; what the import had written was removed again."""
+
+
+class _Undo:
+    """The writes of one import, undone newest first when a later step fails, so a failed import
+    leaves no orphan companion and the PDF where it was."""
+
+    def __init__(self):
+        self._steps = []
+
+    def add(self, label, fn):
+        self._steps.append((label, fn))
+
+    def run(self):
+        """Undo every recorded write; returns the cleanup failures (normally [])."""
+        failed = []
+        for label, fn in reversed(self._steps):
+            try:
+                fn()
+            except OSError as e:
+                failed.append(f"{label}: {type(e).__name__}: {e}")
+        self._steps = []
+        return failed
+
+
+def _restore_bytes(path, data):
+    tmp = f"{path}.restore.tmp"
+    with open(tmp, "wb") as fh:
+        fh.write(data)
+    os.replace(tmp, path)
+
+
+def _remove(path):
+    if os.path.lexists(path):
+        os.remove(path)
+
+
+def _forget_ris(path, key):
+    """Remove a .ris this import wrote, and its DEC-29 manifest record."""
+    _remove(path)
+    R._kv_set(R.RIS_NS, key, None)
+
+
+def _unique(path):
+    """`path`, or `<stem>.<n><suffix>` for the first n that names no file."""
+    path = Path(path)
+    cand, n = path, 2
+    while cand.exists():
+        cand = path.with_name(f"{path.stem}.{n}{path.suffix}")
+        n += 1
+    return cand
+
+
+def file_import(src, dest_pdf, *, sidecar_path, sidecar_rec, new_rec, ris_path, ris_text, strip=(),
+                archive_dir=None):
+    """Write the companions, then the PDF (decision C7). Returns (ris status, archived original or
+    None). `strip`: page indices to leave out of the filed PDF; the untouched original then goes to
+    `archive_dir`. Raises WriteFailed after undoing every write of this import: an existing sidecar
+    is restored byte for byte, a new sidecar or `.ris` (and its manifest record) is removed, and
+    the PDF is back where it was."""
+    undo = _Undo()
+    src, dest_pdf, sidecar_path, ris_path = Path(src), Path(dest_pdf), Path(sidecar_path), Path(ris_path)
+    step = "sidecar"
+    try:
+        if sidecar_path.exists():
+            before = sidecar_path.read_bytes()
+            undo.add("restore the sidecar", lambda: _restore_bytes(sidecar_path, before))
+        else:
+            undo.add("remove the new sidecar", lambda: _remove(sidecar_path))
+        if sidecar_rec is not None:
+            _mark_has_pdf(sidecar_path, sidecar_rec, src.name)
+        else:
+            lit_util.atomic_write_json(str(sidecar_path), new_rec)
+
+        step = ".ris"
+        ris = "EXISTS"
+        if not ris_path.exists():
+            if R.write_ris(str(ris_path), ris_text, overwrite=False):
+                key = R.manifest_key(str(ris_path))
+                undo.add("remove the new .ris", lambda: _forget_ris(ris_path, key))
+                ris = "WROTE"
+            else:
+                ris = "NOT_WRITTEN"
+
+        archived = None
+        if strip and _norm(dest_pdf) != _norm(src):
+            step = "the PDF without its cover pages"
+            tmp = dest_pdf.with_name(dest_pdf.name + ".importing.tmp")
+            undo.add("remove the temporary PDF", lambda: _remove(tmp))
+            write_without_pages(src, strip, tmp)
+            step = "the original into the archive"
+            archive_dir = Path(archive_dir)
+            archive_dir.mkdir(parents=True, exist_ok=True)
+            archived = _unique(archive_dir / dest_pdf.name)
+
+            def back():
+                if src.exists():          # the move did not complete: drop a partial copy
+                    _remove(archived)
+                else:
+                    shutil.move(str(archived), str(src))
+            undo.add("return the original to its folder", back)
+            shutil.move(str(src), str(archived))
+            step = "the PDF"
+            os.replace(tmp, dest_pdf)
+        elif _norm(dest_pdf) != _norm(src):
+            step = "the PDF"
+            undo.add("remove a partial PDF copy",
+                     lambda: _remove(dest_pdf) if src.exists() and dest_pdf.exists() else None)
+            shutil.move(str(src), str(dest_pdf))
+        return ris, archived
+    except (OSError, PdfError) as e:
+        failed = undo.run()
+        why = f"writing {step}: {type(e).__name__}: {e}"
+        if failed:
+            why += "; cleanup failed: " + "; ".join(failed)
+        raise WriteFailed(why) from None
+
+
 class _NoKVWrites:
     """ris_emit's state during a dry run: kv reads pass through, kv writes (the doi.org agency
     cache) are dropped, so a dry run leaves the pipeline state as it found it."""
@@ -608,13 +806,28 @@ def _row(p, size_kb, action, **kw):
     return r
 
 
+def report_path(rep_dir, today, execute):
+    """`_downloads_import_<run id>[_DRYRUN].csv` in `rep_dir`: the run id is the date for the first
+    run of the day and `<date>.N` after (sweep's run-id rule), so no run overwrites another's report."""
+    stamp = today.strftime("%Y-%m-%d")
+    suffix = "" if execute else "_DRYRUN"
+    n = 1
+    while True:
+        run_id = stamp if n == 1 else f"{stamp}.{n}"
+        p = Path(rep_dir) / f"_downloads_import_{run_id}{suffix}.csv"
+        if not p.exists():
+            return p
+        n += 1
+
+
 def run(*, execute=False, cutoff=None, downloads=None, lib_dir=None, project=None, report_dir=None,
-        doi=None, cfg=None, today=None) -> dict:
+        doi=None, cfg=None, today=None, import_held_elsewhere=False, keep_covers=False) -> dict:
     """Import one cutoff's PDFs (stage function; module docstring). Raises UsageError for a usage or
     configuration problem. Returns the mode, the paths, the per-file rows, the action counts and the
     report path."""
     today = today or date.today()
     lib, default_report = resolve_library(lib_dir, project, cfg)
+    # The default folder is one workflow (a browser's downloads, today); --downloads names any other.
     src_dir = Path(downloads) if downloads else Path.home() / "Downloads"
     rep_dir = Path(report_dir) if report_dir else default_report
     for label, d in (("--downloads", src_dir), ("--report-dir", rep_dir)):
@@ -659,15 +872,15 @@ def run(*, execute=False, cutoff=None, downloads=None, lib_dir=None, project=Non
             seen = {}                  # doi -> source name imported (or planned) this run
             written = set()            # destination paths used this run
             for i, p in enumerate(cands, 1):
-                row = _one(p, dest, execute, forced, seen, written)
+                row = _one(p, dest, execute, forced, seen, written,
+                           import_held_elsewhere=import_held_elsewhere, keep_covers=keep_covers)
                 rows.append(row)
                 arrow = f" -> {row['new_name']}" if row["new_name"] else ""
                 print(f"  [{i}/{len(cands)}] {row['action']:<16} {p.name[:45]}{arrow}")
     finally:
         R.STATE = prev_state
 
-    stamp = today.strftime("%Y-%m-%d")
-    report = rep_dir / f"_downloads_import_{stamp}{'' if execute else '_DRYRUN'}.csv"
+    report = report_path(rep_dir, today, execute)
     lit_util.atomic_write_csv(str(report), rows, fieldnames=REPORT_FIELDS)
     counts = collections.Counter(r["action"] for r in rows)
     print(f"\n=== {mode} done ===")
@@ -675,14 +888,30 @@ def run(*, execute=False, cutoff=None, downloads=None, lib_dir=None, project=Non
         print(f"  {k:<16} {counts[k]}")
     if counts.get("META_UNAVAILABLE"):
         print("  metadata unavailable: those files stay in Downloads; run again later")
+    if counts.get("NOT_PDF"):
+        print("  not a PDF (a saved web page?): those files stay in Downloads; download the PDF itself")
+    if counts.get("HELD_ELSEWHERE"):
+        print("  held in another library: those files stay in Downloads (--import-held-elsewhere "
+              "imports them anyway)")
+    if counts.get("ERR_WRITE"):
+        print("  a write failed: nothing of those files was filed; they stay in Downloads")
     print(f"  report: {report}")
     return {"mode": mode, "downloads": str(src_dir), "lib_dir": str(lib), "report_dir": str(rep_dir),
             "cutoff": cut.isoformat(), "rows": rows, "counts": dict(counts), "report": str(report)}
 
 
-def _one(p, dest, execute, forced, seen, written):
+def _one(p, dest, execute, forced, seen, written, *, import_held_elsewhere=False, keep_covers=False):
     """Process one candidate PDF; returns its report row."""
     size_kb = p.stat().st_size // 1024
+    try:
+        ok, head = is_pdf_file(p)
+    except OSError as e:
+        return _row(p, size_kb, "ERR_READ", note="unreadable; left in Downloads", outcome=Kind.ERROR.value,
+                    detail=str(e))
+    if not ok:
+        return _row(p, size_kb, "NOT_PDF", note="not a PDF (no %PDF in its first 1,024 bytes; a saved web "
+                    "page?); left in Downloads", outcome=Kind.SKIPPED.value,
+                    detail=f"starts with {head[:16]!r}")
     try:
         scan = scan_pdf(p)
     except PdfError as e:
@@ -731,7 +960,15 @@ def _one(p, dest, execute, forced, seen, written):
         return _row(p, size_kb, "DUP_IN_RUN", new_name=new_name, dup_match=seen[d],
                     note="skip: the same DOI as an earlier file in this run; left in Downloads",
                     outcome=Kind.SKIPPED.value, **base)
-    elsewhere = ";".join(dest.elsewhere(d))
+    held_other = dest.elsewhere_holdings(d)
+    elsewhere = ";".join(str(h.path) for h in held_other)
+    if held_other and not import_held_elsewhere:
+        h = held_other[0]
+        what = "a PDF" if h.kind == holdings.PDF else "a text-only holding"
+        return _row(p, size_kb, "HELD_ELSEWHERE", new_name=new_name, dup_match=Path(h.path).stem,
+                    note=f"skip: another library holds it ({what} in {h.project}: {h.library}); left in "
+                         f"Downloads (--import-held-elsewhere imports it anyway)",
+                    held_elsewhere=elsewhere, outcome=Kind.SKIPPED.value, **base)
     text_only = dest.text_only(d)
     if not text_only:
         td = dest.title_dup(title, year)
@@ -740,18 +977,28 @@ def _one(p, dest, execute, forced, seen, written):
                         note="skip: a library PDF with no DOI on record has this title",
                         held_elsewhere=elsewhere, outcome=Kind.SKIPPED.value, **base)
 
+    cover_pages = scan.strip_pages()        # never in the sidecar text
     try:
-        text, n_pages = full_text(p)
+        text, n_pages, n_used = full_text(p, skip=cover_pages)
     except PdfError as e:
         return _row(p, size_kb, "ERR_READ", note="PyMuPDF could not read it; left in Downloads",
                     outcome=Kind.ERROR.value, detail=str(e))
-    stats = _identity.text_stats(text, n_pages)
+    stats = _identity.text_stats(text, n_used)
     thin = _identity.suspect_file(None, None, None, stats)
     notes = []
     if elsewhere:
-        notes.append("held elsewhere too")
+        notes.append("held elsewhere too (--import-held-elsewhere)")
     if thin:
         notes.append("thin text layer: check it (OCR?) before citing")
+    strip = [] if keep_covers else cover_pages
+    tags = ",".join(sorted({scan.covers[i] for i in cover_pages}))
+    if strip:
+        verb = "stripped" if execute else "would strip"
+        notes.append(f"{verb} {len(strip)} cover page(s) ({tags}); the original kept under "
+                     f"{'/'.join(ARCHIVE_ORIGINALS)}/")
+    elif cover_pages:
+        notes.append(f"cover page(s) kept in the PDF (--keep-covers; {tags}); left out of the sidecar text")
+    base["covers_stripped"] = str(len(strip)) if strip else ""
 
     sidecar_rec = None
     if text_only:
@@ -787,21 +1034,20 @@ def _one(p, dest, execute, forced, seen, written):
         if sidecar_rec is not None:
             notes.append("existing sidecar kept")
     new_rec = None if sidecar_rec is not None else make_sidecar(text, meta, ident.source, d, p.name, ident, kind)
-    if _norm(dest_path) != _norm(p):
-        shutil.move(str(p), str(dest_path))
     try:
-        if sidecar_rec is not None:
-            _mark_has_pdf(sc_out, sidecar_rec, p.name)
-        else:
-            lit_util.atomic_write_json(str(sc_out), new_rec)
-        ris = "WROTE" if R.write_ris(str(ris_path), ris_text, overwrite=False) else "EXISTS"
-    except OSError as e:
-        return _row(p, size_kb, "MOVED", new_name=dest_path.name, dup_match=dup_match,
-                    note="; ".join(["moved, but a sidecar write failed"] + notes), held_elsewhere=elsewhere,
-                    outcome=Kind.ERROR.value, **{**base, "detail": f"{type(e).__name__}: {e}"})
+        ris, archived = file_import(p, dest_path, sidecar_path=sc_out, sidecar_rec=sidecar_rec,
+                                    new_rec=new_rec, ris_path=ris_path, ris_text=ris_text, strip=strip,
+                                    archive_dir=dest.lib.joinpath(*ARCHIVE_ORIGINALS))
+    except WriteFailed as e:
+        seen.pop(d, None)
+        written.discard(str(dest_path))
+        return _row(p, size_kb, "ERR_WRITE", new_name=dest_path.name, dup_match=dup_match,
+                    note="; ".join(["a write failed: nothing filed, left in Downloads (what this run "
+                                    "wrote was removed)"] + notes), held_elsewhere=elsewhere,
+                    outcome=Kind.ERROR.value, **{**base, "detail": str(e)})
     return _row(p, size_kb, "MOVED", new_name=dest_path.name, dup_match=dup_match,
                 note="; ".join(["moved + sidecar written"] + notes), held_elsewhere=elsewhere, ris=ris,
-                outcome=Kind.OK.value, **base)
+                outcome=Kind.OK.value, archived_original=str(archived) if archived else "", **base)
 
 
 def main(argv=None) -> int:
@@ -814,9 +1060,10 @@ def main(argv=None) -> int:
                     help="Accepted for clarity; a dry run is the default.")
     ap.add_argument("--cutoff", default=None,
                     help="ISO date or datetime; only PDFs modified at or after it. Default: today "
-                         "at local midnight.")
+                         "at local midnight (the papers a browser saved today).")
     ap.add_argument("--downloads", default=None,
-                    help="Folder to import from. Default: the Downloads folder in your home directory.")
+                    help="Folder to import from. Default: the Downloads folder in your home directory "
+                         "(one workflow: a browser's downloads); name any other folder here.")
     ap.add_argument("--lib-dir", default=None,
                     help="Destination library. This or --project is required.")
     ap.add_argument("--project", default=None,
@@ -829,12 +1076,21 @@ def main(argv=None) -> int:
                     help="Supply the DOI for a PDF this tool cannot identify on its own (or flags). "
                          "Refuses to run unless the cutoff narrows the sweep to exactly ONE PDF, so it "
                          "can never be attached to the wrong file.")
+    ap.add_argument("--import-held-elsewhere", action="store_true",
+                    help="Import a paper another library already holds (default: skip it as "
+                         "HELD_ELSEWHERE and leave the file in place). Applies to this run only.")
+    ap.add_argument("--keep-covers", action="store_true",
+                    help="File the PDF whole. Default with --execute: interlibrary-loan cover slips and "
+                         "publisher download-notice pages are left out of the filed PDF, and the "
+                         "untouched original is kept under <library>/_archive/originals/. Cover text "
+                         "never reaches the sidecar either way.")
     args = ap.parse_args(argv)
     try:
         if args.execute and args.dry_run:
             raise UsageError("import_downloads: pass --execute or --dry-run, not both")
         run(execute=args.execute, cutoff=args.cutoff, downloads=args.downloads, lib_dir=args.lib_dir,
-            project=args.project, report_dir=args.report_dir, doi=args.doi)
+            project=args.project, report_dir=args.report_dir, doi=args.doi,
+            import_held_elsewhere=args.import_held_elsewhere, keep_covers=args.keep_covers)
     except UsageError as e:
         print(str(e), file=sys.stderr)
         return 1

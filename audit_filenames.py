@@ -76,7 +76,7 @@ import re
 import sys
 import time
 
-import fitz
+import pymupdf
 
 import lit_util
 from lit_util import safe_ascii  # noqa: F401  re-export: callers do `from audit_filenames import safe_ascii`
@@ -145,7 +145,7 @@ def extract_doi_from_pdf(pdf_path, max_chars=DOI_TEXT_CHARS):
     """The first DOI in the first `max_chars` characters of the PDF text (litpipe.doi.normalise),
     '' when there is none. Raises PdfReadError when PyMuPDF cannot read the file."""
     try:
-        doc = fitz.open(pdf_path)
+        doc = pymupdf.open(pdf_path)
         try:
             text = ""
             for p in doc:

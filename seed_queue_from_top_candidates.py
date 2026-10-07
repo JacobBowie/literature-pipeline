@@ -140,10 +140,12 @@ _SOURCE = {
         LEFT JOIN port p ON p.doi = sc.doi""",
 }
 # Held anywhere (today's top_candidates rule: any paper_locations row, text-only included), the
-# title filter, the seed and citation floors. The year clause is added per query.
+# title filter (the title starts with a letter of any script: RE2's \p{L}, so "Étude", "β-alanine"
+# and "Ölçek" pass and "1." or "[Not available]" do not), the seed and citation floors. The year
+# clause is added per query.
 _FILTERS = """
     NOT EXISTS (SELECT 1 FROM paper_locations l WHERE l.doi = s.doi)
-    AND s.title IS NOT NULL AND substr(s.title, 1, 1) ~ '[A-Za-z]'
+    AND s.title IS NOT NULL AND substr(s.title, 1, 1) ~ '\\p{L}'
     AND s.rank_n >= $min_seeds
     AND COALESCE(s.cites, 0) >= $min_cites"""
 UNDATED = "COALESCE(s.year, 0) <= 0"
@@ -346,7 +348,7 @@ def render(rows, *, key, mode, scope, destination, out_name, tag, year_min, min_
     order = ("year desc (undated last), then " if recent_first else "") + ORDER_TEXT[mode]
     if mode == "scope":
         source = (f"scoped_candidates, project={key}, scope={scope} (the index has no OA column, so "
-                  f"this order differs from the walker's _{scope}_descendants.csv only by OA)")
+                  f"this order differs from the walker's _{scope}_descendants.csv by OA and tie-breaks)")
     else:
         source = {"project": "candidates (this project's own seeds)",
                   "portfolio": "top_candidates (portfolio-wide seed counts)",

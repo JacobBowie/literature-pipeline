@@ -602,50 +602,111 @@ def test_subproject_reports_live_in_the_subproject_dir(world, capsys):
     assert "queue history: 1 run(s), 1 report(s)" in out and "latest=lit_pull_queue.2026-10-01.report.csv" in out
 
 
-def test_artifact_dir_and_archive_folders_are_searched(world):
+def _archive(world, sub_lib, sibling_lib):
+    """An archive folder in a consumer's own layout (any layout: the audit names none): two runs
+    of this project (one legacy, one naming its library), a sibling's run, and an unnamed run."""
+    arch = world.tmp / "any archive é" / "2026-09-30"
+    _legacy_report(arch / "unit_a" / "lit_pull_queue.2026-09-04.report.csv", 2)        # names no library
+    _run_report(arch / "lit_pull_queue.2026-09-29.report.csv", "2026-09-29", sub_lib, {"fetched": 6}, 6)
+    _run_report(arch / "lit_pull_queue.2026-09-28.report.csv", "2026-09-28", sibling_lib, {"fetched": 8}, 8)
+    return arch
+
+
+def test_artifact_dir_and_report_dir_folders_are_searched(world):
+    """W5-C3 (P08): no consumer archive layout in the code. Archived reports are read where
+    --report-dir names them; a run there counts when its report names this library, and with
+    --project (claim_unnamed) a run that names none counts too."""
     world.add("teaching_course/unit_a", "unit_a/literature", parent="teaching_course")
     world.add("teaching_course/unit_b", "unit_b/literature", parent="teaching_course")
     key = "teaching_course/unit_a"
     lib = world.lib(key)
     lib.mkdir(parents=True)
-    sub, parent = world.proj(key), world.root / "teaching_course"
+    sub = world.proj(key)
     _run_report(sub / "sweep_out" / "lit_pull_queue.2026-10-03.report.csv", "2026-10-03", lib, {"fetched": 4}, 4)
-    _legacy_report(parent / "_archive" / "2026-09-11" / "lit_sweep_exhaust" / "unit_a" /
-                   "lit_pull_queue.2026-09-04.report.csv", 2)
-    _legacy_report(parent / "_archive" / "2026-09-11" / "lit_sweep_exhaust" / "unit_a" / "from_literature_dir" /
-                   "lit_pull_queue.2026-08-19.report.csv", 1)
-    _legacy_report(parent / "_archive" / "2026-09-11" / "lit_sweep_exhaust" / "unit_b" /
-                   "lit_pull_queue.2026-09-05.report.csv", 9)                     # the sibling's
-    flat = parent / "_archive" / "2026-09-30" / "lit_sweep_exhaust"
-    _legacy_report(flat / "lit_pull_queue.2026-09-14.report.csv", 5)               # unattributable
-    _run_report(flat / "lit_pull_queue.2026-09-29.report.csv", "2026-09-29", lib, {"fetched": 6}, 6)
-    _run_report(flat / "lit_pull_queue.2026-09-28.report.csv", "2026-09-28",
-                world.lib("teaching_course/unit_b"), {"fetched": 8}, 8)            # the sibling's
-    _legacy_report(sub / "_archive" / "2026-09-01" / "lit_sweep_exhaust" /
-                   "lit_pull_queue.2026-07-01.report.csv", 1)
+    arch = _archive(world, lib, world.lib("teaching_course/unit_b"))
     q = ap.audit_queue(sub, entry=world.projects[key], name=key, projects=world.projects,
-                       artifact_dir="sweep_out", lib=lib)
-    ids = sorted(r["run_id"] for r in q["run_list"])
-    assert ids == ["2026-07-01", "2026-08-19", "2026-09-04", "2026-09-29", "2026-10-03"]
-    assert [u["run_id"] for u in q["unattributed"]] == ["2026-09-14"]
+                       artifact_dir="sweep_out", lib=lib, extra_dirs=[str(arch.parent)])
+    assert sorted(r["run_id"] for r in q["run_list"]) == ["2026-09-29", "2026-10-03"]
+    assert [u["run_id"] for u in q["unattributed"]] == ["2026-09-04"]
     assert q["latest"] == "lit_pull_queue.2026-10-03.report.csv"
+    qp = ap.audit_queue(sub, entry=world.projects[key], name=key, projects=world.projects, lib=lib,
+                        extra_dirs=[str(arch.parent)], claim_unnamed=True)
+    assert sorted(r["run_id"] for r in qp["run_list"]) == ["2026-09-04", "2026-09-29"]
+    assert qp["unattributed"] == []
     q2 = ap.audit_queue(sub, entry=world.projects[key], name=key, projects=world.projects, lib=lib)
-    assert "2026-10-03" not in [r["run_id"] for r in q2["run_list"]]        # only with --artifact-dir
+    assert q2["run_list"] == []                 # neither the artifact dir nor the archive by default
 
 
-def test_top_level_archive_leaves_registered_children_folders_alone(world):
+def test_an_archive_layout_on_disk_is_not_read_without_report_dir(world):
+    """The layout one consumer used (`_archive/*/lit_sweep_exhaust/`) is no longer built in."""
     world.add("research_delta", "lit")
-    world.add("research_delta/child", "child/lit", parent="research_delta")
     ex = world.root / "research_delta" / "_archive" / "2026-09-01" / "lit_sweep_exhaust"
     _legacy_report(ex / "lit_pull_queue.2026-08-01.report.csv", 1)
-    _legacy_report(ex / "child" / "lit_pull_queue.2026-08-02.report.csv", 1)
-    _legacy_report(ex / "misc" / "lit_pull_queue.2026-08-03.report.csv", 1)
     q = ap.audit_queue(world.proj("research_delta"), entry=world.projects["research_delta"],
                        name="research_delta", projects=world.projects)
-    assert sorted(r["run_id"] for r in q["run_list"]) == ["2026-08-01", "2026-08-03"]
-    qc = ap.audit_queue(world.proj("research_delta/child"), entry=world.projects["research_delta/child"],
-                        name="research_delta/child", projects=world.projects)
-    assert [r["run_id"] for r in qc["run_list"]] == ["2026-08-02"]
+    assert q["run_list"] == []
+    src = Path(ap.__file__).read_text(encoding="utf-8")
+    assert "lit_sweep_exhaust" not in src and "_archive/*" not in src
+
+
+def test_report_dir_on_the_cli_with_project(world, capsys):
+    world.add("teaching_course/unit_a", "unit_a/literature", parent="teaching_course")
+    world.add("teaching_course/unit_b", "unit_b/literature", parent="teaching_course")
+    key = "teaching_course/unit_a"
+    lib = world.lib(key)
+    make_acceptance_lib(lib)
+    arch = _archive(world, lib, world.lib("teaching_course/unit_b"))
+    res = ap.run(project=key, report_dirs=[str(arch.parent)], holdings=False)
+    q = res["projects"][0]["queue"]
+    assert sorted(r["run_id"] for r in q["run_list"]) == ["2026-09-04", "2026-09-29"]
+    ap.main(["--project", key, "--no-holdings", "--report-dir", str(arch.parent)])
+    assert "queue history: 2 run(s)" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("has_accessor", [True, False])
+def test_the_registry_artifact_dir_is_read_through_litpipe_config(world, monkeypatch, has_accessor):
+    """W5-C1's litpipe.config.artifact_dir(key, cfg) when it exists, else the project root."""
+    world.add("research_alpha2", "lit")
+    lib = world.lib("research_alpha2")
+    lib.mkdir(parents=True)
+    art = world.tmp / "artifacts"
+    _run_report(art / "research_alpha2" / "lit_pull_queue.2026-10-04.report.csv", "2026-10-04", lib,
+                {"fetched": 3}, 3)
+    _run_report(world.proj("research_alpha2") / "lit_pull_queue.2026-10-01.report.csv", "2026-10-01", lib,
+                {"fetched": 1}, 1)
+    seen = []
+
+    def artifact_dir(key, cfg=None):
+        seen.append((key, sorted((cfg or {}).get("projects") or {})))
+        return art / key
+    if has_accessor:
+        monkeypatch.setattr(litconfig, "artifact_dir", artifact_dir, raising=False)
+    else:
+        monkeypatch.delattr(litconfig, "artifact_dir", raising=False)
+    q = ap.audit_queue(world.proj("research_alpha2"), entry=world.projects["research_alpha2"],
+                       name="research_alpha2", projects=world.projects, lib=lib)
+    ids = sorted(r["run_id"] for r in q["run_list"])
+    if has_accessor:
+        assert ids == ["2026-10-01", "2026-10-04"] and seen and seen[0][0] == "research_alpha2"
+        assert "research_alpha2" in seen[0][1]          # the whole registry as {"projects": ...}
+    else:
+        assert ids == ["2026-10-01"]
+
+
+def test_an_unusable_artifact_dir_is_reported_and_the_project_root_still_read(world, monkeypatch, capsys):
+    world.add("research_alpha3", "lit")
+    lib = world.lib("research_alpha3")
+    lib.mkdir(parents=True)
+    _run_report(world.proj("research_alpha3") / "lit_pull_queue.2026-10-01.report.csv", "2026-10-01", lib,
+                {"fetched": 1}, 1)
+
+    def bad(key, cfg=None):
+        raise litconfig.ConfigError("artifact_dir must be a path string")
+    monkeypatch.setattr(litconfig, "artifact_dir", bad, raising=False)
+    q = ap.audit_queue(world.proj("research_alpha3"), entry=world.projects["research_alpha3"],
+                       name="research_alpha3", projects=world.projects, lib=lib)
+    assert [r["run_id"] for r in q["run_list"]] == ["2026-10-01"]
+    assert "artifact_dir unusable" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------- fetched titles against the .ris

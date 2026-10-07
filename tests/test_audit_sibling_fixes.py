@@ -186,7 +186,7 @@ def test_atomic_write_csv_replaces_not_appends(tmp_path):
     assert p.read_text(encoding="utf-8") == "a\n2\n"
 
 
-# ---------- c9: lit_util.connect_db (shared RC10 Drive-lock-tolerant open) ----------
+# ---------- c9: lit_util.connect_db (shared RC10 lock-tolerant open) ----------
 
 def test_connect_db_opens_and_queries(tmp_path):
     con = lit_util.connect_db(str(tmp_path / "t.duckdb"))

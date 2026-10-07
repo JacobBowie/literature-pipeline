@@ -546,7 +546,7 @@ def test_text_only_holding_keeps_its_curated_ris(env):
     assert (env.lib / f"{stem}.ris").read_text(encoding="utf-8") == curated
 
 
-def test_a_holding_elsewhere_is_reported_and_the_file_still_imported(env):
+def _held_in_other_library(env):
     env.reg["projects"]["teaching_course"] = {"lib_dir": "literature"}
     env.reg["projects"]["research_other"] = {"lib_dir": "literature"}
     env.write_reg()
@@ -557,9 +557,59 @@ def test_a_holding_elsewhere_is_reported_and_the_file_still_imported(env):
         {"doi": doi_of("stroke_volume"), "text": "x", "has_pdf": True}), encoding="utf-8")
     env.add("stroke_volume")
     make_pdf(env.dl / "a.pdf", [page(title_of("stroke_volume"), doi_of("stroke_volume"))])
-    row = env.run(execute=True)["rows"][0]
+    return other
+
+
+def test_a_holding_elsewhere_is_skipped_and_the_file_left_in_place(env):
+    """W5-C3 (N3, decision C10 "skip held elsewhere"): the copy is not imported; the report names
+    the holding library. Old: MOVED with held_elsewhere filled."""
+    other = _held_in_other_library(env)
+    res = env.run(execute=True)
+    row = res["rows"][0]
+    assert row["action"] == "HELD_ELSEWHERE" and row["held_elsewhere"].endswith("2005_Penrose_Elsewhere.pdf")
+    assert "research_other" in row["note"] and str(other) in row["note"]
+    assert row["dup_match"] == "2005_Penrose_Elsewhere"
+    assert (env.dl / "a.pdf").exists() and not list(env.lib.iterdir())
+    report = list(csv.DictReader(open(res["report"], encoding="utf-8")))
+    assert report[0]["action"] == "HELD_ELSEWHERE" and "research_other" in report[0]["note"]
+
+
+def test_import_held_elsewhere_restores_the_old_import_for_one_run(env):
+    _held_in_other_library(env)
+    row = env.run(execute=True, import_held_elsewhere=True)["rows"][0]
     assert row["action"] == "MOVED" and row["held_elsewhere"].endswith("2005_Penrose_Elsewhere.pdf")
-    assert (env.lib / row["new_name"]).exists()
+    assert (env.lib / row["new_name"]).exists() and not (env.dl / "a.pdf").exists()
+
+
+def test_import_held_elsewhere_flag_on_the_cli(env):
+    _held_in_other_library(env)
+    assert ID.main(["--lib-dir", str(env.lib), "--downloads", str(env.dl), "--execute",
+                    "--import-held-elsewhere"]) == 0
+    assert not (env.dl / "a.pdf").exists() and list(env.lib.glob("*.pdf"))
+
+
+def test_a_text_only_holding_elsewhere_also_counts_and_a_flagged_pdf_does_not(env):
+    env.reg["projects"]["teaching_course"] = {"lib_dir": "literature"}
+    env.reg["projects"]["research_other"] = {"lib_dir": "literature"}
+    env.reg["projects"]["research_third"] = {"lib_dir": "literature"}
+    env.write_reg()
+    other = env.root / "research_other" / "literature"
+    other.mkdir(parents=True)
+    (other / "2005_Penrose_Jats.fulltext.json").write_text(json.dumps(
+        {"doi": doi_of("stroke_volume"), "text": "JATS body"}), encoding="utf-8")
+    third = env.root / "research_third" / "literature"
+    third.mkdir(parents=True)
+    make_pdf(third / "2005_Penrose_Flagged.pdf", [page("another work")])
+    (third / "2005_Penrose_Flagged.ris").write_text(f"TY  - JOUR\nDO  - {doi_of('autonomic')}\nER  - \n",
+                                                    encoding="utf-8")
+    (third / "2005_Penrose_Flagged.identity.json").write_text(json.dumps(
+        {"identity": "FLAG", "queue_doi": doi_of("autonomic")}), encoding="utf-8")
+    env.add("stroke_volume", "autonomic")
+    make_pdf(env.dl / "a.pdf", [page(title_of("stroke_volume"), doi_of("stroke_volume"))])
+    make_pdf(env.dl / "b.pdf", [page(title_of("autonomic"), doi_of("autonomic"))])
+    rows = by_source(env.run())
+    assert rows["a.pdf"]["action"] == "HELD_ELSEWHERE" and "text-only" in rows["a.pdf"]["note"]
+    assert rows["b.pdf"]["action"] == "WOULD_MOVE" and rows["b.pdf"]["held_elsewhere"] == ""
 
 
 def test_an_unregistered_lib_dir_is_still_checked_for_holdings(env):

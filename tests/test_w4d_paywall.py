@@ -32,9 +32,17 @@ def _norm(b):
     return b.replace(b"\r\n", b"\n")
 
 
+def with_portfolio_dir(world, value="_portfolio"):
+    """W5-C3: the output folder is projects.json's "portfolio_dir" (no built-in <root>/_portfolio);
+    a relative value sits under the projects root, the folder these tests always used."""
+    world.registry["portfolio_dir"] = value
+    world.cfg_path.write_text(json.dumps(world.registry, indent=1), encoding="utf-8")
+    return world
+
+
 class Env:
     def __init__(self, tmp_path, monkeypatch, capsys, spec):
-        self.world = W.build(tmp_path, spec)
+        self.world = with_portfolio_dir(W.build(tmp_path, spec))
         self.capsys = capsys
         monkeypatch.setattr(lit_util, "PROJECTS_ROOT", self.world.root)
         monkeypatch.setattr(config, "CONFIG_PATH", self.world.cfg_path)
@@ -114,11 +122,12 @@ def test_missing_registry_exits_1(golden, monkeypatch, tmp_path):
 
 # ================================================================ paywall_pull keeps its imports
 def test_paywall_pull_imports_and_lib_dois_match_the_base(golden, monkeypatch):
+    """W5-C3: paywall_pull decides "done" through litpipe.holdings (test_w5c3_paywall.py), so it no
+    longer imports lib_dois/LIBS/ROOT; the three names stay importable here (API surface)."""
     import paywall_pull
-    from build_priority_paywall_queue import LIBS, ROOT, lib_dois   # paywall_pull.py:43, verbatim
+    from build_priority_paywall_queue import LIBS, ROOT, lib_dois
     assert callable(lib_dois) and isinstance(LIBS, dict) and isinstance(ROOT, str)
-    assert paywall_pull.lib_dois.__module__ == B.__name__ and paywall_pull.lib_dois.__name__ == "lib_dois"
-    assert paywall_pull.LIBS == B.LIBS and paywall_pull.ROOT == B.ROOT
+    assert not hasattr(paywall_pull, "lib_dois") and callable(paywall_pull.run)
     monkeypatch.setattr(B, "ROOT", str(golden.world.root))
     monkeypatch.setattr(B, "LIBS", {k: lit_util.lib_rel(k, p) for k, p in GOLDEN_SPEC["projects"].items()})
     want = set(json.loads((GOLDEN / "lib_dois.json").read_text(encoding="utf-8")))
@@ -183,7 +192,7 @@ def test_pin_a_doi_on_a_ris_note_line_only_is_listed(pins):
 def test_pin_run_honours_root_and_config_patched_after_import(tmp_path, monkeypatch, capsys):
     """Patch only lit_util.PROJECTS_ROOT and this module's CONFIG_PATH (never litpipe.config's), put
     the index at <root>/_references, and pass no --db / --out-dir: everything resolves at call time."""
-    world = W.build(tmp_path, PINS_SPEC)
+    world = with_portfolio_dir(W.build(tmp_path, PINS_SPEC))
     monkeypatch.setattr(lit_util, "PROJECTS_ROOT", world.root)
     monkeypatch.setattr(I, "CONFIG_PATH", world.cfg_path)
     monkeypatch.setattr(B, "CONFIG_PATH", str(world.cfg_path))

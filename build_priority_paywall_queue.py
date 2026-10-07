@@ -11,7 +11,9 @@ Inputs (all read-only):
 Output (written atomically, LF line endings):
   - <out-dir>/<date>_priority_paywall_queue.md   human-readable, tiered, doi.org links
   - <out-dir>/<date>_priority_paywall_queue.csv  rank,doi,url,title,year,score,seeds_pointing,cited_by,projects
-  <out-dir> defaults to <root>/_portfolio.
+  <out-dir> is --out-dir, else projects.json's global "portfolio_dir" (the folder paywall_pull
+  reads; '~' expands, a relative path is under the projects root). With neither the run exits 1
+  saying how to set it: there is no built-in folder.
 
 Logic:
   1. Gather residual closed-access DOIs (best citation_count + which projects want each).
@@ -22,17 +24,20 @@ Logic:
 
 The registry, root and DB are resolved when run() is called (this module's CONFIG_PATH,
 lit_util.PROJECTS_ROOT, projects.json db_dir or --db); importing the module opens no DB.
-`lib_dois()`, `LIBS` and `ROOT` stay as they were for paywall_pull (its done-detection
-matches lib_dois()'s regex output).
+`lib_dois()`, `LIBS` and `ROOT` stay importable (API surface); lib_dois() reads each `.ris` DO
+line and each sidecar `doi` as structured DOIs (litpipe.doi.normalise_structured). paywall_pull
+decides "done" through litpipe.holdings, like run() here.
 
-Exit codes: 0 written; 1 registry error; 2 written without the DB ranking (the index could not
-be read), with a final "[step-summary] {json}" line.
+Exit codes: 0 written; 1 registry error, or no output folder (no --out-dir and no
+"portfolio_dir"); 2 written without the DB ranking (the index could not be read), with a final
+"[step-summary] {json}" line.
 
 Usage:
   python build_priority_paywall_queue.py --date 2026-06-22
   python build_priority_paywall_queue.py --date 2026-06-22 --top-a 50 --db <portfolio.duckdb> --out-dir <dir>
 """
 import argparse, glob, os, json, re, sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lit_util  # coerce_int: shared int()-on-messy-CSV-cell guard (2026-06-25 audit sibling sweep)
@@ -68,12 +73,19 @@ def load_libs():
 
 
 LIBS = load_libs()
-DOI_RE = re.compile(r"10\.\d{4,9}/[-._;()/:A-Za-z0-9]+")
+DOI_RE = re.compile(r"10\.\d{4,9}/[-._;()/:A-Za-z0-9]+")   # kept importable; lib_dois() no longer scans with it
+_RIS_DO = re.compile(r"^DO\s+-\s?(.+?)\s*$", re.MULTILINE)
+
+
+def _structured(raw):
+    from litpipe import doi as _doi
+    return (_doi.normalise_structured(raw) or "").lower()
 
 
 def lib_dois():
-    """The DOIs paywall_pull treats as done: a regex scan of every .ris and every sidecar `doi` in
-    LIBS under ROOT. Kept exactly as it was for paywall_pull's done-detection; the queue itself
+    """The DOIs the libraries in LIBS under ROOT carry: every `.ris` DO line and every sidecar `doi`,
+    each read as a structured DOI (litpipe.doi.normalise_structured), lower case. A DOI in a note,
+    an abstract or a reference line is not the record's DOI and is not read (M125). The queue
     decides held-ness through litpipe.holdings inside run()."""
     have = set()
     for rel in LIBS.values():
@@ -82,18 +94,42 @@ def lib_dois():
             continue
         for ris in glob.glob(os.path.join(lib, "*.ris")):
             try:
-                for m in DOI_RE.findall(open(ris, encoding="utf-8", errors="replace").read()):
-                    have.add(m.lower().rstrip(".").rstrip(")"))
+                with open(ris, encoding="utf-8", errors="replace") as fh:
+                    text = fh.read()
             except OSError:
-                pass
-        for sc in glob.glob(os.path.join(lib, "*.fulltext.json")):
-            try:
-                d = (json.load(open(sc, encoding="utf-8")).get("doi") or "").strip().lower()
+                continue
+            for m in _RIS_DO.findall(text):
+                d = _structured(m)
                 if d:
                     have.add(d)
-            except (OSError, json.JSONDecodeError):
-                pass
+        for sc in glob.glob(os.path.join(lib, "*.fulltext.json")):
+            try:
+                with open(sc, encoding="utf-8") as fh:
+                    rec = json.load(fh)
+            except (OSError, ValueError):
+                continue
+            d = _structured(rec.get("doi") if isinstance(rec, dict) else "")
+            if d:
+                have.add(d)
     return have
+
+
+def portfolio_dir(registry):
+    """The registry's global "portfolio_dir" as a Path ('~' expands; a relative path is under
+    lit_util.PROJECTS_ROOT, read at call time), or None when unset. A value that is not a non-empty
+    string raises config.ConfigError."""
+    from litpipe import config
+    raw = (registry or {}).get("portfolio_dir")
+    if raw is None:
+        return None
+    if not isinstance(raw, str) or not raw.strip():
+        raise config.ConfigError(f"portfolio_dir must be a non-empty path string, got {raw!r}")
+    p = Path(raw.strip()).expanduser()
+    return p if p.is_absolute() else Path(lit_util.PROJECTS_ROOT) / p
+
+
+NO_OUT_DIR = ('no output folder: set "portfolio_dir" (global) in projects.json, the folder that holds '
+              'the paywall queue files, or pass --out-dir')
 
 
 def load_registry(cfg=None):
@@ -214,11 +250,14 @@ def run(*, date, top_a=50, db=None, out_dir=None, registry=None, holdmap=None) -
     try:
         registry = load_registry(registry)
         db_path = str(db) if db else str(config.db_dir(registry) / DB_NAME)
+        if not out_dir:
+            out_dir = portfolio_dir(registry)
+            if out_dir is None:
+                raise config.ConfigError(NO_OUT_DIR)
     except config.ConfigError as e:
         print(f"[ERR] {e}", file=sys.stderr)
         return {**res, "exit_code": 1, "status": "config", "error": str(e)}
-    root = str(lit_util.PROJECTS_ROOT)
-    out_dir = str(out_dir) if out_dir else os.path.join(root, "_portfolio")
+    out_dir = str(out_dir)
 
     stats = {}
     resid = residual_dois(registry, stats=stats)
@@ -280,7 +319,9 @@ def main(argv=None):
     ap.add_argument("--top-a", type=int, default=50)
     ap.add_argument("--db", default=None,
                     help="index to rank with, opened read-only (default: <db_dir>/portfolio.duckdb from projects.json)")
-    ap.add_argument("--out-dir", default=None, help="where the queue files go (default: <root>/_portfolio)")
+    ap.add_argument("--out-dir", default=None,
+                    help='where the queue files go (default: projects.json "portfolio_dir"; with neither, '
+                         'the run exits 1)')
     args = ap.parse_args(sys.argv[1:] if argv is None else argv)
     return run(date=args.date, top_a=args.top_a, db=args.db, out_dir=args.out_dir)["exit_code"]
 

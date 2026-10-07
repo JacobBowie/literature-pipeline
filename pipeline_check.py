@@ -17,7 +17,9 @@ Library state uses the same predicates as audit_portfolio.py (one scan, shared):
     (INFO, DEC-08), and its `.ris` belongs to it: neither is an orphan FAIL;
   - an identity FLAG (`.identity.json` FLAG or SUPPLEMENT, `.fulltext.json` FLAG) is a review item
     (WARN): not a holding (not in the .ris coverage), not an orphan;
-  - text damage (ligature, NBSP, character reference, markup tag) and `_mismatch/` are WARNs.
+  - text damage (ligature, NBSP, character reference, markup tag) and `_mismatch/` are WARNs;
+  - a sidecar waiting for OCR (`needs_ocr: true`, empty by design) is an INFO line of its own
+    (the count and the first stems), never a bad sidecar.
 With a registry project it also checks the index (read-only; freshness and DB-versus-disk) and,
 once per invocation, live runs from the state file (never created by this tool).
 
@@ -69,8 +71,9 @@ def resolve_from_config(name: str, cfg=None):
     base, lib, data = lit_util.lib_paths(name, p)
     tier = p.get("tier", 2)
     # T8 (2026-06-25 audit): per-project .ris-coverage floor for Stage 4b. Default 90; a project
-    # with legitimately DOI-less PDFs (e.g. ATHENA_RNAseq's structural artifacts, ~86%) lowers it
-    # in projects.json so a tight floor is kept per project instead of one global worst-case value.
+    # with legitimately DOI-less PDFs (e.g. a library that also holds technical reports or data
+    # documentation, ~86%) lowers it in projects.json, so a tight floor is kept per project
+    # instead of one global worst-case value.
     ris_threshold = p.get("ris_threshold", 90)
     return base, lib, data, tier, ris_threshold
 
@@ -209,6 +212,11 @@ def check_project(base, lib, data, tier, ris_threshold, *, key=None, full=False,
                                                            for n in scan["empty_sidecars"]]
     check(f"all {n_sidecars} sidecars parse + have content", not bad,
           detail="" if not bad else f"{len(bad)} bad", items=bad, fmt=lambda t: f"bad: {t[0]} ({t[1]})")
+    ocr = (scan or {}).get("needs_ocr") or []
+    res["counts"]["needs_ocr"] = len(ocr)
+    if ocr:      # written empty on purpose by the text-validity gate: an OCR to-do, not a bad sidecar
+        rep.note("needs_ocr sidecars (OCR to-do: extract_pdf_fulltext.py --ocr)",
+                 [n[:-len(ap.SIDECAR)] if n.lower().endswith(ap.SIDECAR) else n for n in ocr])
 
     # ---------- Stage 4b: .ris coverage (all tiers) ----------
     rep.section("Stage 4b: .ris coverage")

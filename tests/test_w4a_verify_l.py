@@ -324,7 +324,9 @@ def test_needs_ocr_sidecar_keeps_its_pdf_a_holding_and_is_not_an_orphan(world):
     recs = hold(world).records(DOI)
     assert [r.kind for r in recs] == [holdings.PDF]
     audit = audit_portfolio.scan_library(world.lib)
-    assert "2019_Smith_Scan.fulltext.json" in audit["empty_sidecars"]
+    # W5-C3 (item 4): a needs_ocr sidecar is reported on its own line, not as an empty sidecar
+    assert "2019_Smith_Scan.fulltext.json" in audit["needs_ocr"]
+    assert "2019_Smith_Scan.fulltext.json" not in audit["empty_sidecars"]
     assert "2019_Smith_Scan.fulltext.json" not in audit["orphan_sidecars"]
     # the PDF without a DOI on record is still an orphan to fill_missing_dois (empty sidecar doi)
     (world.lib / "2019_Smith_Scan.ris").unlink()

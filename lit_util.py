@@ -26,9 +26,10 @@ except ModuleNotFoundError as _e:  # lit_util loaded by file path without its re
 # ---------------------------------------------------------------- shared config
 # Contact identity comes from LITPIPE_EMAIL only: there is no code default (plan DEC-13,
 # 2026-09-29), because a public default sends strangers' traffic under the maintainer's name.
-# The name stays importable (dispatch 0.6); 14 modules still read
-# os.environ.get("LITPIPE_EMAIL", DEFAULT_EMAIL) until W2 routes identity through litpipe.net,
-# and W1-A2's preflight refuses to start when the variable is empty or an example.com address.
+# The name stays importable (dispatch 0.6) and is None. No module reads
+# os.environ.get("LITPIPE_EMAIL", DEFAULT_EMAIL) any more (litpipe.ledger only redacts the value
+# while the name exists): litpipe.net injects the identity from LITPIPE_EMAIL into every request,
+# and litpipe.preflight refuses to start when the variable is empty or an example.com address.
 # What each source asks for (endpoint audit 2026-09-25, refactor scope 2.2): Crossref and
 # DataCite a mailto in the User-Agent (Crossref: "Include your email address in the mailto
 # parameter or agent header", recommended for the polite pool); Unpaywall an `email=` query
@@ -72,8 +73,8 @@ def companion_path(pdf, ext):
     return Path(pdf).with_suffix(ext)
 
 # ---------------------------------------------------------------- RC4: atomic writes
-# Waits between os.replace attempts (5 attempts in all). On Windows a scanner, indexer or the
-# Drive mirror can hold the target open for a moment and os.replace fails with PermissionError
+# Waits between os.replace attempts (5 attempts in all). On Windows a scanner, indexer or a
+# file-sync client can hold the target open for a moment and os.replace fails with PermissionError
 # (WinError 5); W1-D2 saw it once in six local runs of test_migrate_routing (2026-09-30).
 _REPLACE_BACKOFF = (0.05, 0.1, 0.2, 0.4)
 
@@ -219,16 +220,27 @@ def project_root(key, p):
     key 'A/B' declaring parent 'A' resolves to <PROJECTS_ROOT>/A/B.
 
     This is the QUEUE / project path. It is deliberately NOT the library dir: the
-    registry's lib_dir for a subproject already carries the tail (e.g. 'Yitts/
+    registry's lib_dir for a subproject already carries the tail (e.g. 'course_a/
     literature'), so the lib base is the PARENT (see lib_rel/lib_paths). The two
     conventions reach the same subtree by different routes and must NOT be unified
     (unifying would double-count the tail). `p` is the single project's registry
     dict (as returned by cfg[key]); {} is treated as a top-level project."""
     parent = (p or {}).get("parent")
     if parent:
-        tail = key[len(parent):].lstrip("/\\") or Path(key).name
-        return PROJECTS_ROOT / parent / tail
+        return PROJECTS_ROOT / parent / subproject_tail(key, parent)
     return PROJECTS_ROOT / key
+
+def subproject_tail(key, parent):
+    """The folder name of subproject `key` under `parent`: what follows '<parent>/' in the key, else
+    the key's last path part. The parent is removed only when the key starts with it AND a path
+    separator ('teaching_small2' under 'Teach' is 'teaching_small2', never 'ing_small2')."""
+    key, parent = str(key), str(parent)
+    rest = key[len(parent):]
+    if key.startswith(parent) and rest[:1] in ("/", "\\"):
+        tail = rest.lstrip("/\\")
+        if tail:
+            return tail
+    return Path(key).name
 
 def lib_rel(key, p):
     """PROJECTS_ROOT-relative library dir for a registered project, as a STRING:
@@ -403,10 +415,13 @@ def merge_sidecar(old, new):
             out[k] = ov
     return out
 
-# ---------------------------------------------------------------- RC10: Drive-lock-tolerant DB open
+# ---------------------------------------------------------------- RC10: lock-tolerant DB open
+DB_LOCK_HINT = "another process or a sync client may hold the file"
+
+
 def connect_db(db_path, on_fail="raise", tries=3, delays=(2, 4), read_only=False):
-    """Open a DuckDB file, retrying the transient lock/IO errors GoogleDriveFS raises
-    when it holds portfolio.duckdb open mid-sync (RC10).
+    """Open a DuckDB file, retrying the transient lock/IO errors raised while another process (a
+    second pipeline tool, or a file-sync client mid-sync) holds portfolio.duckdb open (RC10).
 
     Single source of truth for the retry-open that index_portfolio.connect_with_retry and
     the two enrich_* connect_db copies each carried (2026-07 Stage 3 c9); also serves the
@@ -434,11 +449,11 @@ def connect_db(db_path, on_fail="raise", tries=3, delays=(2, 4), read_only=False
             if attempt < tries:
                 wait = delays[min(attempt - 1, len(delays) - 1)]
                 print(f"  [RC10] DB open failed (attempt {attempt}/{tries}): {e}\n"
-                      f"        suspect Google Drive holding {db_path} open; retrying in {wait}s ...",
+                      f"        {DB_LOCK_HINT} ({db_path}); retrying in {wait}s ...",
                       file=sys.stderr)
                 time.sleep(wait)
-    msg = (f"could not open {db_path} after {tries} attempts -- DB locked (suspect Google "
-           f"Drive sync holding it open; pause Drive and retry). Last error: {last}")
+    msg = (f"could not open {db_path} after {tries} attempts -- DB locked ({DB_LOCK_HINT}; close "
+           f"the other program or pause the sync, then retry). Last error: {last}")
     if on_fail == "exit":
         raise SystemExit(f"ERROR: {msg}")
     print(f"  [RC10] {msg}", file=sys.stderr)

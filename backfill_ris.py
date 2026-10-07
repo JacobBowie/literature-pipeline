@@ -144,12 +144,12 @@ def doi_from_pdf(pdf_path: Path, max_chars=5000) -> str:
     """DOI from the first ~5,000 characters of the PDF text ('' when the text has none). Raises
     PdfError when PyMuPDF is missing or cannot read the file (counted PDF_ERROR, never NO_DOI)."""
     try:
-        import fitz
+        import pymupdf
     except ImportError as e:
         raise PdfError(f"PyMuPDF not installed: {e}") from None
     text = ""
     try:
-        doc = fitz.open(str(pdf_path))
+        doc = pymupdf.open(str(pdf_path))
         try:
             for p in doc:
                 text += p.get_text()
