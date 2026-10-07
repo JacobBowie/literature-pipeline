@@ -38,19 +38,22 @@ Pool drawdown (the contract `python -m litpipe.runner batch` is built on, W4-A)
 
     pool = Pool(csv_path, registry=reg)              # or holdings=<HoldMap>
     for b in pool.pending():                         # 1. staged before a kill, never swept
-        if b["exists"]:
-            sweep b["batch_path"] with run id b["run_id"]
-            pool.mark_swept(b["dois"], b["run_id"], classes)
-        # a batch whose file is gone stays pending until the runner re-stages or marks it
+        if not b["exists"]:                          # killed between mark_staged and the write
+            write the batch queue file at b["batch_path"] from b["dois"]
+        sweep b["batch_path"] with run id b["run_id"]
+        pool.mark_swept(b["dois"], b["run_id"], classes)
     rows = pool.next_batch(size)                     # 2. pure: top rows neither staged, swept nor held
+    pool.mark_staged([r["doi"] for r in rows], run_id, batch_path)   # before the file is written
     write the batch queue file from rows
-    pool.mark_staged([r["doi"] for r in rows], run_id, batch_path)   # before the sweep starts
     sweep the batch with run_id                      # 3.
     pool.mark_swept(dois, run_id, classes)           # classes: {doi: residual class or "fetched"}
     archive the staged set; route                    # 4, 5.
 
-  A kill after mark_staged leaves the batch in pending() and next_batch() skips its rows, so the
-  runner never re-stages them; a kill before mark_staged loses nothing (the rows are drawn again).
+  A kill after mark_staged leaves the batch in pending() (exists false when its file was never
+  written) and next_batch() skips its rows, so the runner never re-stages them; a kill before
+  mark_staged loses nothing and leaves no untracked queue file (the rows are drawn again). A kill
+  after the sweep but before mark_swept sweeps that batch again on resume unless the runner takes
+  its classes from the run's routing CSV.
   seed_from(path) imports a VAP-style state file (`staged_dois`): each DOI is marked staged AND
   swept with class "imported", so it is never pending and never drawn; the import is recorded by
   the file's sha256 in `seeded_from`, so importing the same file twice imports once.
@@ -304,11 +307,17 @@ def _done(row):
 def group_by_host(rows):
     """{label: [rows]}: by host when the line names one, else by the DOI prefix's publisher. Rows
     in a group are ordered by DOI key, then project; groups by open rows (desc), then label."""
+    def order(r):
+        return (r.get("key") or doi_key(r.get("doi")), r.get("project", ""), r.get("line", 0))
+
+    label = {}   # every row of one DOI goes to the group of its first row: listed once, done once
+    for r in sorted(rows, key=order):
+        label.setdefault(order(r)[0], group_label(r))
     groups = {}
     for r in rows:
-        groups.setdefault(group_label(r), []).append(r)
+        groups.setdefault(label[order(r)[0]], []).append(r)
     for rs in groups.values():
-        rs.sort(key=lambda r: (r.get("key") or doi_key(r.get("doi")), r.get("project", ""), r.get("line", 0)))
+        rs.sort(key=order)
 
     def n_open(rs):
         return len(_merge(rs)[0])
@@ -584,8 +593,9 @@ def state_path_for(pool_path):
 class Pool:
     """A ranked pool drawn down in batches; see the module docstring for the contract."""
 
-    def __init__(self, path, *, registry=None, holdings=None):
+    def __init__(self, path, *, registry=None, holdings=None, cache_dir=None):
         self.path = Path(path)
+        self.cache_dir = cache_dir
         self.state_path = state_path_for(self.path)
         self.registry = registry
         self._holdmap = holdings
@@ -621,12 +631,15 @@ class Pool:
         if not self.state_path.exists():
             return self._empty()
         try:
-            st = json.loads(self.state_path.read_text(encoding="utf-8"))
+            st = json.loads(self.state_path.read_text(encoding="utf-8-sig"))
         except (OSError, ValueError) as e:
             raise PoolStateError(f"pool state {self.state_path} is unreadable ({type(e).__name__}: {e}); "
                                  f"fix or move it, it is never reset silently") from None
         if not isinstance(st, dict) or not isinstance(st.get("dois"), dict):
             raise PoolStateError(f"pool state {self.state_path} has no `dois` object")
+        bad = next((k for k, v in st["dois"].items() if not isinstance(v, dict)), None)
+        if bad is not None:
+            raise PoolStateError(f"pool state {self.state_path}: the record for {bad!r} is not an object")
         for k, v in self._empty().items():
             st.setdefault(k, v)
         return st
@@ -643,7 +656,10 @@ class Pool:
             if self.registry is None:
                 raise WorklistError("Pool needs registry= or holdings= to leave held rows out "
                                     "(or call next_batch(exclude_held=False))")
-            self._holdmap = _holdings.build(self.registry)
+            # next_batch is pure: read a warm holdings cache, write one only into an explicit
+            # cache_dir (the runner's), never the state dir implicitly.
+            self._holdmap = _holdings.build(self.registry, cache_dir=self.cache_dir,
+                                            write_cache=self.cache_dir is not None)
         return self._holdmap
 
     # -- the drawdown API

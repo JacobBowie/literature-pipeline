@@ -222,6 +222,9 @@ def run(*, date, top_a=50, db=None, out_dir=None, registry=None, holdmap=None) -
 
     stats = {}
     resid = residual_dois(registry, stats=stats)
+    unreadable = stats.get("unreadable") or []
+    for p in unreadable:
+        print(f"[warn] residual CSV not read (open in another program?): {p}", file=sys.stderr)
     hm = holdmap if holdmap is not None else holdings.build(registry, write_cache=False)
     held = {k for k in resid if hm.where(k)}
     missing = {k: v for k, v in resid.items() if k not in held}
@@ -262,10 +265,12 @@ def run(*, date, top_a=50, db=None, out_dir=None, registry=None, holdmap=None) -
     print(f"Priority A: {min(top_a, len(rows))}   total: {len(rows)}   with DB signal: {n_signal}")
     res.update(csv=csv_p, md=md_p, rows=len(rows), priority_a=min(top_a, len(rows)), with_signal=n_signal,
                held=len(held), residual=stats, db=db_path, db_error=db_error)
-    if db_error:
+    reasons = ([db_error] if db_error else []) + (
+        [f"{len(unreadable)} residual CSV(s) could not be read"] if unreadable else [])
+    if reasons:
         res.update(exit_code=2, status="degraded")
         print("[step-summary] " + json.dumps({"step": "build_priority_paywall_queue", "exit_code": 2,
-                                              "reasons": [db_error], "aborted": None, "transport_failures": 0}))
+                                              "reasons": reasons, "aborted": None, "transport_failures": 0}))
     return res
 
 
