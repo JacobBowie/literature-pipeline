@@ -197,6 +197,7 @@ from pathlib import Path
 
 import lit_util
 from litpipe import canaries, config, ledger, preflight, state
+from litpipe.outcomes import Kind, Outcome
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROFILES = ("every_run", "daily", "weekly", "monthly")
@@ -339,6 +340,14 @@ def _data_lines(path) -> int:
     """Header plus data lines of a queue CSV (non-blank, not a '#' comment)."""
     with open(path, encoding="utf-8") as f:
         return sum(1 for line in f if line.strip() and not line.startswith("#"))
+
+
+def _has_rows(path) -> bool:
+    """A CSV with at least one data row; False when it is missing or unreadable."""
+    try:
+        return _data_lines(path) > 1
+    except (OSError, UnicodeDecodeError):
+        return False
 
 
 # ------------------------------------------------------------------------------ the registry
@@ -1114,10 +1123,21 @@ def subprocess_launcher(step: Step) -> StageRun:
     cmd = [sys.executable, "-m", "litpipe.runner", "_stage", "--module", step.module, "--kwargs",
            str(step.kwargs_path), "--out", str(step.out_path), "--config", str(step.registry)]
     env = {**os.environ, RUN_ENV: step.run_id, "PYTHONUTF8": "1", "PYTHONUNBUFFERED": "1"}
-    t0, j0 = time.time(), hb.jumped()
+    t0 = time.time()
+    clock = {"last": t0, "jumped": 0.0}
+
+    def tick():
+        # This loop counts wall-clock jumps itself: after a sleep its poll returns within POLL_S of
+        # the resume, while the heartbeat thread records the same jump only when its slice ends (up
+        # to HEARTBEAT_SLICE_S later), so hb.jumped() can still miss it when the timeout is checked.
+        now = time.time()
+        gap = now - clock["last"]
+        if gap > POLL_S + JUMP_TOLERANCE_S:
+            clock["jumped"] += gap - POLL_S
+        clock["last"] = now
 
     def elapsed():
-        return max(0.0, (time.time() - t0) - (hb.jumped() - j0))
+        return max(0.0, (time.time() - t0) - clock["jumped"])
 
     try:
         tree = ProcessTree.start(cmd, cwd=str(REPO_ROOT), env=env, stdin=subprocess.DEVNULL,
@@ -1135,6 +1155,7 @@ def subprocess_launcher(step: Step) -> StageRun:
                 break
             except subprocess.TimeoutExpired:
                 pass
+            tick()
             if hb.lost.is_set():
                 killed = "heartbeat"
                 break
@@ -1403,8 +1424,25 @@ class _Run:
         _say(f"run {self.run_id} registered ({self.kind}; profile {self.profile}"
              + (f" -> {self.effective}" if self.effective != self.profile else "") + ")")
 
+    def _later_runners_only(self, o):
+        """Preflight's writer check DEFERs on any other live writer, but a `runner` run registered
+        after this one refuses itself at once (amendment 3), so it never blocks this run."""
+        pl = o.payload or {}
+        if pl.get("check") != "writer" or o.kind is not Kind.DEFERRED or not pl.get("runs"):
+            return o
+        live = {r["run_id"]: r for r in state.live_runs()}
+        mine = live.get(self.run_id)
+        if mine is None:
+            return o
+        blocking = [rid for rid in pl["runs"] if rid in live
+                    and not (live[rid]["kind"] == "runner" and live[rid]["seq"] > mine["seq"])]
+        if blocking:
+            return o
+        return Outcome(Kind.OK, host=o.host, detail="only runner runs registered after this one (each refuses "
+                       "itself)", payload={**pl, "later_runners": list(pl["runs"])})
+
     def _preflight(self):
-        outs = preflight.run(own_run_id=self.run_id)
+        outs = [self._later_runners_only(o) for o in preflight.run(own_run_id=self.run_id)]
         bad = [o for o in outs if o.kind not in preflight.PASS_KINDS]
         if not preflight.ok(outs):
             why = "; ".join(f"{(o.payload or {}).get('check', o.host)}: {o.kind} {o.detail}"[:200] for o in bad)
@@ -1974,7 +2012,11 @@ class _ScheduledRun(_Run):
                         stages.append(s)
                 if all(r.get("retired") for r in results):
                     stages.append("processed")
-                if p.route_status == "ok":
+                # migrate writes a routing CSV only for a chain whose residual has rows: a chain whose
+                # every row was fetched has none, so `routing` is checked only when every chain has rows
+                if p.route_status == "ok" and all(
+                        _has_rows(p.root / sweep.artifact_name(r.get("tag") or "", r.get("run_id"), "residual"))
+                        for r in results):
                     stages.append("routing")
             entry = {"key": p.key, "root": str(p.root), "sources": list(p.sources), "artifact_dir": str(p.root),
                      "sweep_run_ids": run_ids, "stages": stages}
@@ -2311,6 +2353,12 @@ class _BatchRun(_ScheduledRun):
             counts[c] = counts.get(c, 0) + 1
         self.done.append({"label": label, "batch_path": str(path), "dois": len(dois), "swept": True,
                           "sweep_run_id": run_id, "classes": counts})
+        if sw.get("status") != OK:
+            # Exit 0 is not "every step ran" (the consumer's loop fail-stops on a traceback in the
+            # sweep log): the retired batch stays marked swept, and no further batch is drawn.
+            self.done[-1]["stopped"] = f"sweep {sw.get('status')}: no further batch drawn"
+            _say(f"{Path(path).name}: sweep {sw.get('status')}; the loop stops before the next batch")
+            return False
         return True
 
     def _resolve_pending(self):
@@ -2646,6 +2694,9 @@ def _linux_text(checkout, state_dir):
         "#   loginctl enable-linger \"$USER\"\n"
         "\n"
         "# crontab fallback (crontab -e). cron has no Persistent=: a night the machine is off is skipped.\n"
+        "# Nor does cron stop a stage when the runner itself is killed with SIGKILL (the OOM killer,\n"
+        "# kill -9): each stage runs in its own session, so it runs on alone and a later run can start\n"
+        "# beside it. The systemd unit's cgroup ends it (KillMode=control-group); prefer the timer.\n"
         "# Set the variables at the top of the crontab: "
         + ", ".join(f"{name}=..." for name, _ in SECRET_ENVS) + "\n"
         f"0 1 * * * cd {shlex.quote(co)} && {shlex.quote(py)} {RUN_ARGS} >> {shlex.quote(log)} 2>&1\n")

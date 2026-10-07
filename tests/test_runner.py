@@ -364,6 +364,8 @@ def test_the_summary_records_its_fields(w):
 def test_canary_contexts_follow_the_contract(w):
     w.register("research_a", sources=["unpaywall", "pmc", "arxiv"])
     w.queue("research_a", DOIS)
+    # a residual row, so migrate writes a routing CSV and `routing` is expected (W4b verifier N-3)
+    w.set_fake("sweep", "research_a", classes={DOIS[1]: "TERMINAL_CLOSED"})
     runner.main(["run", "--profile", "daily"])
     net_call = next(c for c in w.canary_calls if c["phase"] == "network")
     loc = next(c for c in w.canary_calls if c["phase"] == "local")
