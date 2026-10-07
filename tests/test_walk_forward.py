@@ -802,4 +802,4 @@ def test_snowball_still_imports_doi_from_ris(tmp_path):
     (lib / "a.pdf").write_bytes(b"%PDF")
     (lib / "a.ris").write_text("TY  - JOUR\nDO  - 10.5555/FP.1\nER  - \n", encoding="utf-8")
     (lib / "b.ris").write_text("TY  - JOUR\nDO  - 10.1145/nnnnnnn.nnnnnnn\nER  - \n", encoding="utf-8")
-    assert snowball.library_fingerprint(lib) == (("a.pdf",), ("10.5555/fp.1",))
+    assert snowball.library_fingerprint(lib) == (("a.pdf",), ("10.5555/fp.1",), ())   # W4b: + text-only sidecars

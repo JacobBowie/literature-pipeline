@@ -186,14 +186,31 @@ def library_dir(project: str, registry=None):
 
 
 def library_fingerprint(lib):
-    """(PDF names, DOIs in .ris files) of a library, or None when it cannot be read."""
+    """(PDF names, DOIs in .ris files, text-only sidecar names) of a library, or None when it
+    cannot be read. A text-only holding (DEC-08) is a `.fulltext.json` with no PDF beside it that
+    audit_portfolio.is_text_only_sidecar accepts; only those PDF-less sidecars are opened, so the
+    check stays cheap (litpipe.holdings / library_seeds would read every sidecar: 67 s over Drive).
+    A text-only holding is a seed, so adding one changes the library."""
     if lib is None or not Path(lib).is_dir():
         return None
+    from audit_portfolio import is_text_only_sidecar
     from forward_citations import doi_from_ris
     lib = Path(lib)
-    pdfs = tuple(sorted(p.name for p in lib.glob("*.pdf")))
+    pdf_paths = list(lib.glob("*.pdf"))
+    pdfs = tuple(sorted(p.name for p in pdf_paths))
+    stems = {p.name[:-4].lower() for p in pdf_paths}
     dois = tuple(sorted({d for d in (doi_from_ris(r) for r in lib.glob("*.ris")) if d}))
-    return pdfs, dois
+    text_only = []
+    for s in lib.glob("*.fulltext.json"):
+        if s.name[:-len(".fulltext.json")].lower() in stems:
+            continue
+        try:
+            rec = json.loads(s.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if is_text_only_sidecar(rec):
+            text_only.append(s.name)
+    return pdfs, dois, tuple(sorted(text_only))
 
 
 # ------------------------------------------------------------------------------ steps

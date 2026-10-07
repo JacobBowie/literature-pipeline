@@ -376,3 +376,48 @@ def test_run_step_streams_lines_as_they_come_with_timestamps(tmp_path, capsys, m
     assert seen[2] - seen[1] >= 1.0
     status, why = snowball.classify(10, 10, [res])
     assert status == "DEGRADED" and "aborted: breaker" in why and "2 transport failure" in why
+
+
+# ================================================================ library_fingerprint: text-only holdings (W4b)
+def _sidecar(lib, stem, **rec):
+    (lib / f"{stem}.fulltext.json").write_text(json.dumps(rec), encoding="utf-8")
+
+
+def test_library_fingerprint_counts_text_only_sidecars(temp_paths):
+    """A text-only holding (DEC-08) is a seed, so adding one changes the library; before W4b the
+    fingerprint read only PDFs and .ris DOIs and missed it."""
+    lib = temp_paths / "root" / "teaching_a" / "literature"
+    fp0 = snowball.library_fingerprint(lib)
+    _sidecar(lib, "2016_Jats", doi="10.5555/t.1", text="JATS full text")              # pre-W2a JATS shape
+    fp1 = snowball.library_fingerprint(lib)
+    assert fp1 != fp0 and fp1[2] == ("2016_Jats.fulltext.json",)
+    _sidecar(lib, "2017_Pmc", doi="10.5555/t.2", text="text", has_pdf=False)
+    assert snowball.library_fingerprint(lib)[2] == ("2016_Jats.fulltext.json", "2017_Pmc.fulltext.json")
+
+
+@pytest.mark.parametrize("rec", [
+    {"doi": "10.5555/o.1", "text": "t", "has_pdf": True},                 # an orphan: its PDF is gone
+    {"doi": "10.5555/o.2", "text": "t", "extracted_from_pdf": True},
+    {"doi": "10.5555/o.3", "text": "t", "identity": "FLAG"},              # a review item, not a holding
+    {"doi": "10.5555/o.4", "text": ""},                                    # no text
+])
+def test_library_fingerprint_ignores_sidecars_that_are_not_text_only_holdings(temp_paths, rec):
+    lib = temp_paths / "root" / "teaching_a" / "literature"
+    fp0 = snowball.library_fingerprint(lib)
+    _sidecar(lib, "2018_Other", **rec)
+    assert snowball.library_fingerprint(lib) == fp0
+
+
+def test_library_fingerprint_skips_a_pdfs_own_sidecar_and_unreadable_files(temp_paths):
+    lib = temp_paths / "root" / "teaching_a" / "literature"
+    _sidecar(lib, "2020_Seed", doi="10.5555/seed.1", text="extracted", extracted_from_pdf=True)   # beside its PDF
+    (lib / "2019_Broken.fulltext.json").write_text("{not json", encoding="utf-8")
+    assert snowball.library_fingerprint(lib)[2] == ()
+
+
+def test_a_new_text_only_holding_lets_iteration_2_run(monkeypatch, temp_paths):
+    lib = temp_paths / "root" / "teaching_a" / "literature"
+    run = Runner(monkeypatch, {"teaching_a": [100, 200, 300]},
+                 on={"reverse_citations": lambda: _sidecar(lib, "2015_New", doi="10.5555/n.1", text="jats")})
+    snowball.run(project="teaching_a", until_convergence=True, max_iter=2, step_runner=run)
+    assert run.tools().count("forward_citations") == 2

@@ -8,8 +8,9 @@
   paper_metadata, paper_locations, cites, scoped_candidates) of an index built by the REAL
   index_portfolio: four projects (one a subproject) sharing candidates, a text-only holding, an
   identity-flagged file, undated rows (year 0 from the walker CSVs, NULL in a scope), ties.
-- run_daily's auto-stage driven in-process (the seeder answered by its real main, sweep stubbed):
-  the volume the new default stages, how run_daily reads the seeder's exit 1, and the auto_stage gate.
+- the auto-stage step (run_daily's until W4-A, now litpipe.runner's) driven in-process (the real seeder
+  through the stage shim, sweep and route stand-ins): the volume the new default stages, how the runner
+  reads the seeder's exit 1, and the auto_stage gate.
 - --pmc-check through the REAL lit_net.doi_to_pmcid against MockServers (idconv live or refused, a
   refused Europe PMC host, 429, transport failures, a crash mid-batch); pmc.ncbi.nlm.nih.gov and the
   arXiv hosts are refused in every state these tests create.
@@ -32,7 +33,6 @@ import forward_citations as fc
 import lit_net
 import lit_util
 import migrate_closed_to_md as mig
-import run_daily
 import seed_queue_from_top_candidates as S
 import sweep
 from litpipe import net
@@ -460,29 +460,12 @@ def test_no_queue_reader_takes_a_draft_name(tmp_path):
     assert pr.live_queue_dois(root) == {"10.5555/q.0001"}
 
 
-# ================================================================ run_daily's auto-stage
-class DailyStages:
-    """run_daily's subprocess.run: the seeder answered by its REAL main(argv) in-process with exactly
-    run_daily's argv; sweep and migrate recorded and answered 0."""
-
-    def __init__(self):
-        self.calls = []
-
-    def __call__(self, cmd, **kw):
-        cmd = [str(c) for c in cmd]
-        script = Path(cmd[1]).name
-        self.calls.append((script, cmd[2:]))
-        if script == "seed_queue_from_top_candidates.py":
-            out, err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                rc = S.main(cmd[2:])
-            return types.SimpleNamespace(returncode=rc, stdout=out.getvalue(), stderr=err.getvalue())
-        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
-
-    def scripts(self):
-        return [s for s, _ in self.calls]
-
-
+# ================================================================ the runner's auto-stage (was run_daily's)
+# W4-A moved run_daily's auto-stage step into litpipe.runner (run_daily is a wrapper over it). These
+# three behaviours are the ones the run_daily tests pinned, now on the runner: the REAL seeder runs
+# through the stage shim in-process (runner.inprocess_launcher) on this file's index; the sweep and
+# the route are the W4-A stand-ins (tests/fixtures/W4-A), so no fetch stage runs.
+W4A_FIX = Path(__file__).resolve().parent / "fixtures" / "W4-A"
 SMALL = "Teach/teaching_small"
 
 
@@ -512,72 +495,107 @@ def build_daily_world(w, small_extra=None, key=SMALL, lib_dir="teaching_small/li
 
 @pytest.fixture
 def daily(tmp_path, monkeypatch, capsys):
+    """The seeder World on the runner: the registry's root and state_dir are temp (the shim binds
+    lit_util.PROJECTS_ROOT from `root`), preflight and canaries stubbed, the stages in-process."""
+    import sys
+    from litpipe import canaries, ledger, preflight, runner, state, walk
+    from litpipe.outcomes import Kind, Outcome
+    if str(W4A_FIX) not in sys.path:
+        monkeypatch.syspath_prepend(str(W4A_FIX))
     w = World(tmp_path, monkeypatch, capsys)
-    monkeypatch.setattr(run_daily, "CONFIG_PATH", w.cfg)
-    st = DailyStages()
-    monkeypatch.setattr(run_daily.subprocess, "run", st)
-    return w, st
+    w.top.update(root=str(w.root), loose_ends=str(tmp_path / "LOOSE_ENDS.md"))
+    w._write()
+    sd = tmp_path / "state"
+    monkeypatch.setattr(state, "DB_PATH", sd / state.DB_NAME)
+    monkeypatch.setattr(ledger, "LEDGER_DIR", sd / "ledger")
+    monkeypatch.setattr(walk, "CACHE_PATH", sd / "s2_cache.duckdb")
+    monkeypatch.setattr(sweep, "CONFIG_PATH", w.cfg)
+    monkeypatch.setattr(state, "_current_run", None)
+    monkeypatch.setattr(runner, "subprocess_launcher", runner.inprocess_launcher)
+    monkeypatch.setitem(runner.STAGE_MODULES, "sweep", "w4a_fake_sweep")
+    monkeypatch.setitem(runner.STAGE_MODULES, "route", "w4a_fake_route")
+    monkeypatch.setattr(preflight, "run", lambda **kw: [Outcome(Kind.OK, host="stub", detail="stub",
+                                                                payload={"check": "stub"})])
+    monkeypatch.setattr(canaries, "run", lambda *a, **k: [])
+    for h in ARXIV:
+        state.refuse(h, "manual: refused since 2026-09-25", persistence="manual")
+    return w
+
+
+def runner_daily(key):
+    from litpipe import runner
+    return runner.run(profile="daily", projects=[key])
+
+
+def stage_calls(w):
+    p = w.cfg.parent / "calls.jsonl"
+    return [json.loads(x)["stage"] for x in p.read_text(encoding="utf-8").splitlines()] if p.exists() else []
+
+
+def seed_job(summ, key):
+    return [j for j in summ["jobs"] if j["job"] == "seed" and j["project"] == key]
 
 
 @pytest.mark.parametrize("small_key,lib_dir", [(SMALL, "teaching_small/literature"), ("sm", "sm/literature")])
-def test_run_daily_stages_the_new_default_draft_at_the_subproject_root(daily, small_key, lib_dir):
+def test_runner_stages_the_new_default_draft_at_the_subproject_root(daily, small_key, lib_dir):
     """Measurement: the new default (own seeds, --min-seeds 1) drafts 100 of 130 own-seed candidates for
-    the small library; the pre-W3-C2 order and filters (--rank portfolio, --min-seeds 3) give 15. run_daily
-    stages all 100 and sweeps them. The seeder's draft lands where run_daily looks (project_root): were the
-    output path PROJECTS_ROOT / key again, run_daily would print 'no draft produced' and stage nothing."""
-    w, st = daily
-    build_daily_world(w, small_extra={"auto_stage": True}, key=small_key, lib_dir=lib_dir)   # passes with the gate too
+    the small library; the pre-W3-C2 order and filters (--rank portfolio, --min-seeds 3) give 15. The
+    runner stages all 100 and sweeps them. The seeder's draft lands where the runner looks
+    (project_root): were the output path PROJECTS_ROOT / key again, the runner would find no draft."""
+    w = daily
+    build_daily_world(w, small_extra={"auto_stage": True}, key=small_key, lib_dir=lib_dir)
     old_out = w.tmp / "old.csv"
     rc, so, err = w.seed("--project", small_key, "--rank", "portfolio", "--output", str(old_out))
     assert rc == 0, err
-    n_old = len(draft_rows(old_out)[2])
-    assert n_old == 15
-    ok = run_daily.pipeline_one(small_key, run_daily.load_projects(), False, False, DAY)
-    assert ok is True
-    seed_argv = [a for s, a in st.calls if s == "seed_queue_from_top_candidates.py"]
-    assert seed_argv == [["--project", small_key]]                       # no --pmc-check: exit 2 cannot arise
+    assert len(draft_rows(old_out)[2]) == 15
+    summ = runner_daily(small_key)
+    assert summ["exit_code"] == 0
+    seed = seed_job(summ, small_key)
+    assert seed and seed[0]["status"] == "OK" and seed[0]["counts"]["staged"] == 100   # 100 / 15 = 6.7x
     proot = w.proot(small_key)
     assert not (proot / "lit_pull_queue.draft.csv").exists()         # consumed by the stager
-    fields, staged = sweep.read_queue(proot / "lit_pull_queue.csv")
-    assert fields == S.BASE_COLUMNS and len(staged) == 100           # 100 / 15 = 6.7x this fixture's old draft
+    processed = list(proot.glob("lit_pull_queue.2*.processed.csv"))  # the stand-in sweep retired it
+    assert len(processed) == 1
+    fields, staged = sweep.read_queue(processed[0])
+    assert fields == S.BASE_COLUMNS and len(staged) == 100
     assert {r["destination"] for r in staged} == {"literature/"}
-    assert not (proot / "lit_pull_queue.csv").read_text(encoding="utf-8").startswith("#")
-    assert st.scripts() == ["seed_queue_from_top_candidates.py", "sweep.py", "migrate_closed_to_md.py"]
+    assert not processed[0].read_text(encoding="utf-8").startswith("#")
+    assert stage_calls(w) == ["sweep", "route"]
     assert not (w.root / small_key).exists() or w.root / small_key == proot
 
 
-def test_run_daily_reads_the_seeders_exit_1_as_a_failed_project(daily):
-    w, st = daily
+def test_runner_reads_the_seeders_exit_1_as_a_failed_project(daily):
+    w = daily
     build_daily_world(w)
     w.register("Teach/outside", "literature", parent="Teach", auto_stage=True)   # library outside its root
-    ok = run_daily.pipeline_one("Teach/outside", run_daily.load_projects(), False, False, DAY)
-    assert ok is False                                               # StepError: the project failed, not "0 rows"
-    assert st.scripts() == ["seed_queue_from_top_candidates.py"]     # nothing staged, nothing swept
+    summ = runner_daily("Teach/outside")
+    assert summ["exit_code"] == 2
+    assert seed_job(summ, "Teach/outside")[0]["status"] == "FAILED"   # the project failed, not "0 rows"
+    assert stage_calls(w) == []                                       # nothing staged, nothing swept
     assert not (w.proot("Teach/outside") / "lit_pull_queue.csv").exists()
 
 
-def test_run_daily_stages_only_auto_stage_projects(daily):
+def test_runner_stages_only_auto_stage_projects(daily):
     """The registry contract (litpipe.config: auto_stage, default false: may the runner stage drafts
-    itself) and W4-A's acceptance ("an auto_stage: false project is never staged"). run_daily.py:120-163
-    seeds and stages every READY project. A tagged queue must still be swept."""
-    w, st = daily
+    itself) and W4-A's acceptance ("an auto_stage: false project is never staged"). A tagged queue
+    must still be swept."""
+    w = daily
     build_daily_world(w)
     proot = w.proot(SMALL)
-    ok = run_daily.pipeline_one(SMALL, run_daily.load_projects(), False, False, DAY)
-    assert ok is True
-    assert "seed_queue_from_top_candidates.py" not in st.scripts() and not (proot / "lit_pull_queue.csv").exists()
-    assert "sweep.py" not in st.scripts()                            # nothing waiting: nothing to sweep
+    summ = runner_daily(SMALL)
+    assert summ["exit_code"] == 0
+    assert seed_job(summ, SMALL) == [] and not (proot / "lit_pull_queue.csv").exists()
+    assert stage_calls(w) == []                                       # nothing waiting: nothing to sweep
     (proot / "lit_pull_queue.teach.csv").write_text(
         "doi,title,authors,year,destination,notes\n10.5555/x.0001,T,A,2020,literature/,n\n", encoding="utf-8")
-    st.calls.clear()
-    assert run_daily.pipeline_one(SMALL, run_daily.load_projects(), False, False, DAY) is True
-    assert st.scripts() == ["sweep.py", "migrate_closed_to_md.py"]   # the tagged queue is still swept
+    summ = runner_daily(SMALL)
+    assert seed_job(summ, SMALL) == [] and stage_calls(w) == ["sweep", "route"]   # the tagged queue is swept
     w.projects[SMALL]["auto_stage"] = True
     w._write()
-    st.calls.clear()
-    (proot / "lit_pull_queue.teach.csv").unlink()
-    assert run_daily.pipeline_one(SMALL, run_daily.load_projects(), False, False, DAY) is True
-    assert st.scripts()[0] == "seed_queue_from_top_candidates.py" and (proot / "lit_pull_queue.csv").exists()
+    summ = runner_daily(SMALL)
+    seed = seed_job(summ, SMALL)
+    assert seed and seed[0]["status"] == "OK" and seed[0]["counts"]["staged"] > 0
+    assert stage_calls(w)[2:] == ["sweep", "route"]
 
 
 # ================================================================ --pmc-check on mocks

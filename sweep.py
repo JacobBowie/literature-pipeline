@@ -100,6 +100,7 @@ _ARTIFACT_RE = re.compile(
     r"\.(?P<stage>[a-z_]+)(?:\.(?P<legacy_seq>\d+))?\.csv")
 PREPRINT_SOURCES = frozenset({"europepmc_preprints", "biorxiv", "medrxiv", "osf", "sportrxiv", "arxiv"})
 ARXIV_DOI_PREFIX = "10.48550/"   # DEC-09: arXiv DOIs reach arXiv whatever the project's sources
+CANDIDATE_ORDERS = ("repository", "publisher")   # unpaywall_fetch_v2 --candidate-order (DEC-11)
 
 LOOSE_DONE = "✅ Lit pull done:"
 LOOSE_PARTIAL = "⏸️ Lit pull PARTIAL:"
@@ -897,7 +898,7 @@ def is_arxiv_doi(doi):
 def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_preprint=False, *,
                  key=None, registry=None, run_id=None, holdings=None, artifact_dir=None,
                  allow_destination=False, skip_reason=None, preprint_arxiv_only=False,
-                 history=None):
+                 history=None, candidate_order=None):
     """Run unpaywall_v2 -> pmc_fetch -> preprint_fetch -> pdf extract against one queue and
     classify every row. Returns a result dict, or None when the queue is refused before any
     fetch (no destination, a destination that escapes the project or, given `key` and
@@ -966,12 +967,14 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
     preprint_input, gated = [], set()   # gated: rows the DEC-31 gate kept from the preprint stage
 
     # Stage 1: Unpaywall. It always runs (legacy behaviour; with no rows it writes an empty report).
+    # DEC-11: --candidate-order only when given (the stage's own default is repository).
     r1 = _run_stage([py, str(HERE / "unpaywall_fetch_v2.py"),
                      "--top-n", str(len(to_fetch) + 5),
                      "--triage", str(norm_csv),
                      "--lib-dir", str(lib_dir),
                      "--report", str(report_unpw),
-                     "--base-dir", str(project_dir)])
+                     "--base-dir", str(project_dir)]
+                    + (["--candidate-order", candidate_order] if candidate_order else []))
     status["unpaywall"] = _stage_status(r1, report_unpw)
     if status["unpaywall"] != "completed":
         print(f"  ERR unpaywall stage {status['unpaywall']} (exit {r1.returncode}, report "
@@ -1307,9 +1310,14 @@ def migrate_command(key, run_id, artifact_dir=None, skip_preprint=False):
 
 
 def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=True,
-        migrate=False, artifact_dir=None, allow_destination=False):
+        migrate=False, artifact_dir=None, allow_destination=False, candidate_order=None):
     """The whole sweep (dispatch 0.5 stage function). Returns {"exit_code", "projects",
-    "ignored", "admitted"}; main() parses argv and calls this."""
+    "ignored", "admitted"}; main() parses argv and calls this. `candidate_order` ("repository" or
+    "publisher", DEC-11) goes to the Unpaywall stage only when given."""
+    if candidate_order is not None and candidate_order not in CANDIDATE_ORDERS:
+        print(f"ERR --candidate-order must be one of {', '.join(CANDIDATE_ORDERS)}, got {candidate_order!r}",
+              file=sys.stderr)
+        return {"exit_code": EXIT_USAGE, "projects": {}, "ignored": [], "admitted": {}}
     today = date or datetime.date.today().isoformat()
     out = {"exit_code": EXIT_OK, "projects": {}, "ignored": [], "admitted": {}}
     try:
@@ -1418,7 +1426,8 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
                                skip_reason=None if skip_preprint else (
                                    "the project's sources list names no preprint server"
                                    if excluded else None),
-                               preprint_arxiv_only=excluded, history=histories.get(key))
+                               preprint_arxiv_only=excluded, history=histories.get(key),
+                               candidate_order=candidate_order)
             if res is None:
                 refused.append(q.name)
                 refused_any = True
@@ -1511,10 +1520,14 @@ def main(argv=None):
                     help="Sweep a queue whose destination is not the registry library for its "
                          "project (refused by default: a doubled subproject tail lands a shadow "
                          "library).")
+    ap.add_argument("--candidate-order", choices=CANDIDATE_ORDERS, default=None,
+                    help="Unpaywall candidate order, passed to the Unpaywall stage (DEC-11; the stage's "
+                         "default is repository). Omitted: the stage decides.")
     args = ap.parse_args(argv)
     res = run(project=args.project, dry_run=args.dry_run, skip_preprint=args.skip_preprint,
               date=args.date, loose_ends=not args.no_loose_ends, migrate=args.migrate,
-              artifact_dir=args.artifact_dir, allow_destination=args.allow_destination)
+              artifact_dir=args.artifact_dir, allow_destination=args.allow_destination,
+              candidate_order=args.candidate_order)
     return res["exit_code"]
 
 

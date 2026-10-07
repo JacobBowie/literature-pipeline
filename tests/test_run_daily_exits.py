@@ -1,126 +1,159 @@
-"""run_daily reads snowball's exit (W4-0; cutover checklist item 11).
+"""run_daily as a wrapper over `python -m litpipe.runner run --profile daily` (W4-A, amendment 14).
 
-snowball exits 2 when a walk is DEGRADED (a 429, a budget stop, a deferral) and closes with its
-'# snowball: ...' summary line; argparse's usage error also exits 2, without that line. Before W4-0
-run_daily treated every non-zero exit as fatal, so a degraded walk stopped that project's seeding and
-sweeping. The stages here are real child processes (stand-in scripts in a temp dir), so these tests
-exercise run_daily's own process handling, not a mock of it.
-"""
-import json
+W4-0 locked how run_daily read snowball's exit (a DEGRADED walk did not stop seeding or sweeping;
+argparse's exit 2 without the summary line was fatal). The wrapper no longer runs snowball: the
+runner walks each project on its walk_cadence_days through the stage shim, so those locks are
+rewritten here onto the runner's behaviour:
+  * a DEGRADED walk never stops staging or sweeping (the walk runs after the sweep; one stage's
+    failure never ends the run) and run_daily exits 2;
+  * an exit 2 without a result is never read as DEGRADED: the shim's missing result is ERROR, and
+    run_daily exits 1;
+  * a FAILED walk is reported (exit 1) and every project still runs.
+The flags are kept (--project, --with-snowball, --dry-run); main() reads sys.argv when argv is None.
+The stages are the stand-ins of tests/fixtures/W4-A, run in-process (tests/fixtures/W4-A/w4a_world)."""
 import sys
-import types
+from pathlib import Path
 
 import pytest
 
-import run_daily
+FIX = Path(__file__).resolve().parent / "fixtures" / "W4-A"
+sys.path.insert(0, str(FIX))
 
-DAY = "2026-10-06"
-STAGES = ("snowball.py", "seed_queue_from_top_candidates.py", "sweep.py", "migrate_closed_to_md.py")
-DEGRADED_OUT = ["... done (exit 2)", "", "# snowball: 1 project(s); X DEGRADED; exit 2"]
-DRAFT = ("# REVIEW before sweeping\n"
-         "doi,title,authors,year,destination,notes\n"
-         "10.5555/x.0001,T,A,2020,literature/,n\n")
+import run_daily  # noqa: E402
+from litpipe import runner  # noqa: E402
+from w4a_world import World  # noqa: E402
 
-# A stand-in stage: logs its name and argv, prints what the spec says, writes the draft, exits rc.
-SCRIPT = '''\
-import json, sys
-from pathlib import Path
-name = Path(__file__).name
-with open({log!r}, "a", encoding="utf-8") as f:
-    f.write(json.dumps([name] + sys.argv[1:]) + "\\n")
-spec = {spec!r}.get(name, {{}})
-for line in spec.get("out", []):
-    print(line, flush=True)
-for line in spec.get("err", []):
-    print(line, file=sys.stderr, flush=True)
-if spec.get("draft"):
-    Path(spec["draft"]).write_text(spec["draft_text"], encoding="utf-8")
-sys.exit(spec.get("rc", 0))
-'''
+DOIS = ["10.5555/x.0001", "10.5555/x.0002"]
 
 
 @pytest.fixture
-def stages(tmp_path, monkeypatch):
-    here = tmp_path / "bin"
-    here.mkdir()
-    root = tmp_path / "proj"
-    root.mkdir()
-    log = tmp_path / "calls.jsonl"
-
-    def install(snowball=None, seed_draft=True):
-        spec = {"snowball.py": snowball or {}}
-        if seed_draft:
-            spec["seed_queue_from_top_candidates.py"] = {
-                "out": ["Wrote 1 draft rows"], "draft": str(root / "lit_pull_queue.draft.csv"),
-                "draft_text": DRAFT}
-        for name in STAGES:
-            (here / name).write_text(SCRIPT.format(log=str(log), spec=spec), encoding="utf-8")
-
-    def calls():
-        if not log.exists():
-            return []
-        return [json.loads(line)[0] for line in log.read_text(encoding="utf-8").splitlines()]
-
-    monkeypatch.setattr(run_daily, "HERE", here)
-    monkeypatch.setattr(run_daily, "project_dir", lambda p, cfg: root)
-    return types.SimpleNamespace(install=install, root=root, calls=calls)
+def w(tmp_path, monkeypatch):
+    return World(tmp_path, monkeypatch)
 
 
-AUTO = {"X": {"auto_stage": True}}
+def main(monkeypatch, *argv):
+    monkeypatch.setattr(sys, "argv", ["run_daily.py", *argv])
+    return run_daily.main()                                     # reads sys.argv (tests drive CLIs that way)
 
 
-def test_degraded_walk_still_seeds_stages_and_sweeps(stages, capsys):
-    stages.install(snowball={"out": DEGRADED_OUT, "rc": 2})
-    res = run_daily.pipeline_one("X", AUTO, True, False, DAY)
-    assert stages.calls() == list(STAGES)                # before W4-0: ["snowball.py"] (StepError, project aborted)
-    assert res == run_daily.DEGRADED
-    assert (stages.root / "lit_pull_queue.csv").exists()
-    out = capsys.readouterr().out
-    assert "# snowball: 1 project(s); X DEGRADED; exit 2" in out   # the walk's output is streamed
-    assert "[DEGRADED]" in out
+# ================================================================ the W4-0 locks, rewritten
+def test_degraded_walk_still_stages_and_sweeps_and_exits_2(w, monkeypatch):
+    w.register("X", auto_stage=True)
+    w.register("Y")
+    w.queue("Y", DOIS)
+    w.set_fake("walk", "X", exit_code=2, reasons=["walk stand-in: 2 of 3 seed walks failed"])
+    assert main(monkeypatch, "--with-snowball") == 2
+    assert [c["stage"] for c in w.calls() if c["project"] == "X"][:3] == ["seed", "sweep", "route"]
+    assert [c["project"] for c in w.calls("sweep")] == ["X", "Y"]          # the next project too
+    s = w.summaries()[-1]
+    assert [j["status"] for j in s["jobs"] if j["job"] == "walk" and j["project"] == "X"] == ["DEGRADED"]
 
 
-def test_degraded_walk_with_auto_stage_off_still_sweeps_what_is_staged(stages):
-    stages.install(snowball={"out": DEGRADED_OUT, "rc": 2}, seed_draft=False)
-    (stages.root / "lit_pull_queue.teach.csv").write_text(
-        "doi,title,authors,year,destination,notes\n10.5555/x.0002,T,A,2020,literature/,n\n",
-        encoding="utf-8")
-    res = run_daily.pipeline_one("X", {"X": {}}, True, False, DAY)
-    assert stages.calls() == ["snowball.py", "sweep.py", "migrate_closed_to_md.py"]
-    assert res == run_daily.DEGRADED
+def test_an_exit_2_without_a_result_is_never_degraded(w, monkeypatch):
+    w.register("X", walk_cadence_days=1)
+    w.set_fake("walk", "X", mode="exit2")                       # SystemExit(2): argparse's usage exit shape
+    assert main(monkeypatch) == 1
+    j = [j for j in w.summaries()[-1]["jobs"] if j["job"] == "walk"][0]
+    assert j["status"] == "ERROR" and "no result" in j["reason"] and "shim exit 2" in j["reason"]
 
 
-def test_usage_error_exit_2_without_the_summary_line_is_fatal(stages):
-    stages.install(snowball={"err": ["usage: snowball.py [-h] [--project PROJECT]",
-                                     "snowball.py: error: unrecognized arguments: --max-iter 2"], "rc": 2})
-    assert run_daily.pipeline_one("X", AUTO, True, False, DAY) is False
-    assert stages.calls() == ["snowball.py"]             # nothing seeded, nothing swept
+def test_a_failed_walk_exits_1_and_every_project_still_runs(w, monkeypatch):
+    w.register("X", walk_cadence_days=1)
+    w.register("Y", walk_cadence_days=1)
+    w.queue("Y", DOIS)
+    w.set_fake("walk", "X", exit_code=1, result={"error": "config"})
+    assert main(monkeypatch) == 1
+    assert [c["project"] for c in w.calls("walk")] == ["X", "Y"] and [c["project"] for c in w.calls("sweep")] == ["Y"]
 
 
-def test_failed_walk_exit_1_is_fatal(stages):
-    stages.install(snowball={"out": ["", "# snowball: 1 project(s); X FAILED; exit 1"], "rc": 1})
-    assert run_daily.pipeline_one("X", AUTO, True, False, DAY) is False
-    assert stages.calls() == ["snowball.py"]
+def test_a_clean_run_exits_0(w, monkeypatch):
+    w.register("X", walk_cadence_days=1)
+    w.queue("X", DOIS)
+    assert main(monkeypatch) == 0
+    assert [c["stage"] for c in w.calls()] == ["sweep", "route", "walk"]
 
 
-def test_clean_walk_runs_the_chain(stages):
-    stages.install(snowball={"out": ["", "# snowball: 1 project(s); X ok; exit 0"], "rc": 0})
-    assert run_daily.pipeline_one("X", AUTO, True, False, DAY) is True
-    assert stages.calls() == list(STAGES)
+# ================================================================ the exit mapping
+def _summ(code=0, jobs=(), health="PASS"):
+    return {"exit_code": code, "health": {"status": health},
+            "jobs": [{"job": j, "status": s, "counts_for_exit": c} for j, s, c in jobs]}
 
 
-@pytest.mark.parametrize("results,code,line", [
-    ({"A": True, "B": True}, 0, None),
-    ({"A": "degraded", "B": True}, 2, "# Degraded walk (seeded and swept anyway): A"),
-    ({"A": "degraded", "B": False}, 1, "# Failed: B"),
+@pytest.mark.parametrize("summ,code", [
+    (_summ(0), 0),
+    (_summ(1), 1),                                             # usage or config
+    (_summ(3), 1),                                             # aborted
+    (_summ(2, [("sweep", "FAILED", True)]), 1),
+    (_summ(2, [("walk", "ERROR", True)]), 1),                  # a crash or a timeout
+    (_summ(2, [("walk", "DEGRADED", True)]), 2),
+    (_summ(2, [("walk", "DEFERRED", True)]), 2),
+    (_summ(2, [], health="ALARM"), 2),
+    (_summ(2, [("walk", "DEGRADED", True), ("route", "FAILED", True)]), 1),
+    (_summ(0, [("walk", "DEGRADED", False)]), 0),              # chronic only: not counted
+    (_summ(0, [("sweep", "SKIPPED", False)]), 0),
 ])
-def test_main_exit_code(monkeypatch, capsys, results, code, line):
-    monkeypatch.setattr(run_daily, "load_projects", lambda: {k: {} for k in results})
-    monkeypatch.setattr(run_daily, "pipeline_one",
-                        lambda proj, *a, **k: (getattr(run_daily, "DEGRADED", "degraded")
-                                               if results[proj] == "degraded" else results[proj]))
-    monkeypatch.setattr(sys, "argv", ["run_daily.py"])
-    assert run_daily.main() == code                       # before W4-0: a degraded project read as ok, exit 0
+def test_exit_mapping(summ, code):
+    assert run_daily.exit_code(summ) == code
+
+
+def test_unknown_project_exits_1_now(w, monkeypatch, capsys):
+    """Before W4-A run_daily printed `not in projects.json (or inactive)` and exited 2; the runner
+    reads an unknown or inactive --project as a config error (exit 1), so run_daily exits 1."""
+    w.register("X")
+    assert main(monkeypatch, "--project", "nope") == 1
+    w.projects["X"]["active"] = False
+    w.write()
+    assert main(monkeypatch, "--project", "X") == 1
+    assert "not registered" in capsys.readouterr().err
+
+
+# ================================================================ the flags
+def test_project_flag_selects_one_project(w, monkeypatch):
+    for k in ("X", "Y"):
+        w.register(k)
+        w.queue(k, DOIS)
+    assert main(monkeypatch, "--project", "Y") == 0
+    assert [c["project"] for c in w.calls("sweep")] == ["Y"]
+
+
+def test_dry_run_writes_nothing_and_exits_0(w, monkeypatch, capsys):
+    w.register("X", auto_stage=True)
+    before = w.listing()
+    assert main(monkeypatch, "--dry-run") == 0
+    assert w.listing() == before and w.calls() == []
+    assert "would seed and stage" in capsys.readouterr().out
+
+
+def test_with_snowball_forces_the_walks_and_the_index_with_db_writes(w, monkeypatch, capsys):
+    w.register("X")                                              # no walk_cadence_days: never walked unattended
+    assert main(monkeypatch, "--with-snowball") == 0
     out = capsys.readouterr().out
-    if line:
-        assert line in out
+    assert "[deprecated] --with-snowball" in out and "litpipe.runner" in out
+    assert [c["stage"] for c in w.calls()] == ["walk", "reverse", "index"]
+    assert w.calls("reverse")[0]["sources"] == "openalex,crossref,regex"
+    s = w.summaries()[-1]
+    assert s["db_writes"] is True and s["profile_effective"] == "daily"
+
+
+def test_without_snowball_no_walk_without_a_cadence_and_no_db_writes(w, monkeypatch):
+    w.register("X")
+    assert main(monkeypatch) == 0
+    assert w.calls() == [] and w.summaries()[-1]["db_writes"] is False
+
+
+def test_max_iter_is_gone_and_snowball_is_never_run(w, monkeypatch):
+    w.register("X")
+
+    def boom(*a, **k):
+        raise AssertionError("run_daily must not start snowball")
+    monkeypatch.setattr(runner.subprocess, "run", boom)
+    assert main(monkeypatch, "--with-snowball") == 0
+    assert "snowball" not in runner.STAGE_MODULES.values()
+    with pytest.raises(SystemExit):
+        run_daily.main(["--max-iter", "2"])
+
+
+def test_queue_data_rows_stays(tmp_path):
+    q = tmp_path / "lit_pull_queue.csv"
+    q.write_text("# a comment\ndoi,title\n10.1/x,T\n\n", encoding="utf-8")
+    assert run_daily.queue_data_rows(q) == 2

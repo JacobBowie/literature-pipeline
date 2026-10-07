@@ -1,291 +1,87 @@
-"""Daily literature pipeline orchestrator.
+"""Daily literature pipeline: a wrapper over `python -m litpipe.runner run --profile daily` (W4-A).
 
-Walks every active project in projects.json and runs the full
-seed → stage → sweep → migrate-closed-to-md chain. Idempotent:
-- Skips projects whose lit_pull_queue.csv already exists at root (pending
-  human triage — don't blow it away)
-- Skips projects with 0 actionable candidates (no seeds, or snowball
-  graph empty after filters)
-- sweep.py natively skips DOIs whose PDFs already exist in the lib_dir
+The runner does the work, in-process (never as a subprocess): preflight, the canaries, then per
+project the auto-stage step (only for projects with `auto_stage: true` in projects.json; a staged
+queue with rows is never seeded over, and any other non-empty queue is backed up before a draft is
+staged), the sweep of whatever is staged (a queue, a tagged queue, due retry_later rows), routing,
+and the forward walk when walk_cadence_days says it is due; then the index (DB writes) and the
+health report. See litpipe/runner.py for the order, the summary and the exit codes.
 
-Usage:
-  python run_daily.py                # seed + sweep + migrate (~30-60 min wall)
-  python run_daily.py --dry-run      # report what each project would do, no I/O
-  python run_daily.py --project LIV  # single project
-  python run_daily.py --with-snowball  # also runs forward+reverse cite walk first
-                                       # (slow; recommend weekly not daily)
+Usage (the flags are unchanged):
+  python run_daily.py                  # the daily profile over every active project
+  python run_daily.py --dry-run        # list every job and why it would be skipped; write nothing
+  python run_daily.py --project KEY    # one project
+  python run_daily.py --with-snowball  # deprecated: also force the forward walk and the backward
+                                       # top-up for the selected projects, then the index with DB
+                                       # writes on for this run (snowball.py stays the manual tool)
 
-Exit code is 0 if everything ran cleanly, 1 if any project errored (but other
-projects still get attempted — failures isolated), 2 if none errored but a
-snowball walk was DEGRADED (snowball's exit 2 with its closing summary line; that
-project still seeds and sweeps).
+Exit codes (mapped from the runner's run):
+  1  the runner exited 1 (usage or config, e.g. an unknown or inactive --project) or 3 (aborted),
+     or any job FAILED, ERROR or timed out;
+  2  otherwise any job DEGRADED or DEFERRED (a walk deferred while Semantic Scholar is refused), or
+     HEALTH ALARM;
+  0  otherwise.
+An unknown --project exited 2 before W4-A; it now exits 1 (the runner's config exit).
 """
 import argparse
-import json
-import subprocess
 import sys
-import traceback
-from datetime import datetime
-from pathlib import Path
 
-import lit_util  # RC4: atomic_write_text for crash-safe queue staging
-from litpipe import config
+import lit_util
 
-# Force UTF-8 I/O. On Windows a piped stdout defaults to cp1252, which can't
-# encode the step-label arrow, so every project died at its first print before
-# doing any work. Setting PYTHONUTF8 in os.environ propagates to the subprocess
-# children (they inherit it at startup); reconfigure fixes this process's own
-# already-open streams.
 lit_util.utf8_stdout()
 
-HERE = Path(__file__).parent
-CONFIG_PATH = HERE / "projects.json"
-PY = sys.executable
-SNOWBALL_SUMMARY = "# snowball: "   # snowball.run()'s closing line; printed only after a real run
-DEGRADED = "degraded"               # pipeline_one: the project ran, but its walk was DEGRADED
+DEPRECATION = ("[deprecated] --with-snowball: run_daily.py is a wrapper over `python -m litpipe.runner run "
+               "--profile daily`, which walks each project on its walk_cadence_days; this flag forces the "
+               "forward walk and the backward top-up now, then the index with DB writes on. snowball.py "
+               "stays the manual tool for the convergence loop.")
 
 
-def load_projects():
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        cfg = json.load(f).get("projects", {})
-    return {k: v for k, v in cfg.items() if v.get("active", True)}
-
-
-def project_dir(project: str, cfg: dict) -> Path:
-    """On-disk project directory for a registry key (tail-aware for subprojects).
-    Thin wrapper over lit_util.project_root; `cfg` is the full {key: dict} map."""
-    return lit_util.project_root(project, cfg.get(project, {}) if cfg else {})
-
-
-def queue_data_rows(queue: Path) -> int:
+def queue_data_rows(queue) -> int:
     """Count non-comment, non-blank lines in a queue CSV (header + data rows)."""
     with open(queue, encoding="utf-8") as f:
         return sum(1 for line in f if line.strip() and not line.startswith("#"))
 
 
-def project_status(proj_root: Path):
-    """Inspect the project state. Returns one of:
-    PENDING_QUEUE  - lit_pull_queue.csv exists, sweep but skip seed
-    NO_LIB         - lib_dir empty/missing, skip entirely
-    READY          - normal seed+sweep+migrate
-    """
-    queue = proj_root / "lit_pull_queue.csv"
-    if queue.exists():
-        if queue_data_rows(queue) > 1:  # header + at least one data row
-            return "PENDING_QUEUE"
-    return "READY"
+def exit_code(summary: dict) -> int:
+    """run_daily's exit code for a runner summary (see the module docstring)."""
+    code = summary.get("exit_code")
+    if code in (1, 3) or code is None:
+        return 1
+    jobs = [j for j in summary.get("jobs") or [] if j.get("counts_for_exit", True)]
+    if any(j.get("status") in ("FAILED", "ERROR") for j in jobs):
+        return 1
+    health = (summary.get("health") or {}).get("status")
+    if any(j.get("status") in ("DEGRADED", "DEFERRED", "ABORTED") for j in jobs) or health == "ALARM":
+        return 2
+    return 0 if code == 0 else 2
 
 
-def _waiting(proj_root: Path) -> bool:
-    """A queue sweep would take (lit_pull_queue.csv or a tagged queue), or a retry_later file."""
-    import sweep
-    return bool(sweep.discover_queues(proj_root)) or (proj_root / sweep.RETRY_LATER_FILE).exists()
+def run(*, project=None, with_snowball=False, dry_run=False, launcher=None) -> dict:
+    """The daily profile through the runner. Returns the runner's summary with `run_daily_exit`."""
+    from litpipe import runner
+    if with_snowball:
+        print(DEPRECATION, flush=True)
+    res = runner.run(profile="daily", projects=[project] if project else None, dry_run=dry_run,
+                     force_walks=bool(with_snowball), db_writes=True if with_snowball else None,
+                     launcher=launcher)
+    res = dict(res)
+    res["run_daily_exit"] = 0 if dry_run and res.get("exit_code") == 0 else exit_code(res)
+    return res
 
 
-class StepError(Exception):
-    """A pipeline subprocess exited non-zero; abort this project."""
-
-
-def run(label: str, cmd: list, capture: bool = False):
-    print(f"  → {label}")
-    result = subprocess.run(cmd, capture_output=capture, text=True,
-                            encoding="utf-8", errors="replace")
-    if result.returncode != 0:
-        print(f"    [ERR] exit {result.returncode}")
-        if capture and result.stderr:
-            print(f"    {result.stderr[-500:]}")
-        # RC6: a failed step must abort the project (not read as empty/success)
-        # so the overall process exit code reflects the failure.
-        raise StepError(f"{label} exited {result.returncode}")
-    return result
-
-
-def run_walk(label: str, cmd: list) -> bool:
-    """Run snowball, streaming its output (a walk can take hours), and read its verdict.
-    True when the walk was DEGRADED: exit 2 WITH snowball's closing '# snowball: ...' line (a
-    429, a budget stop or a deferral: the growth figure is not a measurement, but the candidates
-    written stand, so the project goes on). False on exit 0. Any other exit raises StepError,
-    including an exit 2 without that line (argparse's usage error also exits 2)."""
-    print(f"  → {label}")
-    summary = None
-    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                          encoding="utf-8", errors="replace") as proc:
-        for line in proc.stdout:
-            print(line, end="", flush=True)
-            if line.startswith(SNOWBALL_SUMMARY):
-                summary = line.strip()
-    if proc.returncode == 0:
-        return False
-    if proc.returncode == 2 and summary is not None:
-        print(f"    [DEGRADED] exit 2; seeding and sweeping go on ({summary})")
-        return True
-    print(f"    [ERR] exit {proc.returncode}")
-    raise StepError(f"{label} exited {proc.returncode}")
-
-
-def pipeline_one(project: str, cfg: dict, with_snowball: bool, dry_run: bool, run_date: str):
-    print(f"\n=== {project} ===")
-    proj_root = project_dir(project, cfg)   # RC11: parent-aware resolution
-    status = project_status(proj_root)
-    print(f"  status: {status}")
-    try:   # projects.json `auto_stage` (default false): may this run seed and stage a draft itself
-        auto = status != "READY" or config.auto_stage(project, {"projects": cfg})
-    except config.ConfigError as e:
-        print(f"  [ERR] {e}")
-        return False
-
-    if dry_run:
-        if status == "PENDING_QUEUE":
-            print(f"  WOULD: sweep + migrate (existing queue)")
-        elif not auto:
-            print(f"  WOULD: sweep + migrate what is staged (auto_stage off: no seeding)")
-        else:
-            print(f"  WOULD: seed + stage + sweep + migrate")
-            if with_snowball:
-                print(f"  WOULD: also run snowball first")
-        return True
-
-    degraded = False   # a DEGRADED walk does not stop seeding or sweeping; main() reports it
-    try:
-        if status == "READY":
-            if with_snowball:
-                # Decouple enrichment from the per-project walk: enrich_recommendations and
-                # enrich_abstracts are BOTH portfolio-wide (ignore --project), so running them
-                # inside every project's snowball re-pays a full portfolio pass per project.
-                # Skip them here; run each ONCE after all projects (see main()). Snowball keeps
-                # forward+reverse discovery + the cheap per-project index refresh.
-                degraded = run_walk("snowball (forward + reverse walk)",
-                                    [PY, str(HERE / "snowball.py"), "--project", project,
-                                     "--until-convergence", "--max-iter", "2",
-                                     "--skip-recs", "--skip-abstracts"])
-            if not auto:
-                if not _waiting(proj_root):
-                    print(f"  [--] auto_stage is off and nothing is staged; skipping")
-                    return DEGRADED if degraded else True
-                print(f"  [--] auto_stage is off: not seeding; sweeping what is staged")
-
-        if status == "READY" and auto:
-            seed = run("seed_queue_from_top_candidates",
-                       [PY, str(HERE / "seed_queue_from_top_candidates.py"),
-                        "--project", project], capture=True)
-            print(seed.stdout.strip().split("\n")[0] if seed.stdout else "")
-
-            draft = proj_root / "lit_pull_queue.draft.csv"
-            if not draft.exists():
-                print(f"  [--] no draft produced; skipping sweep")
-                return DEGRADED if degraded else True
-
-            with open(draft, encoding="utf-8") as f:
-                data_rows = sum(1 for line in f
-                                if line.strip() and not line.startswith("#")
-                                and not line.startswith("doi,"))
-            if data_rows == 0:
-                print(f"  [--] 0 candidates after filters; removing empty draft")
-                draft.unlink()
-                return DEGRADED if degraded else True
-
-            # RC8: never silently overwrite an existing non-empty curated queue.
-            # project_status() only flags PENDING_QUEUE at >1 data row, so a
-            # 1-row / comment-only human queue could slip past and get clobbered
-            # by the auto-staged draft. Back it up before staging.
-            queue = proj_root / "lit_pull_queue.csv"
-            # A4: back up ANY non-empty queue before staging over it. The old guard keyed on
-            # queue_data_rows() >= 1, which EXCLUDES '#' comment lines -- so a comment-only
-            # human queue (0 data rows but real annotations) slipped past and was clobbered
-            # with no backup. Byte-based guard + timestamped name (a re-fire can't overwrite
-            # a prior good .bak).
-            if queue.exists() and queue.stat().st_size > 0:
-                backup = proj_root / "lit_pull_queue.bak.csv"
-                if backup.exists():   # keep the prior good backup; timestamp only on collision
-                    backup = proj_root / f"lit_pull_queue.bak.{datetime.now():%Y%m%d_%H%M%S}.csv"
-                queue.replace(backup)
-                print(f"  [!!] existing queue backed up to {backup.name} "
-                      f"before auto-staging draft")
-
-            # Stage: strip comment lines, leave header + data (RC4: atomic)
-            with open(draft, encoding="utf-8") as fin:
-                staged = "".join(line for line in fin
-                                 if not line.startswith("#"))
-            lit_util.atomic_write_text(str(queue), staged)
-            draft.unlink()
-            print(f"  staged {data_rows} DOIs to lit_pull_queue.csv")
-
-        run("sweep", [PY, str(HERE / "sweep.py"), "--project", project,
-                      "--date", run_date])   # D4b: same run_date used for migrate below, so
-                                              # sweep's report artifacts and migrate agree
-        run("migrate_closed_to_md",
-            [PY, str(HERE / "migrate_closed_to_md.py"), "--project", project,
-             "--date", run_date])   # D4b: pin migrate to the run's date so a no-report
-                                     # day can't fall back to a stale prior-day report
-        return DEGRADED if degraded else True
-    except StepError as e:
-        # RC6: subprocess failure aborts THIS project (counted as a failure so
-        # the overall exit code is non-zero); other projects still attempted.
-        print(f"  [ABORT] {e}")
-        return False
-    except Exception as e:
-        # B4: log the traceback so an unexpected coding bug is distinguishable from an
-        # ordinary StepError fetch failure in the unattended daily log. (KeyboardInterrupt/
-        # SystemExit are BaseException and still propagate -- do NOT narrow this except.)
-        print(f"  [FATAL] {e}")
-        print(traceback.format_exc())
-        return False
-
-
-def main():
-    ap = argparse.ArgumentParser()
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Daily literature pipeline (a wrapper over "
+                                             "`python -m litpipe.runner run --profile daily`).")
     ap.add_argument("--project", default=None, help="Single project (else all active)")
     ap.add_argument("--with-snowball", action="store_true",
-                    help="Run forward+reverse+recommendations walk before seeding")
+                    help="Deprecated: force the forward walk and the backward top-up, then the index with "
+                         "DB writes on, for the selected projects")
     ap.add_argument("--dry-run", action="store_true")
-    args = ap.parse_args()
-
-    started = datetime.now()
-    print(f"# Daily literature pipeline — started {started:%Y-%m-%d %H:%M}")
-    if args.with_snowball:
-        print("# Mode: with snowball (slow)")
-    if args.dry_run:
-        print("# Mode: DRY RUN")
-
-    projects = load_projects()
-    if args.project:
-        if args.project not in projects:
-            print(f"[ERR] {args.project} not in projects.json (or inactive)")
-            return 2
-        targets = {args.project: projects[args.project]}
-    else:
-        targets = projects
-
-    run_date = f"{started:%Y-%m-%d}"
-    ok, fail, degraded = [], [], []
-    for proj in targets:
-        res = pipeline_one(proj, projects, args.with_snowball, args.dry_run, run_date)
-        if res:
-            ok.append(proj)
-            if res == DEGRADED:
-                degraded.append(proj)
-        else:
-            fail.append(proj)
-
-    # Snowball decoupling (2026-07-20): enrich_recommendations + enrich_abstracts are
-    # portfolio-wide and were re-run inside every project's snowball. Run each exactly ONCE
-    # here, after all projects, on a --with-snowball run. (enrich_abstracts is still a full
-    # portfolio pass until the attempt-state column lands -- Batch 2 -- but now once, not Nx.)
-    if args.with_snowball and not args.dry_run:
-        for tool in ("enrich_recommendations.py", "enrich_abstracts.py"):
-            try:
-                run(f"{tool} (portfolio-wide, once)", [PY, str(HERE / tool)])
-            except StepError as e:
-                print(f"  [ABORT] {e}")
-                fail.append(tool)
-
-    elapsed = (datetime.now() - started).total_seconds() / 60
-    print(f"\n# Done — {len(ok)} ok, {len(fail)} failed, {elapsed:.1f} min")
-    if degraded:
-        print(f"# Degraded walk (seeded and swept anyway): {', '.join(degraded)}")
-    if fail:
-        print(f"# Failed: {', '.join(fail)}")
-    return 1 if fail else (2 if degraded else 0)
+    args = ap.parse_args(sys.argv[1:] if argv is None else argv)
+    res = run(project=args.project, with_snowball=args.with_snowball, dry_run=args.dry_run)
+    code = res["run_daily_exit"]
+    print(f"# run_daily: runner exit {res.get('exit_code')}; run_daily exit {code}")
+    return code
 
 
 if __name__ == "__main__":

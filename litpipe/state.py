@@ -54,7 +54,15 @@ DB_NAME = "litpipe_state.sqlite"
 DB_PATH = None               # a path overrides config.state_dir()/DB_NAME (tests, --db)
 BUSY_TIMEOUT_S = 30.0        # sqlite busy handler: how long a claim waits for another writer
 DEFAULT_INTERVAL_S = 2.0     # a host with no policy row (dispatch W1-A1: unknown hosts get 2 s)
-LEASE_S = 300.0              # a lease whose holder never released it expires after this
+# A lease whose holder never released it expires after this. litpipe.net holds ONE lease around a
+# whole transfer (acquire before the request, release after the body is drained), and a PDF stream
+# may run to net.DEFAULT_STREAM_CAP (80,000,000 bytes) under a 30 s per-read timeout. 300 s covered
+# such a stream only at 266.7 KB/s or faster; 1,800 s covers it down to 44.4 KB/s (W4b, amendment
+# 12). The cost of a longer lease falls only on a holder that died without releasing AND whose pid
+# Windows reused (a dead pid is reaped at once when the host is at its limit, and a run's leases go
+# when the run finishes or is marked abandoned). Renewing the lease during a long transfer belongs
+# in litpipe/net.py (forwarded); until then the length is the guard.
+LEASE_S = 1800.0
 HEARTBEAT_STALE_S = 1800.0   # a run silent this long is not live (the runner heartbeats more often)
 POLL_S = 0.05                # re-check interval while every concurrency lease is taken
 CLOCK_SLACK_S = 1.0          # next-allowed further ahead than interval + this means the clock stepped back
@@ -607,25 +615,33 @@ def finish_run(run_id=None, status="ok"):
 
 
 def live_runs(stale_s=None) -> list[dict]:
-    """Unfinished runs whose process is alive and whose heartbeat is fresh, oldest first."""
+    """Unfinished runs whose process is alive and whose heartbeat is fresh, in registration order.
+    Each carries `seq`, the `runs` rowid: register_run inserts under BEGIN IMMEDIATE and nothing
+    deletes a runs row, so seq order is registration order. `started` is truncated to the second
+    (_iso), so two runs registered in one second cannot be ordered by it (W4b: the one-runner rule
+    compares seq)."""
     stale_s = HEARTBEAT_STALE_S if stale_s is None else float(stale_s)
     with _read() as con:
         now = _time()
-        rows = con.execute("SELECT run_id, pid, kind, writer, started, heartbeat FROM runs "
-                           "WHERE finished IS NULL ORDER BY started").fetchall()
+        rows = con.execute("SELECT rowid, run_id, pid, kind, writer, started, heartbeat FROM runs "
+                           "WHERE finished IS NULL ORDER BY started, rowid").fetchall()
     out = []
-    for run_id, pid, kind, writer, started, beat in rows:
+    for seq, run_id, pid, kind, writer, started, beat in rows:
         if beat < now - stale_s or not pid_alive(pid):
             continue
         out.append({"run_id": run_id, "pid": pid, "kind": kind, "writer": bool(writer),
-                    "started": _iso(started), "heartbeat_age_s": round(now - beat, 1)})
+                    "started": _iso(started), "heartbeat_age_s": round(now - beat, 1), "seq": seq})
     return out
 
 
 # ------------------------------------------------------------------------------ key-value
 def kv_set(ns, key, value, ttl_s=None):
-    """Store a JSON-serialisable value; with ttl_s it reads as absent after that many seconds."""
-    text = json.dumps(value, ensure_ascii=False)
+    """Store a JSON-serialisable value; with ttl_s it reads as absent after that many seconds.
+    Every string in the value, nested ones included, passes litpipe.ledger.redact_obj first (W4b):
+    a kv value is persisted like a ledger line, so no email or key may reach it. Sha hex, RA
+    names, cadence dicts and numbers come back unchanged."""
+    from litpipe.ledger import redact_obj
+    text = json.dumps(redact_obj(value), ensure_ascii=False)
     with _Tx() as con:
         now = _time()
         con.execute("INSERT INTO kv(ns, key, value, expires, updated) VALUES (?, ?, ?, ?, ?) "

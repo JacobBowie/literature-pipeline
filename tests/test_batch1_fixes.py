@@ -160,49 +160,11 @@ def test_D1_all_stages_ok_renames_queue(tmp_path, monkeypatch):
 
 
 # ----------------------------------------------------------------- snowball decoupling
-def test_snowball_per_project_skips_enrich(tmp_path, monkeypatch):
-    cmds = []
-    monkeypatch.setattr(run_daily, "run",
-                        lambda label, cmd, capture=False: (cmds.append(cmd),
-                        types.SimpleNamespace(returncode=0, stdout="", stderr=""))[1])
-    monkeypatch.setattr(run_daily, "run_walk", lambda label, cmd: (cmds.append(cmd), False)[1])
-    monkeypatch.setattr(run_daily, "project_dir", lambda p, cfg: tmp_path)
-    monkeypatch.setattr(run_daily, "project_status", lambda root: "READY")
-    # no draft is produced -> pipeline_one returns after seed, having invoked snowball
-    assert run_daily.pipeline_one("X", {"X": {}}, True, False, "2026-07-20") is True
-    snow = [c for c in cmds if any("snowball.py" in str(x) for x in c)]
-    assert snow, "snowball must be invoked with --with-snowball"
-    assert "--skip-recs" in snow[0] and "--skip-abstracts" in snow[0]
-
-
-def test_enrich_runs_once_after_all_projects(monkeypatch):
-    calls = []
-    monkeypatch.setattr(run_daily, "load_projects", lambda: {"A": {}, "B": {}})
-    monkeypatch.setattr(run_daily, "pipeline_one", lambda *a, **k: True)
-    monkeypatch.setattr(run_daily, "run",
-                        lambda label, cmd, capture=False: (calls.append(str(cmd)),
-                        types.SimpleNamespace(returncode=0, stdout="", stderr=""))[1])
-    monkeypatch.setattr(sys, "argv", ["run_daily.py", "--with-snowball"])
-    run_daily.main()
-    joined = "\n".join(calls)
-    assert joined.count("enrich_recommendations.py") == 1   # once, not once-per-project
-    assert joined.count("enrich_abstracts.py") == 1
-
-
-def test_sweep_and_migrate_share_run_date(tmp_path, monkeypatch):
-    """D4b: sweep and migrate must be dated by the SAME run_date so a run crossing midnight
-    can't leave sweep's {next-day} report unreadable by a migrate pinned to {prev-day}."""
-    cmds = []
-    monkeypatch.setattr(run_daily, "run",
-                        lambda label, cmd, capture=False: (cmds.append(cmd),
-                        types.SimpleNamespace(returncode=0, stdout="", stderr=""))[1])
-    monkeypatch.setattr(run_daily, "project_dir", lambda p, cfg: tmp_path)
-    monkeypatch.setattr(run_daily, "project_status", lambda root: "PENDING_QUEUE")
-    run_daily.pipeline_one("X", {"X": {}}, False, False, "2026-07-20")
-
-    def date_arg(script):
-        c = next(c for c in cmds if any(script in str(x) for x in c))
-        return c[c.index("--date") + 1] if "--date" in c else None
-
-    assert date_arg("sweep.py") == "2026-07-20"
-    assert date_arg("migrate_closed_to_md.py") == "2026-07-20"
+# W4b: run_daily is a wrapper over litpipe.runner, so the three orchestrator tests that stood here
+# (snowball skipped enrich per project; enrich ran once; sweep and migrate shared the run date) pinned
+# code that no longer exists. Their intents are locked in the runner's tests:
+#   --with-snowball runs the walk, the reverse top-up and the index, never enrich:
+#     tests/test_run_daily_exits.py::test_with_snowball_forces_the_walks_and_the_index_with_db_writes
+#   portfolio-wide jobs run once per run: tests/test_runner_jobs.py
+#   the route takes the sweep's own run id and date:
+#     tests/test_runner.py::test_one_staged_queue_one_runs_row_one_summary_one_loose_ends_line

@@ -1,5 +1,6 @@
 """W4a verifier M: locks for the pool drawdown, the worklists over the real migrate lists, the paywall
-queue and W4-0 (run_daily's walk verdict, the 30-day wait for a host refused until cleared).
+queue and W4-0 (the walk verdict, now read by litpipe.runner; the 30-day wait for a host
+refused until cleared).
 
 The tests whose names follow an APPLY item (M-1 to M-5) pinned a defect found in verification: each
 failed on 964c26f and passes with its fix, landed in the same commit. Temp roots and temp registries
@@ -16,7 +17,6 @@ import pytest
 import build_priority_paywall_queue as bppq
 import lit_util
 import migrate_closed_to_md as mig
-import run_daily
 import sweep
 from litpipe import config, holdings
 from litpipe import worklists as WL
@@ -283,7 +283,10 @@ def test_an_unreadable_residual_csv_is_not_silently_dropped(tmp_path, monkeypatc
     assert res["exit_code"] == 2
 
 
-# ---------------------------------------------------------------- W4-0: run_daily's walk verdict
+# ---------------------------------------------------------------- W4-0's walk verdict, on the runner (W4-A)
+# run_daily no longer runs snowball: since W4-A it wraps litpipe.runner, which reads each stage child
+# itself. The two W4-0 locks, moved onto that reader: a flood of undecodable output never stops it,
+# and an exit without the stage's result (argparse's usage exit 2 included) is ERROR, never DEGRADED.
 _FLOOD = ("import sys\n"
           "o, e = sys.stdout.buffer, sys.stderr.buffer\n"
           "for i in range(50000):\n"
@@ -294,20 +297,25 @@ _FLOOD = ("import sys\n"
           "sys.exit(2)\n")
 
 
-def test_run_walk_streams_a_flood_of_undecodable_output_without_a_deadlock(capsys):
-    assert run_daily.run_walk("flood", [sys.executable, "-c", _FLOOD]) is True
-    out = capsys.readouterr().out
-    assert out.count("\n") >= 100000 and "[DEGRADED] exit 2" in out
+def test_the_runners_log_reader_takes_a_flood_of_undecodable_output_without_a_deadlock(tmp_path):
+    import subprocess
+    from litpipe import runner
+    p = subprocess.Popen([sys.executable, "-c", _FLOOD], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         stdin=subprocess.DEVNULL)
+    pump = runner._Pump(p.stdout, tmp_path / "flood.log").start()
+    assert p.wait(timeout=120) == 2
+    pump.thread.join(60)
+    pump.close()
+    p.stdout.close()
+    assert not pump.thread.is_alive() and pump.lines >= 100000
+    assert "# snowball: 1 project(s); P DEGRADED; exit 2" in (tmp_path / "flood.log").read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize("code,exit_code", [
-    ("import sys; print('usage: snowball.py [-h]', file=sys.stderr); sys.exit(2)", 2),
-    ("import sys; print('# snowball: 1 project(s); P FAILED; exit 1'); sys.exit(1)", 1),
-    ("import sys; print('# snowball: 1 project(s); P DEGRADED; exit 3'); sys.exit(3)", 3),
-], ids=["usage-exit-2", "failed-exit-1-with-summary", "exit-3-snowball-never-uses"])
-def test_run_walk_treats_anything_but_a_summarised_exit_2_as_fatal(code, exit_code):
-    with pytest.raises(run_daily.StepError, match=f"exited {exit_code}"):
-        run_daily.run_walk("walk", [sys.executable, "-c", code])
+@pytest.mark.parametrize("rc", [2, 1, 3], ids=["usage-exit-2", "exit-1", "exit-3"])
+def test_an_exit_without_the_stages_result_is_error_never_degraded(rc):
+    from litpipe import runner
+    status, reason, _ = runner.classify("walk", runner.StageRun(rc, None, problem="no result file"))
+    assert status == "ERROR" and f"shim exit {rc}" in reason
 
 
 # ---------------------------------------------------------------- W4-0: the 30-day wait
