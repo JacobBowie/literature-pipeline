@@ -208,9 +208,11 @@ def test_lost_artifact_is_reported(tmp_path):
 
 
 def test_all_artifacts_present_passes(tmp_path):
+    # W4a verifier K-9: artifacts are checked per (tag, run id), so each chain must be complete
     pr = Proj(tmp_path)
-    pr.report("unpaywall", upw_fields(), [], tag="retry")
-    pr.report("pmc", pmc_fields(), [])
+    for tag in ("", "retry"):
+        pr.report("unpaywall", upw_fields(), [], tag=tag or None)
+        pr.report("pmc", pmc_fields(), [], tag=tag or None)
     assert one(pr.run(), "lost_artifacts").payload["status"] == canaries.PASS
 
 

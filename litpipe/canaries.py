@@ -55,9 +55,12 @@ Context contract (what W4-A passes; every key optional):
                  "artifact_dir":   sweep's --artifact-dir (default root); relative: under root,
                  "sweep_run_ids":  sweep's own run ids this run (`YYYY-MM-DD[.N]`, printed as
                                    `[sweep] run_id=<id> project=<key>`; NOT the state run id),
-                 "stages":         artifact stage names run for it, as in the file names
-                                   (normalized, unpaywall, pmc, preprint, residual, report,
-                                   processed, routing)}]}
+                 "stages":         artifact stage names every queue swept for it this run keeps,
+                                   as in the file names (unpaywall, pmc, preprint, residual,
+                                   report, processed, routing); each is checked per (tag, run id).
+                                   `normalized` is ignored: sweep deletes it when a queue retires.
+                                   A stage some queue skipped (preprint not_needed) would alarm
+                                   as lost, so pass only the stages common to the run's queues}]}
   With no context (the CLI): `since` is the start of today UTC, the ledger is today's file (every
   line since `since`), the projects are every active one in the registry (config.load()), their
   run ids those of the artifacts (in the project dir or a direct subdirectory) whose run id starts
@@ -65,7 +68,8 @@ Context contract (what W4-A passes; every key optional):
 
 Network checks (section 4 rows except preflight's Unpaywall and Crossref-pool checks; targets and
 pass values in TARGETS, sources cited there). Each request goes through litpipe.net with
-purpose="canary:<id>", retry_statuses=() and the resolved state, so identity, pacing, refusals,
+purpose="canary:<id>", no 5xx retries (only a 429 keeps the host row's own retry; W4a verifier
+K-1) and the resolved state, so identity, pacing, refusals,
 the ledger and redaction come with it. A canary is a request against a known answer: the URL
 constants and response predicates are the stage modules' own (imported at call time).
 
@@ -100,6 +104,9 @@ Cost (planned requests; a passing run sends exactly these, --dry-run reports the
   Worst case: a check stops at its first failed request, and litpipe.net retries a transport
   failure at most TRANSPORT_RETRIES (2) times, which no call can override. So one round sends at
   most count + 2 and a failing check (two rounds) at most 2 * (count + 2): worst_case(check id).
+  Not in that bound: a 429 on a host whose row retries 429 can cost up to its max_retries (6)
+  more requests, and each request can follow up to net.MAX_REDIRECTS (5) unplanned hops (a
+  self-redirect then a dropped connection sent 11 against a worst case of 6).
 
 Local checks (0 requests, read only; never a library, queue or portfolio.duckdb write):
   first_attempts   per host, from the run's ledger lines with attempt 1 and hop 0, excluding
@@ -187,6 +194,7 @@ MDPI_BMC_PREFIXES = ("10.3390/", "10.1186/")
 INDEX_STALE_S = 86400.0          # the library may be newer than index_runs by at most a day
 _NOT_SENT_TOKENS = frozenset({"HOST_REFUSED", "PROHIBITED", "DEFERRED"})
 _REDIRECTS = frozenset({301, 302, 303, 307, 308})
+_TRANSIENT_STAGES = frozenset({"normalized"})    # sweep deletes it when the queue retires (sweep.py:1188)
 ARXIV_HOSTS = ("export.arxiv.org", "arxiv.org", "www.arxiv.org")
 EPMC_HOST = "www.ebi.ac.uk"
 PREPRINT_SOURCES = frozenset({"europepmc_preprints", "biorxiv", "medrxiv", "osf", "sportrxiv", "arxiv"})
@@ -353,7 +361,8 @@ class _Probe:
         self.elapsed_ms = 0
 
     def send(self, method, url, **kw):
-        o = self.rctx.request(method, url, purpose=f"canary:{self.chk.id}", retry_statuses=(),
+        o = self.rctx.request(method, url, purpose=f"canary:{self.chk.id}",
+                              retry_statuses=_retry_statuses(url),
                               state=self.rctx.state, cfg=self.rctx.cfg, **kw)
         self.sent += int(o.attempts or 0)
         self.elapsed_ms += int(o.elapsed_ms or 0)
@@ -361,6 +370,15 @@ class _Probe:
 
     def get(self, url, **kw):
         return self.send("GET", url, **kw)
+
+
+def _retry_statuses(url) -> tuple:
+    """No 5xx retries (the canary re-checks a 5xx once after RECHECK_S), but a 429 keeps the origin
+    host row's own handling: retried with its Retry-After where the row retries 429, the host
+    deferred when Retry-After passes the inline cap, final where the row says so (pmc.ncbi.nlm.nih.gov,
+    BioC, arXiv). With retry_statuses=() the FIRST 429 was final, and litpipe.net refuses a host on
+    a final 429: one rate-limit answer took the source (or a redirect target) off for the run."""
+    return (429,) if 429 in hosts.policy(url).retry.statuses else ()
 
 
 def _resp(o):
@@ -856,22 +874,24 @@ def _idconv_skip(rctx):
 def _l_first_attempts(chk, lc):
     by_host: dict[str, dict] = {}
     for _, _, _, rec in lc.ledger_records():
-        if rec.get("attempt") != 1 or int(rec.get("hop") or 0) != 0:
+        if int(rec.get("hop") or 0) != 0:
             continue
         if str(rec.get("purpose") or "").startswith("canary:"):
             continue
         if rec.get("decision") in ("not_sent", "prohibited"):
             continue
         h = str(rec.get("host") or "?")
-        e = by_host.setdefault(h, {"n": 0, "statuses": Counter(), "kinds": Counter(), "refused": 0})
-        e["n"] += 1
         status = rec.get("status")
         kind = rec.get("kind")
-        e["statuses"][str(status) if status else str(kind or rec.get("decision") or "none")] += 1
-        e["kinds"][str(kind or rec.get("decision") or "none")] += 1
-        if (kind == "REFUSED" and rec.get("decision") != "redirect_blocked") or \
-                (rec.get("decision") == "retry" and status in (403, 406, 429)):
-            e["refused"] += 1
+        if rec.get("attempt") == 1:
+            e = by_host.setdefault(h, {"n": 0, "statuses": Counter(), "kinds": Counter(), "refused": 0})
+            e["n"] += 1
+            e["statuses"][str(status) if status else str(kind or rec.get("decision") or "none")] += 1
+            e["kinds"][str(kind or rec.get("decision") or "none")] += 1
+        # the call's typed outcome is its FINAL line (attempt 1, or the last retry): a 429 that
+        # litpipe.net retried and then served is not REFUSED; one whose retries ran out is
+        if kind == "REFUSED" and rec.get("decision") == "final":
+            by_host.setdefault(h, {"n": 0, "statuses": Counter(), "kinds": Counter(), "refused": 0})["refused"] += 1
     alarms, hosts_out = [], {}
     for h, e in sorted(by_host.items()):
         share = e["refused"] / e["n"] if e["n"] else 0.0
@@ -889,15 +909,25 @@ def _l_first_attempts(chk, lc):
                 observed={"summary": summ, "hosts": hosts_out})]
 
 
+class _Unreadable(Exception):
+    pass
+
+
 def _read_rows(paths):
-    rows = []
+    rows, bad = [], []
     for p in paths:
         try:
             with open(p, encoding="utf-8-sig", newline="") as f:
                 rows.extend(csv.DictReader(f))
-        except (OSError, csv.Error, UnicodeDecodeError):
-            continue
+        except (OSError, csv.Error, UnicodeDecodeError) as e:
+            bad.append(f"{Path(p).name} ({type(e).__name__})")
+    if bad:
+        raise _Unreadable("unreadable report: " + ", ".join(bad))
     return rows
+
+
+def _errors(cids, pr, e):
+    return [_mk(CHECKS_BY_ID[c], ERROR, host=pr.key, target=pr.target(), observed=str(e)) for c in cids]
 
 
 def _truthy(v) -> bool:
@@ -913,8 +943,14 @@ def _yield_checks(lc):
         reports = pr.reports()
         src = pr.sources
         if "pmc" in src:
-            rows = _read_rows(reports.get("pmc", []))
-            if not reports.get("pmc"):
+            try:
+                rows = _read_rows(reports.get("pmc", []))
+            except _Unreadable as e:
+                out += _errors(("yield_pmc", "epmc_403"), pr, e)
+                rows = None
+            if rows is None:
+                pass
+            elif not reports.get("pmc"):
                 for cid in ("yield_pmc", "epmc_403"):
                     out.append(_mk(CHECKS_BY_ID[cid], SKIPPED, host=pr.key, target=pr.target(),
                                    observed="no PMC report for this run"))
@@ -934,12 +970,19 @@ def _yield_checks(lc):
                 out.append(_mk(CHECKS_BY_ID["epmc_403"], ALARM if e403 else PASS, host=pr.key,
                                target=pr.target(), observed=f"{len(e403)} Europe PMC 403 rows in the PMC report"))
         if "unpaywall" in src:
-            if not reports.get("unpaywall"):
+            try:
+                urows = _read_rows(reports.get("unpaywall", []))
+            except _Unreadable as e:
+                out += _errors(("unpaywall_403", "yield_mdpi_bmc"), pr, e)
+                urows = None
+            if urows is None:
+                pass
+            elif not reports.get("unpaywall"):
                 for cid in ("unpaywall_403", "yield_mdpi_bmc"):
                     out.append(_mk(CHECKS_BY_ID[cid], SKIPPED, host=pr.key, target=pr.target(),
                                    observed="no Unpaywall report for this run"))
             else:
-                rows = _read_rows(reports["unpaywall"])
+                rows = urows
                 sent = n403 = 0
                 for r in rows:
                     for tok in str(r.get("attempts") or "").split(" | "):
@@ -969,7 +1012,11 @@ def _yield_checks(lc):
                                         + ("" if len(mb) >= MDPI_BMC_MIN_ROWS
                                            else f"; under {MDPI_BMC_MIN_ROWS} rows, no floor")))
         if src & PREPRINT_SOURCES and reports.get("preprint"):
-            rows = _read_rows(reports["preprint"])
+            try:
+                rows = _read_rows(reports["preprint"])
+            except _Unreadable as e:
+                out += _errors(("preprint_outcomes",), pr, e)
+                continue
             kinds = Counter(str(r.get("outcome") or "none") for r in rows)
             out.append(_mk(CHECKS_BY_ID["preprint_outcomes"], PASS, host=pr.key, target=pr.target(),
                            observed=f"{len(rows)} preprint rows: "
@@ -1000,7 +1047,7 @@ def _l_mismatch(chk, lc):
             continue
         mm = pr.lib / "_mismatch"
         files = [p for p in mm.rglob("*") if p.is_file()] if mm.is_dir() else []
-        new = [p for p in files if p.stat().st_mtime > lc.since_ts]
+        new = _new_files(files, lc.since_ts)
         out.append(_mk(chk, ALARM if new else PASS, host=pr.key, target=f"{pr.key}: {mm.name}/",
                        observed=f"{len(new)} new files in _mismatch/"
                                 + (f" (e.g. {', '.join(p.name for p in new[:3])})" if new else "")))
@@ -1172,12 +1219,19 @@ def _l_lost(chk, lc):
             out.append(_mk(chk, SKIPPED, host=pr.key, target=pr.target(),
                            observed="no stage list (a runner context names the stages run)"))
             continue
-        have = {(a.run_id, a.stage) for _, a in pr.artifacts()}
-        missing = [f"{sid}.{s}" for sid in pr.run_ids for s in pr.stages if (sid, s) not in have]
+        ids = set(pr.run_ids)
+        arts = [a for _, a in pr.artifacts() if a.run_id in ids]
+        have = {(a.tag, a.run_id, a.stage) for a in arts}
+        tags: dict = {}
+        for a in arts:
+            tags.setdefault(a.run_id, set()).add(a.tag)
+        stages = [s for s in pr.stages if s not in _TRANSIENT_STAGES]
+        want = [(t, sid, s) for sid in pr.run_ids for t in sorted(tags.get(sid) or {""}) for s in stages]
+        missing = [f"{t + '.' if t else ''}{sid}.{s}" for t, sid, s in want if (t, sid, s) not in have]
         out.append(_mk(chk, ALARM if missing else PASS, host=pr.key, target=pr.target(),
                        observed=(f"missing artifacts: {', '.join(missing[:6])}"
                                  + (f" (+{len(missing) - 6} more)" if len(missing) > 6 else ""))
-                       if missing else f"{len(pr.run_ids) * len(pr.stages)} artifacts present"))
+                       if missing else f"{len(want)} artifacts present"))
     return out
 
 
@@ -1245,7 +1299,7 @@ CHECKS = (
                  "informational: typed outcome counts", _l_yields),
     _local_check("mismatch_growth", "<lib>/_mismatch/", "0 new files", _l_mismatch),
     _local_check("markup", "new .ris and .fulltext.json", "0 % with tags or entities", _l_markup),
-    _local_check("email", "the run's report CSVs and ledger lines", "0 email= / mailto: / address hits", _l_email),
+    _local_check("email", "the run's report CSVs and ledger lines", "0 hits (email or mailto tokens, the configured address)", _l_email),
     _local_check("doi_fixtures", "litpipe.doi fixtures", "every fixture as built", _l_doi_fixtures),
     _local_check("index_freshness", "index_runs vs the library", "library at most a day newer than the index",
                  _l_index),
@@ -1503,7 +1557,10 @@ def _run_network(chk, rctx) -> Outcome:
         rctx.state.refuse(origin, ledger.redact(f"canary {chk.id}: {_short(v.observed, 200)}"), persistence="run")
         return _mk(chk, ALARM, observed=obs, kind=kind, action=ACTION_REFUSED, **common)
     if confirmed:
-        obs += f" (on {v.host or 'a redirect target'}, not the origin {origin}: nothing refused)"
+        by_net = _refusal(rctx.state, v.host) if v.host else None
+        obs += (f" (on {v.host}, not the origin {origin}: litpipe.net refused {v.host} ({by_net}); the canary "
+                f"refused nothing)" if by_net else
+                f" (on {v.host or 'a redirect target'}, not the origin {origin}: nothing refused)")
     return _mk(chk, ALARM, observed=obs, kind=kind, **common)
 
 
@@ -1518,6 +1575,7 @@ def run(profile, *, phase="all", context=None, state=None, request=None, cfg=Non
     """Run the profile's checks for `phase` (see the module docstring). Raises ValueError on a bad
     profile or phase and config.ConfigError on a registry it cannot use."""
     selected = checks(profile, phase)
+    _check_context(context)
     rctx = _RunCtx(context=context, state=state, request=request, cfg=cfg, now=now)
     outs = [_run_network(c, rctx) for c in selected if c.phase == "network"]
     local = [c for c in selected if c.phase == "local"]
@@ -1532,10 +1590,34 @@ def run(profile, *, phase="all", context=None, state=None, request=None, cfg=Non
     return outs
 
 
+def _check_context(ctx):
+    """config.ConfigError for a context the runner built wrong."""
+    if ctx is None:
+        return
+    if not isinstance(ctx, dict):
+        raise config.ConfigError(f"canaries: context must be a dict, got {type(ctx).__name__}")
+    if ctx.get("since") is not None and _parse_iso(ctx["since"]) is None:
+        raise config.ConfigError(f"canaries: context['since'] is not an ISO 8601 time: {ctx['since']!r}")
+    projects = ctx.get("projects")
+    if projects is None:
+        return
+    if not isinstance(projects, (list, tuple)):
+        raise config.ConfigError("canaries: context['projects'] must be a list of dicts")
+    for i, p in enumerate(projects):
+        if not isinstance(p, dict) or not p.get("key"):
+            raise config.ConfigError(f"canaries: context['projects'][{i}] must be a dict with a 'key'")
+        for f in ("sources", "sweep_run_ids", "stages"):
+            v = p.get(f)
+            if v is not None and not isinstance(v, (list, tuple, set, frozenset)):
+                raise config.ConfigError(f"canaries: context['projects'][{i}][{f!r}] must be a list, "
+                                         f"got {type(v).__name__}")
+
+
 def planned_requests(profile, *, context=None, state=None, cfg=None) -> dict:
     """{check id: planned requests} of the profile's network checks: 0 for a check that would be
     SKIPPED now (a refused host, arXiv not scheduled, no OpenAlex key). Sends nothing and never
     creates the state file."""
+    _check_context(context)
     rctx = _RunCtx(context=context, state=state, request=None, cfg=cfg, now=None)
     out = {}
     for c in checks(profile, "network"):
