@@ -114,8 +114,12 @@ def test_merged_sidecar_survives_refresh_byte_identical(tmp_path, capsys, kind, 
 
 def test_is_replaceable():
     f = E.is_replaceable
-    for ex in ("pdfminer.six", "pdftotext", "pdfplumber", "PyMuPDF", "", None):
+    for ex in ("pdfminer.six", "pdftotext", "pdfplumber", "PyMuPDF"):
         assert f({"extractor": ex, "text": "t"}) is True
+    for ex in ("pdfminer.six", "pdftotext", "pdfplumber", "PyMuPDF", "", None):
+        assert f({"extractor": ex, "text": "t", "extracted_from_pdf": True}) is True
+    for ex in ("", None):   # W4a verifier L APPLY-1: hand-made or JATS text, not proven pipeline output
+        assert f({"extractor": ex, "text": "t"}) is False
     assert f({}) is True and f(None) is True
     for d in MERGED.values():
         assert f(d) is False

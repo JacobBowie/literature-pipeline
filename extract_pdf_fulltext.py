@@ -265,6 +265,9 @@ def is_replaceable(sidecar):
     ex = sidecar.get("extractor")
     if ex not in (None, "") and ex not in PIPELINE_EXTRACTORS:
         return False
+    if (ex in (None, "") and sidecar.get("extracted_from_pdf") is not True
+            and str(sidecar.get("text") or "").strip()):
+        return False    # no extractor and not marked PDF-extracted: a hand-made sidecar or a JATS parse
     if any(m in sidecar for m in MERGED_MARKERS):
         return False
     return not _is_jats_sourced(sidecar)
@@ -724,6 +727,20 @@ def finish_record(rec, pdf_path, *, text_ok):
     return rec
 
 
+def _pdf_unreadable(pdf_path, pages, status):
+    """True when OCR cannot help: the file is not a PDF at all (an HTML error page saved as .pdf has
+    no %PDF header), or no text extractor could parse it (none reported OK; a scan reports OK with
+    empty text) and PyMuPDF found no page (it repairs a truncated file to 0 pages)."""
+    try:
+        with open(pdf_path, "rb") as f:
+            head = f.read(1024)
+    except OSError:
+        return True
+    if b"%PDF" not in head:
+        return True
+    return not pages and str(status).startswith("all_failed") and "=OK" not in str(status)
+
+
 def _needs_ocr_record(gate, extractor, reason=None):
     rec = _empty_sidecar()
     rec["extractor"] = extractor if extractor in PIPELINE_EXTRACTORS else ""
@@ -822,10 +839,16 @@ class _Run:
                       f"the sidecar's text passes)")
                 self.c["kept_gate"] += 1
                 return
-            if self.ocr and self.tess and self.tess.get("available"):
+            # a file that is not a PDF, or that no reader could parse, is a re-fetch item, not an OCR
+            # one (W4a verifier L APPLY-3)
+            unreadable = not text.strip() and _pdf_unreadable(pdf_path, pages, status)
+            if self.ocr and self.tess and self.tess.get("available") and not unreadable:
                 self.ocr_and_write(fn, pdf_path, sidecar, old, merged, gate, pages, extractor)
                 return
-            rec = _needs_ocr_record(gate, extractor)
+            reason = None
+            if unreadable:
+                reason = ("pdf unreadable: " + "; ".join(x for x in (_perr, status) if x))[:300]
+            rec = _needs_ocr_record(gate, extractor, reason=reason)
             if old is not None:
                 rec = combine(old, rec, keep_old_text=merged)
             finish_record(rec, pdf_path, text_ok=False)
@@ -1069,6 +1092,7 @@ def run(*, lib_dir, limit=0, refresh=False, force=False, dry_run=False, ocr=Fals
         exists = os.path.exists(sidecar)
         old = _load_existing_sidecar(sidecar) if exists else None
         wants_ocr = (ocr and old is not None and old.get("needs_ocr") is True
+                     and not str(old.get("needs_ocr_reason") or "").startswith("pdf unreadable")
                      and bool(tess and tess.get("available")))
         if exists and not refresh and not wants_ocr:
             c["skipped"] += 1
