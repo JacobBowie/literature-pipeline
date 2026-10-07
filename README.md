@@ -296,7 +296,9 @@ under [The runner](#the-runner).
 **Text-only holdings.** A `.fulltext.json` with text and no PDF beside it (an author manuscript
 from PMC, a preprint's full text from Europe PMC) is a full holding: it counts as held, seeds the
 walks, is indexed with `has_pdf = false`, and is never pruned as an orphan. Its `.ris` comes from
-the sidecar's own metadata (`backfill_ris.py --include-text-only`, and the runner's daily `ris` job).
+the DOI's registration agency (Crossref, DataCite), as a PDF's does, with the sidecar's own fields
+as the fallback when no agency holds the DOI (`backfill_ris.py --include-text-only`, and the
+runner's daily `ris` job).
 
 ## Walks and the index
 

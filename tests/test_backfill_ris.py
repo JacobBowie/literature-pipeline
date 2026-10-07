@@ -245,7 +245,9 @@ def test_include_text_only_writes_one_ris_per_text_only_holding(text_lib, resolv
     assert rows["2019_Empty_NoText.fulltext.json"]["status"] == "NO_TEXT"
     written = sorted(p.name for p in text_lib.glob("*.ris"))
     assert written == ["2014_Field_SweatSodium.ris", "2021_Berg_HeatAcclimation.ris"]   # + none for the PDF
-    assert resolver.calls == ["10.1234/pdf.1"]          # text-only rows ask no metadata source
+    # every holding with a DOI asks the registration agency first (W5: the sidecar's flat author strings
+    # cannot be split reliably); these two text-only DOIs are held by no source, so the sidecar is used
+    assert sorted(resolver.calls) == ["10.1234/pdf.1", "10.1234/textonly.0001", "10.1234/textonly.0002"]
     assert rows["2022_Pdf_Holding.PDF"]["kind"] == "pdf"
     assert rows["2021_Berg_HeatAcclimation.fulltext.json"]["kind"] == "text_only"
     assert rows["2021_Berg_HeatAcclimation.fulltext.json"]["source"] == "sidecar"
@@ -286,14 +288,45 @@ def test_text_only_needs_the_flag(text_lib, resolver):
     assert sorted(p.name for p in text_lib.glob("*.ris")) == []     # only the PDF was looked at (NONE)
 
 
-def test_text_only_rows_send_no_request(text_lib, monkeypatch, resolver):
-    from litpipe import net
-    monkeypatch.setattr(net, "request", lambda *a, **k: pytest.fail("a text-only row made a request"))
+def test_text_only_rows_ask_the_agency_once_each(text_lib, resolver):
+    """W5 (librarian 2026-10-07): a text-only holding's metadata comes from its registration agency,
+    one resolve_meta call per DOI, as a PDF's does; the sidecar is the fallback."""
     (text_lib / "2022_Pdf_Holding.PDF").unlink()
     (text_lib / "2022_Pdf_Holding.fulltext.json").unlink()
-    monkeypatch.setattr(R, "resolve_meta", lambda d: pytest.fail("resolve_meta called"))
     res = B.run(lib_dir=str(text_lib), commit=True, include_text_only=True)
     assert res["summary"]["wrote"] == 2
+    assert sorted(resolver.calls) == ["10.1234/textonly.0001", "10.1234/textonly.0002"]
+
+
+def _agency_record(doi, *authors):
+    return {"doi": doi, "title": "Heat acclimation and VO2max in trained runners", "year": "2021", "date": "",
+            "lastname": authors[0][0], "authors": [{"family": f, "given": g} for f, g in authors],
+            "container": "Journal of Applied Testing", "volume": "6", "issue": "2", "page": "123-130",
+            "issn": "", "abstract": "", "url": "https://doi.org/" + doi, "type": "journal-article"}
+
+
+def test_text_only_takes_the_agencys_authors_and_keeps_the_sidecar_abstract(text_lib, resolver):
+    """A compound surname the sidecar's flat string would mis-split comes from the agency record;
+    the sidecar fills the abstract the record lacks."""
+    resolver.answers["10.1234/textonly.0001"] = (
+        _agency_record("10.1234/textonly.0001", ("Soler Artigas", "María"), ("Veldhuijzen van Zanten", "Jet")),
+        "crossref")
+    rows = rows_by_name(B.run(lib_dir=str(text_lib), commit=True, include_text_only=True))
+    row = rows["2021_Berg_HeatAcclimation.fulltext.json"]
+    assert row["status"] == "WROTE" and row["source"] == "crossref"
+    lines = (text_lib / "2021_Berg_HeatAcclimation.ris").read_text(encoding="utf-8").splitlines()
+    assert [ln for ln in lines if ln.startswith("AU  - ")] == [
+        "AU  - Soler Artigas, María", "AU  - Veldhuijzen van Zanten, Jet"]
+    assert any(ln.startswith("AB  - Heat acclimation raised") for ln in lines)   # the sidecar's abstract
+
+
+def test_text_only_writes_nothing_while_the_agency_cannot_answer(text_lib, resolver):
+    """A transient failure is META_UNAVAILABLE and nothing is written: the sidecar's guess never
+    becomes a permanent .ris while a structured record may exist."""
+    resolver.answers["10.1234/textonly.0001"] = R.MetadataUnavailable("crossref", "HTTP 503")
+    rows = rows_by_name(B.run(lib_dir=str(text_lib), commit=True, include_text_only=True))
+    assert rows["2021_Berg_HeatAcclimation.fulltext.json"]["status"] == "META_UNAVAILABLE"
+    assert not (text_lib / "2021_Berg_HeatAcclimation.ris").exists()
 
 
 def test_text_only_ris_survives_overwrite_once_edited(text_lib, resolver):

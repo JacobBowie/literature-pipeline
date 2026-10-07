@@ -552,7 +552,10 @@ def _pdf(p, n=12_000):
 def lib_world(net_env, tmp_path, monkeypatch):
     """A registered library: one PDF holding (pdf, .ris, sidecar), a W2-A2 text-only sidecar, a
     legacy (no has_pdf key) text-only sidecar and a FLAG text-only sidecar. Real litpipe.state in a
-    temp state_dir that does not exist yet."""
+    temp state_dir that does not exist yet. Since W5 backfill_ris asks the registration agency for a
+    text-only holding too: no source holds these DOIs, so each falls back to its sidecar."""
+    import ris_emit
+    monkeypatch.setattr(ris_emit, "resolve_meta", lambda doi: ({}, "none"))
     root = tmp_path / "root"
     lib = root / "research_a" / "literature"
     lib.mkdir(parents=True)

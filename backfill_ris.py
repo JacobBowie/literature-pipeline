@@ -12,10 +12,12 @@ and author-manuscript records are first-class holdings; the rule is litpipe.hold
      Unpaywall supplement too) is a review item, not a holding: IDENTITY_FLAG, nothing written;
   3. DOI: the sidecar's `doi` (litpipe.doi.normalise), else the first ~5,000 characters of the PDF
      text (PyMuPDF); a PDF PyMuPDF cannot read is PDF_ERROR, not NO_DOI;
-  4. metadata: ris_emit.resolve_meta for a PDF (Crossref, DataCite, then content negotiation for
-     mEDRA, JaLC, KISTI, OP; its `source` is reported per row); the sidecar's own fields for a
-     text-only holding (title and subtitle, year, journal, volume, issue, pages, authors, abstract;
-     display form litpipe.text.display_field, NFC);
+  4. metadata: ris_emit.resolve_meta (Crossref, DataCite, then content negotiation for mEDRA,
+     JaLC, KISTI, OP; its `source` is reported per row), for a PDF and for a text-only holding
+     alike (a sidecar's flat "Family Given" author strings cannot be split reliably). Only when
+     no source holds a text-only holding's DOI does it fall back to the sidecar's own fields
+     (title and subtitle, year, journal, volume, issue, pages, authors, abstract; display form
+     litpipe.text.display_field, NFC; source "sidecar");
   5. ris_emit.build_ris and write_ris. DEC-29: --overwrite replaces only a .ris the pipeline wrote
      and nobody has edited since (its sha256 is in the state manifest); an edited or unrecorded
      (curated) file is kept and counted KEPT_CURATED. --force replaces any file (implies
@@ -32,8 +34,8 @@ sidecar without text: not a holding), DRY:*.
 Report columns: pdf, doi, status, out (legacy), then kind (pdf | text_only), path, source,
 doi_from, detail (redacted).
 
-Every request goes through litpipe.net via ris_emit (one identity, per-host pacing, ledger); text-
-only holdings need no request. Exit codes: 0 the run completed (row failures are in the report);
+Every request goes through litpipe.net via ris_emit (one identity, per-host pacing, ledger); a
+text-only holding costs one metadata request, as a PDF does. Exit codes: 0 the run completed (row failures are in the report);
 2 usage or configuration (no library given, an unknown project, a missing directory).
 
 Usage:
@@ -324,12 +326,31 @@ def _do_text_only(sc_path, commit, overwrite, force, stats, sources):
     meta = sidecar_meta(sc)
     if not meta["doi"]:
         return _row("text_only", sc_path, "NO_DOI")
-    sources["sidecar"] += 1
-    if not meta["title"]:
-        return _row("text_only", sc_path, "RESOLVE_FAIL", doi=meta["doi"], source="sidecar",
-                    doi_from="sidecar", detail="no title in the sidecar")
     stats["doi_sidecar"] += 1
-    row = _row("text_only", sc_path, "", doi=meta["doi"], out=ris_out.name, source="sidecar",
+    # The registration agency's record first, as for a PDF: a sidecar stores authors as flat
+    # "Family Given" strings with no boundary, so split_author mis-splits compound surnames
+    # ("Soler Artigas María" -> "Soler, Artigas María"; about 1 paper in 10 on a 2026-10-07 sample).
+    # A source that cannot answer now is META_UNAVAILABLE (tried again later): never write a .ris
+    # from the sidecar's guess when a structured record may exist. Only a DOI no source holds falls
+    # back to the sidecar's own fields.
+    try:
+        rmeta, source = R.resolve_meta(meta["doi"])
+    except R.MetadataUnavailable as e:
+        sources[f"unavailable:{e.source}"] += 1
+        return _row("text_only", sc_path, "META_UNAVAILABLE", doi=meta["doi"], source=e.source,
+                    doi_from="sidecar", detail=str(e))
+    if rmeta:
+        sources[source] += 1
+        # the record wins; the sidecar fills what the record lacks (Crossref often has no abstract,
+        # the JATS sidecar usually does)
+        meta = {**rmeta, **{k: meta[k] for k in ("abstract", "title") if meta.get(k) and not rmeta.get(k)}}
+    else:
+        source = "sidecar"
+        sources["sidecar"] += 1
+        if not meta["title"]:
+            return _row("text_only", sc_path, "RESOLVE_FAIL", doi=meta["doi"], source="sidecar",
+                        doi_from="sidecar", detail="no source holds the DOI and the sidecar has no title")
+    row = _row("text_only", sc_path, "", doi=meta["doi"] or "", out=ris_out.name, source=source,
                doi_from="sidecar")
     _emit(row, ris_out, R.build_ris(meta), commit, overwrite, force, stats)
     return row

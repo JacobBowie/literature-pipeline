@@ -99,7 +99,10 @@ def _text_only(lib, stem, doi):
 
 
 def test_the_ris_job_writes_a_ris_for_a_text_only_holding_and_keeps_a_curated_one(w, monkeypatch):
+    import ris_emit
     monkeypatch.setitem(runner.STAGE_MODULES, "ris", "backfill_ris")       # the real module, in-process
+    # since W5 a text-only holding asks its agency first; no source holds this DOI: the sidecar is used
+    monkeypatch.setattr(ris_emit, "resolve_meta", lambda doi: ({}, "none"))
     w.register("research_a")
     lib = w.lib("research_a")
     _text_only(lib, "2020_Smith_TextOnly", "10.5555/text.0001")
