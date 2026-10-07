@@ -362,9 +362,10 @@ def test_sici_not_found_is_drift(env):
 
 def test_sici_url_is_the_whole_percent_encoded_doi():
     from litpipe import doi as _doi
-    assert _doi.normalise(canaries.SICI_HASH_DOI) is None       # `#` read as a fragment (doi.py)
-    assert canaries.sici_url() == ("https://doi.org/10.1002/%28SICI%291521-3951%28199911%29216%3A1%3C135"
-                                   "%3A%3AAID-PSSB135%3E3.0.CO%3B2-%23")
+    # W5-C2: the `#` is the SICI check character, kept, and encode_path writes it %23 (DOI Handbook 4.7)
+    assert _doi.normalise(canaries.SICI_HASH_DOI) == canaries.SICI_HASH_DOI.lower()
+    assert canaries.sici_url() == ("https://doi.org/10.1002/(sici)1521-3951(199911)216:1%3C135"
+                                   "::aid-pssb135%3E3.0.co;2-%23")
 
 
 # ------------------------------------------------------------------------------ refusal rules

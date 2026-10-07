@@ -6,12 +6,15 @@ from wrong matches; at 1.10 it accepted 8 of 12 known-wrong ones). For each orph
 
 1. A file whose `.identity.json` or `.fulltext.json` flags it (audit_portfolio.identity_flag) is
    skipped, SKIP_IDENTITY_FLAG: its name describes the paper that was asked for, not the file.
-2. Front-matter DOI: the first DOI in the first ~6,000 characters of the text (the sidecar
+2. The sidecar's `doi_candidate` (the text DOI extract_pdf_fulltext records, never as `doi`;
+   DEC-20) is tried first and verified exactly as the front-matter DOI below (basis doi_candidate);
+   one the record contradicts, or no source holds, falls through to the next steps.
+3. Front-matter DOI: the first DOI in the first ~6,000 characters of the text (the sidecar
    `text`, else PyMuPDF), resolved with ris_emit.resolve_meta (Crossref, DataCite, content
    negotiation). It is accepted (HIGH, basis front_matter_doi) unless the record contradicts the
    file: its year must be within one of the filename year, and the filename author must be one of
    its authors or its strict title must occur in the text (V3: right on 1,007 of 1,123 rows).
-3. Otherwise a Crossref `query.bibliographic` search (rows=8) from the filename hints:
+4. Otherwise a Crossref `query.bibliographic` search (rows=8) from the filename hints:
    - never candidates: peer-review records, the `10.3410/` (Faculty Opinions) prefix, correction
      and retraction notices (`update-to`), records that review, comment on or reply to another
      work (`relation`), and titles that start "Faculty Opinions recommendation of", "Correction
@@ -60,6 +63,7 @@ is kept (curated or pre-DEC-29). backfill_ris regenerates such files only with `
 """
 import argparse
 import csv
+import functools
 import json
 import os
 import re
@@ -137,7 +141,9 @@ FIELDNAMES = ["filename", "parse_class", "parsed_year", "parsed_author",
               "crossref_title", "crossref_year", "crossref_first_author",
               "crossref_journal", "top1_score", "top2_score", "applied",
               # added by W3-D2 (appended; the leading columns keep their order)
-              "basis", "front_matter_doi", "ris_doi", "action", "note"]
+              "basis", "front_matter_doi", "ris_doi", "action", "note",
+              # added by W5-C2: the sidecar's doi_candidate, tried first
+              "doi_candidate"]
 
 
 class ConfigError(Exception):
@@ -233,8 +239,8 @@ def evidence_text(pdf_path, sidecar):
     if isinstance(t, str) and t.strip():
         return t[:TEXT_EVIDENCE_CHARS], ""
     try:
-        import fitz
-        doc = fitz.open(pdf_path)
+        import pymupdf
+        doc = pymupdf.open(pdf_path)
         try:
             text = ""
             for p in doc:
@@ -305,9 +311,13 @@ def filter_by_type(items):
 
 
 def _norm(s):
-    """Comparison form for title containment: litpipe.text.clean_field, ASCII-folded, lower case,
-    every run of other characters one space."""
-    return " ".join(re.sub(r"[^a-z0-9]+", " ", safe_ascii(_text.clean_field(s or "")).lower()).split())
+    """Comparison form for title containment: litpipe.text.comparison_fold (Greek letters by name,
+    apostrophes dropped, Unicode dashes and quotes to ASCII, tags stripped, accents folded), then
+    clean_field, ASCII-folded, lower case, every run of other characters one space. Both sides of
+    every comparison pass through it, so `beta-adrenergic` finds the record's U+03B2 form and
+    `ACSM's` finds `ACSM’s` (W5-C2, item 25)."""
+    s = _text.comparison_fold(s or "")
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", safe_ascii(_text.clean_field(s)).lower()).split())
 
 
 def strict_title(title):
@@ -479,34 +489,57 @@ def _resolved_metadata(meta, source, doi):
             "meta": meta, "source": source}
 
 
-def front_matter_match(text, year_hint, author_hint):
+def candidate_match(cand, text, year_hint, author_hint):
+    """(status, meta) for one DOI candidate, verified the one way every candidate is: it must
+    resolve (ris_emit.resolve_meta) to a record with a title, its year within one of the filename
+    year, and the filename author among its authors or its strict title in the text. ("HIGH", m),
+    ("FRONT_MATTER_UNCONFIRMED", m) when the record contradicts the file, or (None, None) when no
+    source holds it. Raises ris_emit.MetadataUnavailable."""
+    meta, source = ris_emit.resolve_meta(cand)
+    if not meta or not meta.get("title"):
+        return None, None
+    m = _resolved_metadata(meta, source, cand)
+    year_ok = True
+    if year_hint and m["year"]:
+        try:
+            year_ok = abs(int(year_hint) - int(m["year"])) <= 1
+        except ValueError:
+            year_ok = True
+    author_ok = any(_author_match(author_hint, {"first_family": a["surname"]}) for a in m["authors"])
+    if year_ok and (author_ok or title_in_text(m, _evidence(text))):
+        return "HIGH", m
+    return "FRONT_MATTER_UNCONFIRMED", m
+
+
+def front_matter_match(text, year_hint, author_hint, tried=()):
     """(status, meta) for the file's front-matter DOI: ("HIGH", m) when it resolves and nothing
     contradicts it; ("FRONT_MATTER_UNCONFIRMED", m) when it resolves but the year is more than one
     off, or neither the author nor a strict title in the text supports it; (None, None) when the
-    text has no DOI or no source holds it. Raises ris_emit.MetadataUnavailable."""
+    text has no DOI or no source holds it. Candidates in `tried` (already verified this run, e.g.
+    the sidecar's doi_candidate) are not looked up again. Raises ris_emit.MetadataUnavailable."""
     for cand in front_matter_candidates((text or "")[:FRONT_MATTER_CHARS]):
-        meta, source = ris_emit.resolve_meta(cand)
-        if not meta or not meta.get("title"):
+        if cand in tried:
             continue
-        m = _resolved_metadata(meta, source, cand)
-        year_ok = True
-        if year_hint and m["year"]:
-            try:
-                year_ok = abs(int(year_hint) - int(m["year"])) <= 1
-            except ValueError:
-                year_ok = True
-        author_ok = any(_author_match(author_hint, {"first_family": a["surname"]}) for a in m["authors"])
-        if year_ok and (author_ok or title_in_text(m, _evidence(text))):
-            return "HIGH", m
-        return "FRONT_MATTER_UNCONFIRMED", m
+        status, m = candidate_match(cand, text, year_hint, author_hint)
+        if status is not None:
+            return status, m
     return None, None
+
+
+def sidecar_doi_candidate(sidecar):
+    """The text DOI extract_pdf_fulltext recorded as `doi_candidate` (W4-C; never `doi`, DEC-20),
+    normalised; None when the sidecar has none or it is not a DOI."""
+    raw = (sidecar or {}).get("doi_candidate") if isinstance(sidecar, dict) else None
+    return _doi.normalise(raw) if isinstance(raw, str) and raw.strip() else None
 
 
 # ------------------------------------------------------------------------------ writing
 def update_sidecar(sidecar_path, sidecar_dict, match_meta):
     """Apply match metadata to the sidecar: `doi` set, title/year/journal/authors filled only when
     empty, everything else kept. Returns False (nothing written) when the DOI is not well formed
-    (T7: the index keys on it). Written atomically."""
+    (T7: the index keys on it). Written atomically. It does not go through lit_util.merge_sidecar
+    on purpose (decided 2026-10-07, M123): it only fills empty fields on the record it read and
+    writes the whole record atomically, which is what merge_sidecar would preserve anyway."""
     doi = (match_meta.get("doi") or "").strip()
     if not lit_util.is_valid_doi(doi):
         return False
@@ -664,8 +697,20 @@ def process_orphan(fn, sidecar_path, sidecar, polite_sleep=None):
 
     text, note = evidence_text(os.path.join(lib, fn), sidecar)
     row["note"] = note
+    cand = sidecar_doi_candidate(sidecar)
     try:
-        fm_status, fm = front_matter_match(text, year, author)
+        if cand:                                   # the sidecar's text DOI first (W5-C2, C062/C102)
+            row["doi_candidate"] = cand
+            c_status, c_meta = candidate_match(cand, text, year, author)
+            if c_status == "HIGH":
+                _fill_row(row, "HIGH", c_meta, 0, 0)
+                row["basis"] = "doi_candidate"
+                return row, c_meta
+            if c_status:
+                row["note"] = "; ".join(x for x in (row["note"], f"doi_candidate {cand} unconfirmed") if x)
+            else:
+                row["note"] = "; ".join(x for x in (row["note"], f"doi_candidate {cand} did not resolve") if x)
+        fm_status, fm = front_matter_match(text, year, author, tried=(cand,) if cand else ())
     except ris_emit.MetadataUnavailable as e:
         row["status"] = f"ERR_META_UNAVAILABLE: {e}"[:200]
         return row, None
@@ -730,9 +775,45 @@ def write_report(rows, path, fieldnames):
             w.writerow({k: r.get(k, "") for k in fieldnames})
 
 
+class _NoKVWrites:
+    """ris_emit's state during a dry run (as import_downloads wraps it): kv reads pass through, kv
+    writes (the doi.org agency cache `doi_ra`) are dropped, so a dry run leaves the pipeline state
+    as it found it. Anything else is the inner state's."""
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def kv_get(self, ns, key, default=None):
+        return self._inner.kv_get(ns, key)
+
+    def kv_set(self, ns, key, value, ttl_s=None):
+        return None
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+def _no_state_writes_in_a_dry_run(fn):
+    """run_project's dry run writes no state: ris_emit.STATE is _NoKVWrites for its duration
+    (restored after, also on an exception)."""
+    @functools.wraps(fn)
+    def wrapper(name, lib_dir, args):
+        prev = ris_emit.STATE
+        if not getattr(args, "execute", False):
+            ris_emit.STATE = _NoKVWrites(ris_emit._state())
+        try:
+            return fn(name, lib_dir, args)
+        finally:
+            ris_emit.STATE = prev
+    return wrapper
+
+
+@_no_state_writes_in_a_dry_run
 def run_project(name, lib_dir, args):
     """Fill one library. `args` needs execute, limit and (optionally) report_dir; min_confidence is
-    retired (only HIGH is written). Returns the project totals."""
+    retired (only HIGH is written). Returns the project totals. A dry run writes nothing: no
+    sidecar, no `.ris`, no report without --report-dir, and no state (ris_emit's kv writes, the
+    `doi_ra` cache, are dropped for its duration)."""
     execute = bool(getattr(args, "execute", False))
     limit = getattr(args, "limit", None)
     report_dir = getattr(args, "report_dir", None)

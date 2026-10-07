@@ -413,17 +413,17 @@ def test_an_edited_pool_keeps_per_doi_state(tmp_path):
 
 def test_seed_from_imports_once_and_never_pends(tmp_path):
     p = make_pool(tmp_path / "pool.csv", SIX)
-    vap = tmp_path / "state.json"
-    vap.write_text(json.dumps({"consumed": 3, "batches": [["x"]], "staged_dois": [SIX[0], SIX[2].upper(), "", SIX[4]]}),
+    staged_state = tmp_path / "state.json"
+    staged_state.write_text(json.dumps({"consumed": 3, "batches": [["x"]], "staged_dois": [SIX[0], SIX[2].upper(), "", SIX[4]]}),
                    encoding="utf-8")
     pool = WL.Pool(p, holdings=holdings.HoldMap())
     pool.mark_staged([SIX[4]], "r1", "b1.csv")
-    dry = pool.seed_from(vap, dry_run=True)
+    dry = pool.seed_from(staged_state, dry_run=True)
     assert (dry["imported"], dry["already_tracked"], dry["dry_run"]) == (2, 1, True)
     assert pool.status()["seeded_from"] == []
-    first = pool.seed_from(vap)
+    first = pool.seed_from(staged_state)
     assert (first["imported"], first["already_tracked"], first["already_seeded"]) == (2, 1, False)
-    second = WL.Pool(p, holdings=holdings.HoldMap()).seed_from(vap)
+    second = WL.Pool(p, holdings=holdings.HoldMap()).seed_from(staged_state)
     assert (second["imported"], second["already_seeded"]) == (0, True)
     st = pool.status()
     assert st["seeded_from"] == [first["sha256"]] and st["classes"] == {"imported": 2}
@@ -513,14 +513,14 @@ def test_cli_missing_registry_exits_1(tmp_path, monkeypatch, capsys):
 
 def test_cli_pool_status_seed_state(tmp_path, capsys):
     p = make_pool(tmp_path / "pool.csv", SIX)
-    vap = tmp_path / "vap_state.json"
-    vap.write_text(json.dumps({"staged_dois": SIX[:3]}), encoding="utf-8")
-    assert WL.main(["pool-status", "--pool", str(p), "--seed-state", str(vap)]) == 0
+    staged_state = tmp_path / "pool_state.json"
+    staged_state.write_text(json.dumps({"staged_dois": SIX[:3]}), encoding="utf-8")
+    assert WL.main(["pool-status", "--pool", str(p), "--seed-state", str(staged_state)]) == 0
     assert "would import 3 DOIs" in capsys.readouterr().out
     assert not WL.state_path_for(p).exists()
-    assert WL.main(["pool-status", "--pool", str(p), "--seed-state", str(vap), "--write"]) == 0
+    assert WL.main(["pool-status", "--pool", str(p), "--seed-state", str(staged_state), "--write"]) == 0
     assert "imported 3 DOIs" in capsys.readouterr().out
-    assert WL.main(["pool-status", "--pool", str(p), "--seed-state", str(vap), "--write"]) == 0
+    assert WL.main(["pool-status", "--pool", str(p), "--seed-state", str(staged_state), "--write"]) == 0
     out = capsys.readouterr().out
     assert "already imported" in out and "remaining: 3" in out
     assert WL.main(["pool-status", "--pool", str(tmp_path / "missing.csv")]) == 1

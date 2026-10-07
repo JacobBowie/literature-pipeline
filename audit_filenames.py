@@ -126,9 +126,10 @@ def slug(text, n=6):
 
 def canonical_filename(year, lastname, title):
     """`YYYY_Lastname_TitleSlug.pdf`: ris_emit.canonical_stem (the writer's own stem) over the
-    comparison form of the title (litpipe.text.normalise_title: tags stripped, references decoded),
-    so the auditor and the writer agree and markup never reaches a slug."""
-    return ris_emit.canonical_stem(year, lastname, _text.normalise_title(title or "")) + ".pdf"
+    filename form of the title (litpipe.text.filename_title: tags stripped, references decoded, no
+    comparison fold, because a filename is a stored key), so the auditor and the writer agree and
+    markup never reaches a slug."""
+    return ris_emit.canonical_stem(year, lastname, _text.filename_title(title or "")) + ".pdf"
 
 
 def proposed_name(fn, year, lastname, title):
@@ -348,7 +349,7 @@ def author_review(fn, meta):
     from unpaywall_fetch_v2 import legacy_slug_title
     title = meta.get("title") or ""
     cur_slug = m.group(3).lower()
-    if cur_slug in (slug(_text.normalise_title(title)).lower(), legacy_slug_title(title).lower()):
+    if cur_slug in (slug(_text.filename_title(title)).lower(), legacy_slug_title(title).lower()):
         return ""
     return "REVIEW_AUTHOR"
 

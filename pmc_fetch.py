@@ -305,7 +305,7 @@ def _figures_fn():
 def first_pages_text(path, pages=2) -> str:
     """Text of the first `pages` pages (pymupdf), '' when the file cannot be read."""
     try:
-        import fitz
+        import pymupdf as fitz
         with fitz.open(path) as doc:
             return "\n".join(doc[i].get_text() for i in range(min(pages, doc.page_count)))
     except Exception:

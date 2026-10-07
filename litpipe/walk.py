@@ -8,8 +8,10 @@ portfolio.duckdb. Two tables:
               citationCount from the metadata pass, whichever source walked the seed), n_rows (the
               stored citer set's size), state (a litpipe.s2.WalkState value, or `unresolved` for a
               seed paper_batch answered null or SKIPPED), kind and reason of the last walk,
-              n_unreachable (capped_9999), walked_at (the last walk, TIMESTAMPTZ UTC) and rows_at
-              (when the stored citer set was last replaced; NULL when no walk has stored one).
+              n_unreachable (capped_9999), walked_at (the last walk, TIMESTAMPTZ UTC), rows_at
+              (when the stored citer set was last replaced; NULL when no walk has stored one) and
+              oa_cited_by (OpenAlex's cited_by_count from the walk's free singleton; NULL for an S2
+              walk or a cache written before the column existed, which is added on open).
   citers      the citer set of each (seed DOI, source), keyed by (seed DOI, source, citing id):
               the S2 paperId or OpenAlex W-id, or `stub:<position>` for a null-paperId stub (stubs
               count toward the length check and are kept; only rows with a DOI become candidates).
@@ -33,7 +35,16 @@ to), when its citationCount differs from count_at_walk, or when its state is fai
 not_found or elided (never read as zero citers). citationCount 0 is `empty` with no call; `refresh`
 walks every seed. This replaces design 4.1 step 3's `citationCount != n_rows` test on purpose: a
 capped_9999 seed always has n_rows < citationCount, so that test would re-walk every capped seed on
-every run.
+every run. A seed S2 holds no count for (source "openalex") is gated on OpenAlex instead: the
+caller reads its current cited_by_count with openalex_counts() (one free singleton per seed) and
+passes it as `oa_count`; the seed is walked again when it differs from the oa_cited_by its last
+walk stored. Without `oa_count` such a seed compares None with None and is kept, as before.
+
+The OpenAlex length check (walk_openalex). The rows OpenAlex RETURNED, before W-id de-duplication,
+must equal the first or the last page's meta.count (the count can move while the cursor pages).
+A W-id repeated across cursor pages is then dropped from the result (first wins), counted in
+Result.duplicates and named in Result.reason, and the seed is complete: a cross-page duplicate is
+OpenAlex paging, never a short list.
 
 Routing (route; design 4.1 step 4, B-cons). With source "s2": 0 -> empty (no call); <= 1,000 ->
 nested batch (s2.batch_nested with the metadata pass's counts; it packs and re-fetches mismatched
@@ -58,7 +69,7 @@ from litpipe.outcomes import Kind, Outcome
 
 CACHE_NAME = "s2_cache.duckdb"
 CACHE_PATH = None            # a path overrides config.state_dir()/CACHE_NAME (tests, W4)
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2           # 2: seed_state.oa_cited_by (added in place on open; nullable)
 
 SOURCES = ("s2", "openalex")
 UNRESOLVED = "unresolved"
@@ -99,8 +110,10 @@ CREATE TABLE IF NOT EXISTS seed_state (
   n_unreachable BIGINT,
   walked_at     TIMESTAMPTZ NOT NULL,
   rows_at       TIMESTAMPTZ,
+  oa_cited_by   BIGINT,
   PRIMARY KEY (doi, source)
 );
+ALTER TABLE seed_state ADD COLUMN IF NOT EXISTS oa_cited_by BIGINT;
 CREATE TABLE IF NOT EXISTS citers (
   seed_doi        VARCHAR NOT NULL,
   source          VARCHAR NOT NULL,
@@ -119,7 +132,7 @@ CREATE TABLE IF NOT EXISTS citers (
 """
 
 _STATE_COLS = ("doi", "source", "paper_id", "count_at_walk", "n_rows", "state", "kind", "reason",
-               "n_unreachable", "walked_at", "rows_at")
+               "n_unreachable", "walked_at", "rows_at", "oa_cited_by")
 
 
 # ------------------------------------------------------------------------------ path
@@ -245,12 +258,13 @@ class Cache:
 
     # -- writes
     def record(self, doi, source, *, state, count=None, paper_id=None, rows=None, kind=None, reason="",
-               unreachable=None, walked_at=None):
+               unreachable=None, walked_at=None, oa_cited_by=None):
         """Record one seed's walk. With `rows` (a list, possibly empty) the seed's citer set for
         `source` is replaced in one transaction (delete, then a set-based insert) together with its
-        state; without rows only the state changes and the stored citers stay. Raises CacheLocked or
-        CacheWriteError (after an explicit ROLLBACK, and a best-effort state row marking the seed
-        failed)."""
+        state; without rows only the state changes and the stored citers stay. `oa_cited_by`
+        (Result.oa_cited_by of an OpenAlex walk) is stored when given and kept otherwise. Raises
+        CacheLocked or CacheWriteError (after an explicit ROLLBACK, and a best-effort state row
+        marking the seed failed)."""
         if source not in SOURCES:
             raise ValueError(f"source must be one of {SOURCES}, got {source!r}")
         if state not in STATES:
@@ -258,6 +272,7 @@ class Cache:
         self._ensure()
         walked_at = walked_at or now_utc()
         reason = ledger.redact(reason or "")[:300]
+        oa_cited_by = _int_or_none(oa_cited_by)
         con = self.con
         try:
             con.execute("BEGIN TRANSACTION")
@@ -272,16 +287,17 @@ class Cache:
                     finally:
                         con.unregister("_walk_rows")
                 con.execute(
-                    "INSERT INTO seed_state VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS TIMESTAMPTZ), "
-                    "CAST(? AS TIMESTAMPTZ)) ON CONFLICT (doi, source) DO UPDATE SET "
+                    "INSERT INTO seed_state (" + ", ".join(_STATE_COLS) + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "
+                    "CAST(? AS TIMESTAMPTZ), CAST(? AS TIMESTAMPTZ), ?) ON CONFLICT (doi, source) DO UPDATE SET "
                     "paper_id = coalesce(excluded.paper_id, seed_state.paper_id), "
                     "count_at_walk = excluded.count_at_walk, n_rows = excluded.n_rows, state = excluded.state, "
                     "kind = excluded.kind, reason = excluded.reason, n_unreachable = excluded.n_unreachable, "
-                    "walked_at = excluded.walked_at, rows_at = excluded.rows_at",
+                    "walked_at = excluded.walked_at, rows_at = excluded.rows_at, "
+                    "oa_cited_by = coalesce(excluded.oa_cited_by, seed_state.oa_cited_by)",
                     [doi, source, paper_id, count, len(stored), state, kind, reason, unreachable,
-                     walked_at, walked_at])
+                     walked_at, walked_at, oa_cited_by])
             else:
-                self._state_only(con, doi, source, state, count, paper_id, kind, reason, walked_at)
+                self._state_only(con, doi, source, state, count, paper_id, kind, reason, walked_at, oa_cited_by)
             con.execute("COMMIT")
             self.writes += 1
         except Exception as e:
@@ -306,13 +322,15 @@ class Cache:
             raise CacheWriteError(why) from None
 
     @staticmethod
-    def _state_only(con, doi, source, state, count, paper_id, kind, reason, walked_at):
+    def _state_only(con, doi, source, state, count, paper_id, kind, reason, walked_at, oa_cited_by=None):
         con.execute(
-            "INSERT INTO seed_state (doi, source, paper_id, count_at_walk, n_rows, state, kind, reason, walked_at) "
-            "VALUES (?, ?, ?, ?, 0, ?, ?, ?, CAST(? AS TIMESTAMPTZ)) ON CONFLICT (doi, source) DO UPDATE SET "
-            "paper_id = coalesce(excluded.paper_id, seed_state.paper_id), count_at_walk = excluded.count_at_walk, "
-            "state = excluded.state, kind = excluded.kind, reason = excluded.reason, walked_at = excluded.walked_at",
-            [doi, source, paper_id, count, state, kind, reason, walked_at])
+            "INSERT INTO seed_state (doi, source, paper_id, count_at_walk, n_rows, state, kind, reason, walked_at, "
+            "oa_cited_by) VALUES (?, ?, ?, ?, 0, ?, ?, ?, CAST(? AS TIMESTAMPTZ), ?) ON CONFLICT (doi, source) "
+            "DO UPDATE SET paper_id = coalesce(excluded.paper_id, seed_state.paper_id), "
+            "count_at_walk = excluded.count_at_walk, state = excluded.state, kind = excluded.kind, "
+            "reason = excluded.reason, walked_at = excluded.walked_at, "
+            "oa_cited_by = coalesce(excluded.oa_cited_by, seed_state.oa_cited_by)",
+            [doi, source, paper_id, count, state, kind, reason, walked_at, oa_cited_by])
 
 
 def _citer_frame(doi, source, rows):
@@ -421,15 +439,34 @@ def openalex_citing(work) -> dict:
 
 
 # ------------------------------------------------------------------------------ the gate and routing
-def needs_walk(count, cached, *, refresh=False) -> bool:
+def needs_walk(count, cached, *, refresh=False, oa_count=None) -> bool:
     """True when the seed must be walked: `refresh`, nothing cached for the source it routes to, a
     state in WALK_AGAIN (failed, unresolved, not_found, elided), or citationCount != count_at_walk.
+    A seed with no S2 count (`count` None) is gated on `oa_count`, OpenAlex's current
+    cited_by_count, when the caller has it: walked when it differs from the oa_cited_by the last
+    walk stored (NULL before this column existed, so such a seed is walked once to store it).
     See the module docstring for why this is not design 4.1 step 3's n_rows test."""
     if refresh or not cached:
         return True
     if cached.get("state") in WALK_AGAIN:
         return True
+    if count is None and oa_count is not None:
+        return cached.get("oa_cited_by") != oa_count
     return cached.get("count_at_walk") != count
+
+
+def openalex_counts(dois, *, session=None) -> dict:
+    """{doi: OpenAlex cited_by_count} for the seeds S2 holds no count for, one free singleton each
+    (openalex.cited_by_count). A DOI whose lookup did not answer with a count maps to None, so the
+    gate falls back to its count_at_walk test for it (kept, never re-walked on a failed lookup)."""
+    out = {}
+    for d in dict.fromkeys(dois):
+        if session is not None and session.aborted:
+            out[d] = None
+            continue
+        got = openalex.cited_by_count(d, session=session)
+        out[d] = got.payload if got.ok and isinstance(got.payload, int) else None
+    return out
 
 
 def route(count, *, source="s2", oa_ok=False):
@@ -456,7 +493,7 @@ def route_source(r) -> str:
 
 # ------------------------------------------------------------------------------ the planner
 def plan(counts: Mapping, cached: Mapping | None = None, *, refresh=False, source="s2", openalex_key=False,
-         n_metadata=None) -> dict:
+         n_metadata=None, oa_counts: Mapping | None = None) -> dict:
     """The calls a run would make, without sending anything (design section 5, appendix formulas).
     `counts`: {seed: S2 citationCount, or None when S2 has no record}; `cached`: {(seed, source):
     state dict} as Cache.states() returns. Metadata = ceil(seeds / 500) (or ceil(n_metadata / 500));
@@ -464,8 +501,10 @@ def plan(counts: Mapping, cached: Mapping | None = None, *, refresh=False, sourc
     0 < count <= 1,000; pages = sum ceil(count / 1,000) for 1,000 < count <= 9,999; windows (above
     9,999 without OpenAlex) = ceil(count / 1,000) + ceil(count / 9,000) probes; OpenAlex (above 9,999
     with a key, or every seed under source "openalex") = 1 free singleton + ceil(count / 100) list
-    calls, estimated from S2's count."""
+    calls, estimated from S2's count. `oa_counts` ({seed: cited_by_count}, openalex_counts()) gates
+    the seeds with no S2 count as needs_walk does."""
     cached = cached or {}
+    oa_counts = oa_counts or {}
     n_meta = len(counts) if n_metadata is None else n_metadata
     nested, out = {}, {"metadata": math.ceil(n_meta / s2.BATCH_MAX_IDS) if n_meta else 0,
                        "nested_bins": 0, "pages": 0, "windows": 0, "openalex_singletons": 0,
@@ -475,7 +514,7 @@ def plan(counts: Mapping, cached: Mapping | None = None, *, refresh=False, sourc
         if r is None:
             out["unwalkable"] += 1
             continue
-        if not needs_walk(cc, cached.get((seed, route_source(r))), refresh=refresh):
+        if not needs_walk(cc, cached.get((seed, route_source(r))), refresh=refresh, oa_count=oa_counts.get(seed)):
             out["kept"] += 1
             continue
         out["walk"] += 1
@@ -521,6 +560,8 @@ class Result:
     not_sent: bool = False
     expected: int | None = None      # the count the list was checked against (S2: from the same call)
     route_taken: str | None = None
+    duplicates: int = 0              # OpenAlex: W-ids repeated across cursor pages, dropped from rows
+    oa_cited_by: int | None = None   # OpenAlex: the seed's cited_by_count from the walk's singleton
 
     @property
     def failed(self) -> bool:
@@ -565,12 +606,20 @@ def walk_windows(wid, count, year, *, session) -> Result:
                    session)
 
 
+def _is_count(v) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
 def walk_openalex(doi, *, session, select=OA_SELECT) -> Result:
-    """Every citer of `doi` from OpenAlex `cites:` with cursor paging. The length check is against the
-    first page's meta.count (citers without a DOI count toward it and are kept as rows; only DOI rows
-    become candidates). A failed page fails the seed; a DOI OpenAlex does not hold is not_found; a
-    429 or Remaining 0 is DEFERRED (the session stops, nothing is retried)."""
-    rows, seen, count, attempts = [], set(), None, 0
+    """Every citer of `doi` from OpenAlex `cites:` with cursor paging. The length check counts the
+    rows RETURNED (before W-id de-duplication) against the first or the last page's meta.count;
+    either passes (citers without a DOI count toward it and are kept as rows; only DOI rows become
+    candidates). A W-id repeated across pages is then dropped (first wins), counted in `duplicates`
+    and named in the reason. A failed page fails the seed; a DOI OpenAlex does not hold is
+    not_found; a 429 or Remaining 0 is DEFERRED (the session stops, nothing is retried).
+    `oa_cited_by` carries the seed's cited_by_count from the free singleton (the count gate's
+    input for a seed S2 holds no count for)."""
+    rows, seen, dups, first, last, returned, attempts, cited_by = [], set(), [], None, None, 0, 0, None
     for out in openalex.citing_works(doi, select=select, session=session):
         attempts += out.attempts
         if not out.ok:
@@ -581,27 +630,40 @@ def walk_openalex(doi, *, session, select=OA_SELECT) -> Result:
                 return Result(str(s2.WalkState.NOT_FOUND), "openalex", status=out.status,
                               reason=out.detail or "not in OpenAlex", attempts=attempts)
             return Result(str(s2.WalkState.FAILED), "openalex", kind=str(out.kind), status=out.status,
-                          reason=out.detail or str(out.kind), attempts=attempts)
+                          reason=out.detail or str(out.kind), attempts=attempts, oa_cited_by=cited_by)
         page = out.payload
-        if count is None:
-            count = page.count
+        if cited_by is None and _is_count(getattr(page, "cited_by_count", None)):
+            cited_by = page.cited_by_count
+        if first is None:
+            first = page.count
+        last = page.count
         for w in page:
+            returned += 1
             r = openalex_citing(w)
             key = r["citing_paper_id"]
             if key and key in seen:
+                dups.append(key)
                 continue
             if key:
                 seen.add(key)
             rows.append(r)
-    if not isinstance(count, int) or isinstance(count, bool):
+    if not _is_count(first):
         return Result(str(s2.WalkState.FAILED), "openalex", kind=str(Kind.ERROR), attempts=attempts,
-                      reason="unexpected OpenAlex response: no meta.count")
-    if len(rows) != count:
+                      reason="unexpected OpenAlex response: no meta.count", oa_cited_by=cited_by)
+    accepted = [c for c in (first, last) if _is_count(c)]
+    if returned not in accepted:
+        shown = f"meta.count {first}" if last in (None, first) else f"meta.count {first} (first page), {last} (last page)"
+        uniq = f" ({len(rows)} unique)" if dups else ""
         return Result(str(s2.WalkState.FAILED), "openalex", kind="COUNT_MISMATCH", attempts=attempts,
-                      mismatch=True, reason=f"count_mismatch: {len(rows)} rows, meta.count {count}",
-                      expected=count)
+                      mismatch=True, reason=f"count_mismatch: {returned} rows{uniq}, {shown}",
+                      expected=first, oa_cited_by=cited_by)
+    reason = ""
+    if dups:
+        named = ", ".join(dict.fromkeys(dups))
+        reason = f"{len(dups)} W-id(s) repeated across cursor pages dropped: {named}"[:300]
     state = s2.WalkState.EMPTY if not rows else s2.WalkState.COMPLETE
-    return Result(str(state), "openalex", rows, attempts=attempts, expected=count)
+    return Result(str(state), "openalex", rows, attempts=attempts, expected=returned, reason=reason,
+                  duplicates=len(dups), oa_cited_by=cited_by)
 
 
 def walk_id(paper_id, doi) -> str:

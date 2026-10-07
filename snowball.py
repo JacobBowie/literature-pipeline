@@ -30,6 +30,12 @@ The count is what top_candidates draws from: distinct DOIs in `candidates` for t
 that no library holds (REG-I30). A first count of 0 has no growth percentage ("inf" in the
 log); 0 -> 0 is converged.
 
+The DB is <db_dir>/portfolio.duckdb (projects.json `db_dir`, read from snowball's own registry;
+default <root>/_references), or --db; it is resolved once per run and passed to every DB step.
+The convergence log sits beside it (<db_dir>/convergence_log.csv). When db_dir points elsewhere
+and only the old <root>/_references/convergence_log.csv exists, the new log starts as a copy of
+it; the old file is never moved or deleted.
+
 Each step's output streams line by line with timestamps; children get PYTHONUNBUFFERED=1.
 forward_citations' last line, "[step-summary] {json}", carries its failure counts.
 
@@ -62,8 +68,15 @@ lit_util.utf8_stdout()
 
 HERE = Path(__file__).parent
 CONFIG_PATH = HERE / "projects.json"
-DB_PATH = lit_util.PROJECTS_ROOT / "_references" / "portfolio.duckdb"
-LOG_PATH = lit_util.PROJECTS_ROOT / "_references" / "convergence_log.csv"
+DB_NAME = "portfolio.duckdb"
+LOG_NAME = "convergence_log.csv"
+# The DB and the log are resolved at call time (db_path(), log_path()): projects.json `db_dir`
+# from snowball's own CONFIG_PATH (default <root>/_references), or --db. DB_PATH and LOG_PATH stay
+# importable with their legacy values; a caller that sets either (tests do) overrides the resolution.
+DB_PATH = lit_util.PROJECTS_ROOT / "_references" / DB_NAME
+LOG_PATH = lit_util.PROJECTS_ROOT / "_references" / LOG_NAME
+_DEFAULT_DB_PATH, _DEFAULT_LOG_PATH = DB_PATH, LOG_PATH
+_RUN_DB = None                           # the DB of the run in progress (run() resolves it once)
 
 LOG_FIELDS = ["date", "project", "iter", "n_before", "n_after", "growth_pct", "reason"]
 CONVERGED_PCT = 1.0
@@ -93,24 +106,77 @@ class Options:
     projects: list = field(default_factory=list)
 
 
-# ------------------------------------------------------------------------------ convergence log
+# ------------------------------------------------------------------------------ the DB and the log
+def load_registry() -> dict:
+    """The registry snowball reads: its own CONFIG_PATH ({} when absent)."""
+    return lit_util.load_projects_config(CONFIG_PATH, missing_ok=True)
+
+
+def db_path(cfg=None) -> Path:
+    """The portfolio DB snowball counts from and passes to its DB writers (index, recommendations,
+    abstracts), resolved now: the run's --db (or the DB run() resolved at its start), else a
+    DB_PATH a caller set, else <db_dir>/portfolio.duckdb with db_dir read from `cfg` or snowball's
+    own CONFIG_PATH (never litpipe.config.CONFIG_PATH). ConfigError on a bad db_dir value."""
+    if _RUN_DB is not None:
+        return Path(_RUN_DB)
+    if DB_PATH is not _DEFAULT_DB_PATH:
+        return Path(DB_PATH)
+    from litpipe import config
+    return config.db_dir(cfg if cfg is not None else load_registry()) / DB_NAME
+
+
+def legacy_log_path() -> Path:
+    """Where the convergence log lived before it moved beside the DB: <root>/_references."""
+    return lit_util.PROJECTS_ROOT / "_references" / LOG_NAME
+
+
+def log_path(cfg=None) -> Path:
+    """The convergence log: a LOG_PATH a caller set, else beside the DB (<db_dir>/convergence_log.csv,
+    or beside --db)."""
+    if LOG_PATH is not _DEFAULT_LOG_PATH:
+        return Path(LOG_PATH)
+    return db_path(cfg).parent / LOG_NAME
+
+
+def _carry_legacy_log(path: Path):
+    """When the log has moved (db_dir set) and only the old <root>/_references log exists, the new
+    log starts as a copy of the old one's bytes, so the history carries over. The old file is only
+    read: never moved, changed or deleted."""
+    if LOG_PATH is not _DEFAULT_LOG_PATH or path.exists():
+        return
+    old = legacy_log_path()
+    try:
+        if not old.is_file() or old.resolve() == path.resolve():
+            return
+        text = old.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"  [log] could not read the old {LOG_NAME} at {old} ({type(e).__name__}); the new log at "
+              f"{path} starts empty", flush=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lit_util.atomic_write_text(str(path), text, newline="")      # the bytes as read (CRLF kept)
+    print(f"  [log] {LOG_NAME} moved beside the DB: {path} starts from {old} (left in place)", flush=True)
+
+
 def _growth_text(growth_pct) -> str:
     return "inf" if growth_pct is None else f"{growth_pct:.2f}"
 
 
-def _ensure_log_schema():
+def _ensure_log_schema(path=None):
     """Create the log with the current header, or upgrade a log written before `reason` existed
     (its rows get a blank reason; nothing else changes)."""
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    if not LOG_PATH.exists() or LOG_PATH.stat().st_size == 0:
-        with open(LOG_PATH, "w", newline="", encoding="utf-8") as f:
+    path = Path(path) if path is not None else log_path()
+    _carry_legacy_log(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists() or path.stat().st_size == 0:
+        with open(path, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(LOG_FIELDS)
         return
-    with open(LOG_PATH, encoding="utf-8", newline="") as f:
+    with open(path, encoding="utf-8", newline="") as f:
         header = next(csv.reader(f), [])
     if "reason" in header:
         return
-    with open(LOG_PATH, encoding="utf-8", newline="") as f:
+    with open(path, encoding="utf-8", newline="") as f:
         rows = list(csv.reader(f))[1:]
     new_header = header + [c for c in LOG_FIELDS if c not in header]
     buf = io.StringIO()
@@ -119,22 +185,23 @@ def _ensure_log_schema():
     for r in rows:
         if r:
             w.writerow(r + [""] * (len(new_header) - len(r)))
-    lit_util.atomic_write_text(str(LOG_PATH), buf.getvalue(), newline="")
+    lit_util.atomic_write_text(str(path), buf.getvalue(), newline="")
 
 
 def log_iteration(project: str, iter_num: int, n_before: int, n_after: int, growth_pct, reason: str = ""):
     """Append one row to the convergence log (header created or upgraded first). growth_pct None
     (or inf) is a first count with no percentage."""
-    _ensure_log_schema()
-    with open(LOG_PATH, "a", newline="", encoding="utf-8") as f:
+    path = log_path()
+    _ensure_log_schema(path)
+    with open(path, "a", newline="", encoding="utf-8") as f:
         csv.writer(f).writerow([datetime.date.today().isoformat(), project, iter_num,
                                 n_before, n_after, _growth_text(growth_pct), reason])
 
 
 def read_log(path=None) -> list:
     """Every row of a convergence log, old (6-column) or current, as dicts over LOG_FIELDS plus any
-    extra columns; a missing reason reads as ""."""
-    p = Path(path) if path is not None else LOG_PATH
+    extra columns; a missing reason reads as "". With no path, the current log (log_path())."""
+    p = Path(path) if path is not None else log_path()
     if not p.exists():
         return []
     with open(p, encoding="utf-8", newline="") as f:
@@ -146,15 +213,16 @@ def read_log(path=None) -> list:
 def py(): return sys.executable
 
 
-def candidate_count(project: str) -> int:
+def candidate_count(project: str, db=None) -> int:
     """Unique candidate DOIs the project's top_candidates rows draw from: `candidates` sourced
-    from the project (forward and reverse) that no library holds.
+    from the project (forward and reverse) that no library holds. `db` defaults to db_path().
 
     REG-I30: this is the top_candidates quantity and nothing else. The RC9 version also unioned
     the `recommendations` table, which top_candidates never reads, so the recs feed (a
     last-60-days list) inflated convergence; recommendations no longer count."""
-    if not DB_PATH.exists(): return 0
-    con = lit_util.connect_db(str(DB_PATH), read_only=True)  # c9: shared RC10 open (adds Drive-lock retry)
+    db = Path(db) if db is not None else db_path()
+    if not db.exists(): return 0
+    con = lit_util.connect_db(str(db), read_only=True)  # c9: shared RC10 open (adds Drive-lock retry)
     try:
         n = con.execute(
             """
@@ -178,7 +246,7 @@ def growth_pct(n_before: int, n_after: int):
 
 # ------------------------------------------------------------------------------ library change
 def library_dir(project: str, registry=None):
-    reg = registry if registry is not None else lit_util.load_projects_config(CONFIG_PATH, missing_ok=True)
+    reg = registry if registry is not None else load_registry()
     p = (reg.get("projects") or {}).get(project)
     if not p or not p.get("lib_dir"):
         return None
@@ -281,7 +349,7 @@ def one_iteration(project: str, skip_forward: bool, skip_reverse: bool, step_run
         steps.append(runner([py(), str(HERE / "reverse_citations.py"), "--project", project,
                              *reverse_source_args()], "reverse_citations"))
     steps.append(runner([py(), str(HERE / "index_portfolio.py"), "--project", project,
-                         "--db", str(DB_PATH)], f"index_portfolio({project})"))
+                         "--db", str(db_path())], f"index_portfolio({project})"))
     return steps
 
 
@@ -376,22 +444,45 @@ def post_loop(opts: Options, step_runner=None) -> list:
     runner = step_runner or run_step
     steps = []
     if opts.with_recs:
-        steps.append(runner([py(), str(HERE / "enrich_recommendations.py"), "--db", str(DB_PATH),
+        steps.append(runner([py(), str(HERE / "enrich_recommendations.py"), "--db", str(db_path()),
                              "--recent-feed"],
                             "enrich_recommendations (portfolio-wide, once, --with-recs)"))
     if not opts.skip_abstracts:
-        steps.append(runner([py(), str(HERE / "enrich_abstracts.py"), "--db", str(DB_PATH)],
+        steps.append(runner([py(), str(HERE / "enrich_abstracts.py"), "--db", str(db_path())],
                             "enrich_abstracts (portfolio-wide, once, only missing)"))
     return steps
 
 
 def run(*, project=None, all_projects=False, until_convergence=False, max_iter=3, skip_forward=False,
         skip_reverse=False, skip_recs=False, with_recs=False, skip_abstracts=False,
-        step_runner=None) -> dict:
+        step_runner=None, db=None) -> dict:
     """The snowball for one project or every active one. Returns {"exit_code", "projects",
-    "post_steps"}; `step_runner(cmd, label) -> StepResult` replaces the child processes in tests."""
+    "post_steps", "db", "log"}; `step_runner(cmd, label) -> StepResult` replaces the child processes
+    in tests. The DB (`db`, else db_path()) is resolved once, here, and every step of the run uses
+    it; the convergence log sits beside it (log_path())."""
+    global _RUN_DB
+    from litpipe import config
+    try:
+        resolved = Path(db) if db is not None else db_path()
+    except config.ConfigError as e:
+        print(f"[ERR] {e}", file=sys.stderr)
+        return {"exit_code": EXIT_FAILED, "projects": [], "post_steps": [], "error": str(e)}
+    prev, _RUN_DB = _RUN_DB, resolved
+    try:
+        res = _run(project=project, all_projects=all_projects, until_convergence=until_convergence,
+                   max_iter=max_iter, skip_forward=skip_forward, skip_reverse=skip_reverse, skip_recs=skip_recs,
+                   with_recs=with_recs, skip_abstracts=skip_abstracts, step_runner=step_runner)
+        res.setdefault("db", str(resolved))
+        res.setdefault("log", str(log_path()))
+        return res
+    finally:
+        _RUN_DB = prev
+
+
+def _run(*, project, all_projects, until_convergence, max_iter, skip_forward, skip_reverse, skip_recs,
+         with_recs, skip_abstracts, step_runner) -> dict:
     if all_projects:
-        cfg = lit_util.load_projects_config(CONFIG_PATH, missing_ok=True).get("projects", {})
+        cfg = load_registry().get("projects", {})
         if not cfg:
             print(f"[ERR] no projects registered in {CONFIG_PATH}", file=sys.stderr)
             return {"exit_code": EXIT_FAILED, "projects": [], "post_steps": [], "error": "no registry"}
@@ -441,6 +532,10 @@ def main(argv=None) -> int:
                     help="Accepted for compatibility: recommendations are off unless --with-recs")
     ap.add_argument("--skip-abstracts", action="store_true",
                     help="Skip the once-per-run incremental abstracts pass after the loop")
+    ap.add_argument("--db", default=None,
+                    help="Portfolio DuckDB to count from and pass to the index, recommendations and "
+                         "abstracts steps (default <db_dir>/portfolio.duckdb from projects.json, "
+                         "<root>/_references when db_dir is unset); the convergence log sits beside it")
     args = ap.parse_args(argv)
 
     from ris_emit import warn_if_default_email
@@ -448,7 +543,8 @@ def main(argv=None) -> int:
 
     res = run(project=args.project, all_projects=args.all, until_convergence=args.until_convergence,
               max_iter=args.max_iter, skip_forward=args.skip_forward, skip_reverse=args.skip_reverse,
-              skip_recs=args.skip_recs, with_recs=args.with_recs, skip_abstracts=args.skip_abstracts)
+              skip_recs=args.skip_recs, with_recs=args.with_recs, skip_abstracts=args.skip_abstracts,
+              db=args.db)
     return res["exit_code"]
 
 

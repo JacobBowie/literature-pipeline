@@ -21,7 +21,9 @@ in the section 2.3 order:
    (`osf.io/kbyhm`), a CRAN package, or a letter code under a 5-digit registrant;
 4. no glue across a line break onto digits (V2-N2) or onto a capitalised word (a sentence);
 5. reject `#` fragments and invalid `%` escapes: capture stops there, so the fragment never
-   reaches a candidate;
+   reaches a candidate. One exception: a Wiley SICI's check character, a `#` that ends a "(sici)"
+   form right after `;2-` (`...<1::aid-nur1>3.0.co;2-#`, any case, a trailing `.` stripped), is
+   part of the DOI; `encode_path` writes it as `%23`;
 6. only then encode for a URL path (`encode_path`).
 
 Pure: stdlib only, no network, no I/O, and no import of lit_util (lit_util imports this module).
@@ -56,14 +58,21 @@ import re
 from urllib.parse import quote, unquote
 
 __all__ = ["candidates", "iter_candidates", "normalise", "normalise_structured", "encode_path",
-           "resolve_first", "is_placeholder", "ResolverUnavailable"]
+           "resolve_first", "is_placeholder", "ResolverUnavailable", "PATH_SAFE"]
 
 # ---------------------------------------------------------------- shapes
 # Directory indicator 10 + registrant code, not preceded by a digit (a glued year "2010.1234/").
 _START = re.compile(r"(?<![0-9])10\.\d{4,9}/", re.IGNORECASE)
 _BODY = re.compile(r"[A-Za-z0-9._;:()/\-]")        # the Crossref suffix class
 _SICI_EXTRA = "<>"                                  # SICI DOIs carry literal angle brackets
-_SICI_ISSN_DATE = re.compile(r"\d{4}-\d{3}[\dxX]\(\d{4,8}\)")  # the SICI item head: ISSN(date)
+# The SICI item head: ISSN(date), the date a single one (1097-0142(20000915)) or a range
+# (1520-6300(200102/03), an issue covering two months; W5-C2 census: three such DOIs fell to one key).
+_SICI_ISSN_DATE = re.compile(r"\d{4}-\d{3}[\dxX]\(\d{4,8}(?:/\d{2,4})?\)")
+_SICI_HEAD = 24                                     # body characters the ISSN(date) head is read from
+# A Wiley SICI's check character may be '#' (10.1002/(sici)1098-240x(200002)23:1<1::aid-nur1>3.0.co;2-#).
+# It is kept only as the DOI's final character right after ";2-" in a "(sici)" form; any other '#'
+# is a URL fragment (10.1056/nejmc1113675#sa3). What may follow it in the token: closing punctuation.
+_SICI_CHECK_TAIL = re.compile(r"[.,;:)\]}>]*$")
 _REVISION_TAIL = re.compile(r"r{1,4}")               # FASEB revision suffixes: fj.201900106rrr is real
 _WRAP_WS = " \t\r\n\f\v\u00ad\u00a0\u2009\u202f"    # whitespace and a soft hyphen at a line wrap
 _VALID = re.compile(r"^10\.\d{4,9}/\S+$")
@@ -178,15 +187,21 @@ def _capture(text: str, start: int, end: int):
     i = end
     while i < n:
         c = text[i]
-        head = "".join(body[:19])           # ISSN(8-digit date): 1097-0142(20000915)
+        head = "".join(body[:_SICI_HEAD])   # ISSN(date): 1097-0142(20000915), 1520-6300(200102/03)
         # SICI: Wiley's "(sici)" marker, or the bare ISSN(date) form NSCA, AMS and others registered
         # (10.1519/1533-4287(1990)004<0047:rbrasp>2.3.co;2); 25 of 30 index SICI DOIs lack the marker
-        sici = "(sici)" in head[:8].lower() or bool(_SICI_ISSN_DATE.match(head))
+        marker = "(sici)" in head[:8].lower()
+        sici = marker or bool(_SICI_ISSN_DATE.match(head))
         # A SICI also carries square brackets (10.1519/1533-4295(2006)28[44:msastr]2.0.co;2); take a
         # ']' only while a '[' is open, so a Markdown link's `](` still ends the capture.
         if _BODY.match(c) or (sici and c in _SICI_EXTRA and text[i:i + 2] != "</") \
                 or (sici and c == "[") or (sici and c == "]" and body.count("[") > body.count("]")):
             body.append(c)
+            i += 1
+            continue
+        if c == "#" and marker and "".join(body[-3:]) == ";2-" \
+                and _SICI_CHECK_TAIL.match(_next_token(text, i + 1)):
+            body.append(c)                              # the SICI check character, not a fragment
             i += 1
             continue
         last = body[-1] if body else "/"                # an empty body sits right after the prefix '/'
@@ -329,7 +344,8 @@ def normalise_structured(raw):
     return w if w in cands else cands[0]
 
 
-_PATH_SAFE = "!$&'()*+;=:@"                             # DOI Handbook 4.7, beyond ALPHA DIGIT - . _ ~
+PATH_SAFE = "!$&'()*+;=:@"                              # DOI Handbook 4.7, beyond ALPHA DIGIT - . _ ~
+_PATH_SAFE = PATH_SAFE                                  # the old private name, kept for callers
 
 
 def encode_path(doi, *, strict=False) -> str:
@@ -344,8 +360,8 @@ def encode_path(doi, *, strict=False) -> str:
     if d is None:
         raise ValueError(f"not a DOI: {doi!r}")
     prefix, suffix = d.split("/", 1)
-    safe = _PATH_SAFE if strict else _PATH_SAFE + "/"
-    return quote(prefix, safe=_PATH_SAFE) + "/" + quote(suffix, safe=safe)
+    safe = PATH_SAFE if strict else PATH_SAFE + "/"
+    return quote(prefix, safe=PATH_SAFE) + "/" + quote(suffix, safe=safe)
 
 
 class ResolverUnavailable(RuntimeError):

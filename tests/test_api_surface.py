@@ -43,20 +43,24 @@ SURFACE = {
     "litpipe.ledger": (["redact", "redact_headers", "write", "read", "set_run_id",
                         "current_run_id"], []),
     "litpipe.doi": (["candidates", "iter_candidates", "normalise", "encode_path", "resolve_first",
-                     "is_placeholder"], ["ResolverUnavailable"]),
-    "litpipe.text": (["strip_tags", "unescape", "clean_field", "normalise_title"], []),
+                     "is_placeholder", "normalise_structured"], ["ResolverUnavailable", "PATH_SAFE"]),
+    "litpipe.text": (["strip_tags", "unescape", "clean_field", "normalise_title", "comparison_fold",
+                      "filename_title"], []),
     "litpipe.identity": (["check", "doc_kind", "suspect_file", "text_stats"],
                          ["Verdict", "SuspectCheck"]),
     "litpipe.holdings": (["build"], ["HoldMap", "Holding"]),
     # W3a: the OpenAlex client W3-A builds on
     "litpipe.openalex": (["works_by_doi", "works_by_id", "referenced_works", "referenced_works_many",
-                          "citing_works", "content_pdf", "key_present", "apply_host_policy"],
+                          "citing_works", "content_pdf", "key_present", "apply_host_policy", "cited_by_count"],
                          ["RefList", "Page", "Session"]),
     # W3b: the forward walk (snowball and the W4 runner call it) and its cache module
     "forward_citations": (["run", "main", "verdict", "doi_from_ris", "read_report", "library_seeds"],
                           ["FIELDS", "SUMMARY_MARKER", "CONFIG_PATH"]),
-    "litpipe.walk": (["cache_path", "needs_walk", "route", "plan"],
+    "litpipe.walk": (["cache_path", "needs_walk", "route", "plan", "openalex_counts"],
                      ["Cache", "CacheLocked", "CacheWriteError", "CACHE_PATH", "CACHE_NAME"]),
+    # W5: the names three consumer resolvers import (C198) and snowball's db_dir resolution
+    "fill_missing_dois": (["score_match", "extract_metadata", "filter_by_type"], ["CROSSREF"]),
+    "snowball": (["run", "main", "db_path", "log_path"], ["DB_PATH", "LOG_PATH", "CONFIG_PATH"]),
     # W4a: the canaries and the worklists the W4 runner calls in-process, and the paywall queue paywall_pull imports
     "litpipe.canaries": (["run", "report", "summary", "planned_requests", "checks", "worst_case", "main"],
                          ["PROFILES", "CHECKS", "Check"]),

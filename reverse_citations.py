@@ -267,7 +267,7 @@ def text_from_dump(text_dir: Path, stem: str):
 
 def text_from_pdf(pdf_path: Path):
     try:
-        import fitz
+        import pymupdf as fitz
     except ImportError:
         return None
     try:

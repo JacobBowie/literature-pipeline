@@ -196,7 +196,10 @@ def normalize_title(t: str) -> str:
 
 
 def title_similarity(a: str, b: str) -> float:
-    return difflib.SequenceMatcher(None, normalize_title(a), normalize_title(b)).ratio()
+    # The comparison fold (W5 item 25) applies here only: normalize_title itself stays unfolded,
+    # because harvest_citations keys a paper's identity (and a collision hash) on it.
+    fold = _text.comparison_fold
+    return difflib.SequenceMatcher(None, normalize_title(fold(a or "")), normalize_title(fold(b or ""))).ratio()
 
 
 # ---------------------------------------------------------------------------- network

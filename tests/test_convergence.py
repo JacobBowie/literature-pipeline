@@ -274,11 +274,16 @@ def test_skip_recs_wins_over_with_recs(monkeypatch):
 
 
 def test_db_writers_get_the_db_path(monkeypatch):
+    """Every DB step gets the run's DB (resolved once: a DB_PATH set by the caller, as here, wins over
+    db_dir; tests/test_w5c2_snowball.py locks the db_dir and --db branches)."""
     run = Runner(monkeypatch, {"teaching_a": [100, 120]})
-    snowball.run(project="teaching_a", with_recs=True, step_runner=run)
-    for label, cmd in run.calls:
-        if Path(cmd[1]).stem in ("index_portfolio", "enrich_recommendations", "enrich_abstracts"):
-            assert cmd[cmd.index("--db") + 1] == str(snowball.DB_PATH)
+    res = snowball.run(project="teaching_a", with_recs=True, step_runner=run)
+    assert res["db"] == str(snowball.DB_PATH)
+    writers = [cmd for _label, cmd in run.calls
+               if Path(cmd[1]).stem in ("index_portfolio", "enrich_recommendations", "enrich_abstracts")]
+    assert len(writers) == 3
+    for cmd in writers:
+        assert cmd[cmd.index("--db") + 1] == res["db"]
 
 
 def test_main_without_a_project_or_a_registry_is_exit_1(monkeypatch, tmp_path):

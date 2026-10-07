@@ -703,36 +703,70 @@ def referenced_works(doi, *, select=WORK_SELECT, session: Session | None = None)
 
 # ------------------------------------------------------------------------------ citing works
 class Page(list):
-    """One page of citing works (a plain list) with .count (meta.count), .next_cursor, .page and
-    .work_id."""
+    """One page of citing works (a plain list) with .count (meta.count), .next_cursor, .page,
+    .work_id and .cited_by_count (the cited work's cited_by_count from the DOI singleton; None when
+    citing_works was given a W-id or the singleton carried no count)."""
 
-    def __init__(self, works=(), *, count=None, next_cursor=None, page=1, work_id=""):
+    def __init__(self, works=(), *, count=None, next_cursor=None, page=1, work_id="", cited_by_count=None):
         super().__init__(works)
         self.count = count
         self.next_cursor = next_cursor
         self.page = page
         self.work_id = work_id
+        self.cited_by_count = cited_by_count
 
 
-def _resolve_wid(s, doi_or_wid):
-    try:
-        return work_id(doi_or_wid), None
-    except ValueError:
-        pass
-    d = _doi.normalise_structured(doi_or_wid) if isinstance(doi_or_wid, str) else None
-    if d is None:
-        return None, Outcome(Kind.SKIPPED, host=API_HOST,
-                             detail=ledger.redact(f"not a DOI or an OpenAlex id: {doi_or_wid!r}"[:200]))
-    out = _request(s, f"{BASE.rstrip('/')}/works/doi:{_doi.encode_path(d)}", params={"select": "id"},
-                   purpose="citing_works seed")
+def _count_of(v):
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+
+
+def _singleton(s, d, select, purpose):
+    """The free singleton /works/doi:{d}: (body dict, None) or (None, failure Outcome)."""
+    out = _request(s, f"{BASE.rstrip('/')}/works/doi:{_doi.encode_path(d)}", params={"select": select},
+                   purpose=purpose)
     if not out.ok:
         return None, dataclasses.replace(out, payload=None,
                                          detail="not in OpenAlex" if out.kind is Kind.NO_MATCH else out.detail)
     body = _json(out)
+    if not isinstance(body, dict):
+        return None, _malformed(out, "the work is not an object")
+    return body, out
+
+
+def _resolve_wid(s, doi_or_wid):
+    """(W-id, cited_by_count or None, None) or (None, None, failure Outcome)."""
     try:
-        return work_id(body.get("id") if isinstance(body, dict) else None), None
+        return work_id(doi_or_wid), None, None
     except ValueError:
-        return None, _malformed(out, "the work has no id")
+        pass
+    d = _doi.normalise_structured(doi_or_wid) if isinstance(doi_or_wid, str) else None
+    if d is None:
+        return None, None, Outcome(Kind.SKIPPED, host=API_HOST,
+                                   detail=ledger.redact(f"not a DOI or an OpenAlex id: {doi_or_wid!r}"[:200]))
+    body, out = _singleton(s, d, "id,cited_by_count", "citing_works seed")
+    if body is None:
+        return None, None, out
+    try:
+        return work_id(body.get("id")), _count_of(body.get("cited_by_count")), None
+    except ValueError:
+        return None, None, _malformed(out, "the work has no id")
+
+
+def cited_by_count(doi, *, session: Session | None = None) -> Outcome:
+    """A work's cited_by_count from the free singleton /works/doi:{doi}?select=id,cited_by_count
+    (0 credits). OK: payload the count (int). NO_MATCH: the DOI is not in OpenAlex. SKIPPED: not a
+    DOI (never sent). Otherwise the failure, payload None (never a guessed count)."""
+    s = session or default_session()
+    d = _doi.normalise_structured(doi) if isinstance(doi, str) else None
+    if d is None:
+        return Outcome(Kind.SKIPPED, host=API_HOST, detail=ledger.redact(f"not a DOI: {doi!r}"[:200]))
+    body, out = _singleton(s, d, "id,cited_by_count", "cited_by_count")
+    if body is None:
+        return out
+    n = _count_of(body.get("cited_by_count"))
+    if n is None:
+        return _malformed(out, "the work has no cited_by_count")
+    return dataclasses.replace(out, kind=Kind.OK, payload=n, detail=f"cited_by_count {n}")
 
 
 def citing_works(doi_or_wid, select=WORK_SELECT, *, per_page=PER_PAGE, max_pages=None,
@@ -744,7 +778,7 @@ def citing_works(doi_or_wid, select=WORK_SELECT, *, per_page=PER_PAGE, max_pages
     s = session or default_session()
     if not 1 <= int(per_page) <= PER_PAGE:
         raise ValueError(f"per_page must be in 1..{PER_PAGE}")
-    wid, fail = _resolve_wid(s, doi_or_wid)
+    wid, cited_by, fail = _resolve_wid(s, doi_or_wid)
     if fail is not None:
         yield fail
         return
@@ -766,7 +800,7 @@ def citing_works(doi_or_wid, select=WORK_SELECT, *, per_page=PER_PAGE, max_pages
         nxt = meta.get("next_cursor")
         results = [r for r in body["results"] if isinstance(r, dict)]
         page = Page(results, count=meta.get("count"), next_cursor=nxt if isinstance(nxt, str) and nxt else None,
-                    page=n, work_id=wid)
+                    page=n, work_id=wid, cited_by_count=cited_by)
         yield dataclasses.replace(out, payload=page, detail=f"page {n}: {len(results)} works of {page.count}")
         if not results or page.next_cursor is None:
             return

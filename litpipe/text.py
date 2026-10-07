@@ -45,7 +45,7 @@ import unicodedata
 from pdf_text_clean import LIGATURES
 
 __all__ = ["strip_tags", "unescape", "clean_field", "display_field", "abstract_field", "normalise_title",
-           "ISOGRK1"]
+           "comparison_fold", "filename_title", "ISOGRK1", "GREEK_NAMES"]
 
 # isogrk1 (W3C isogrk1.ent, 2007 entity set, current in the 2023 Recommendation).
 ISOGRK1 = {
@@ -175,10 +175,61 @@ def abstract_field(raw):
     return s
 
 
-def normalise_title(s):
-    """clean_field, lower-cased, with no space before closing punctuation or after opening
-    brackets: the comparison form of a title (never a display form)."""
+# ------------------------------------------------------------------------------ the comparison fold
+# The Greek letters a reference spells out ("beta-adrenergic") and a record prints (U+03B2), by name
+# (W5-C2: a consumer's resolvers lost 158 + 36 correct matches over this alone). Final sigma and the
+# symbol variants (U+03D0 to U+03F5) fold to the same names; capitals give capitalised names, so a
+# caller's lower-casing reads both the same. U+00B5 MICRO SIGN is "mu" (NFKD maps it to U+03BC).
+GREEK_NAMES = {
+    "α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "ε": "epsilon", "ζ": "zeta", "η": "eta",
+    "θ": "theta", "ι": "iota", "κ": "kappa", "λ": "lambda", "μ": "mu", "ν": "nu", "ξ": "xi",
+    "ο": "omicron", "π": "pi", "ρ": "rho", "σ": "sigma", "ς": "sigma", "τ": "tau", "υ": "upsilon",
+    "φ": "phi", "χ": "chi", "ψ": "psi", "ω": "omega",
+    "ϐ": "beta", "ϑ": "theta", "ϕ": "phi", "ϖ": "pi", "ϰ": "kappa", "ϱ": "rho", "ϵ": "epsilon",
+    "ϒ": "Upsilon",
+}
+GREEK_NAMES.update({k.upper(): v.capitalize() for k, v in list(GREEK_NAMES.items())
+                    if k.upper() != k and len(k.upper()) == 1 and k not in "ςϐϑϕϖϰϱϵ"})
+GREEK_NAMES["µ"] = "mu"                                  # U+00B5 MICRO SIGN
+# Quotes: the single forms (U+2018, U+2019, U+201A, U+201B, U+2032, U+02BC, U+00B4, U+0060 and the
+# ASCII apostrophe) are REMOVED, not spaced, so "ACSM's", "ACSM’s" and "ACSMs" agree; the double
+# forms (U+201C, U+201D, U+201E, U+201F, U+2033) become '"'. Dashes U+2010 to U+2015 and U+2212 are "-".
+_FOLD_MAP = {**{ord(k): v for k, v in GREEK_NAMES.items()},
+             **dict.fromkeys(map(ord, "'\u2018\u2019\u201a\u201b\u2032\u02bc\u00b4\u0060"), ""),
+             **dict.fromkeys(map(ord, "\u201c\u201d\u201e\u201f\u2033"), '"'),
+             **dict.fromkeys(map(ord, "\u2010\u2011\u2012\u2013\u2014\u2015\u2212"), "-")}
+
+
+def comparison_fold(s):
+    """The fold every title comparison applies to BOTH sides before its own normalisation: tags
+    stripped and references decoded, the apostrophe-like quotes (and U+00B4) removed outright,
+    NFKD with the combining marks dropped (accents: Périard, Periard), Greek letters spelled out
+    (U+03B2 is "beta", U+00B5 MICRO SIGN "mu"), double quotes to '"', the Unicode dashes (U+2010 to
+    U+2015, U+2212) to "-", whitespace collapsed. Latin case is kept. A comparison form only:
+    never a display form, and never a stored key or a filename (see filename_title)."""
+    if not s:
+        return ""
+    s = unescape(strip_tags(str(s)))
+    s = s.translate({0x00B4: "", 0x02BC: ""})            # before NFKD splits U+00B4 into space + accent
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = s.translate(_FOLD_MAP)
+    return " ".join(s.split())
+
+
+def filename_title(s):
+    """The title form audit_filenames builds canonical names from: normalise_title as it was before
+    the comparison fold (clean_field, lower-cased, punctuation spacing tidied). Kept stable on purpose:
+    a filename is a stored key, and folding it (Greek names, dropped apostrophes, ASCII dashes) would
+    turn every such file into a proposed rename."""
     s = clean_field(s).lower()
     s = _SPACE_BEFORE.sub(r"\1", s)
     s = _SPACE_AFTER.sub(r"\1", s)
     return " ".join(s.split())
+
+
+def normalise_title(s):
+    """comparison_fold, then clean_field, lower-cased, with no space before closing punctuation or
+    after opening brackets: the comparison form of a title (never a display form, never a filename:
+    see filename_title)."""
+    return filename_title(comparison_fold(s))

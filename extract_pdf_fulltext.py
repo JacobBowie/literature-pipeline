@@ -14,7 +14,10 @@ Strategy:
      cannot map gives '(cid:N)' for most words). A scan with a bad OCR layer, an image-only
      file or a mojibake layer does not become a normal sidecar: it gets `needs_ocr: true`,
      `needs_ocr_reason` and `text_metrics`, with `text` empty (an existing sidecar whose text
-     passes the gate is kept instead).
+     passes the gate is kept instead). The word measures read words whole across combining
+     marks (an Indic vowel sign, a decomposed accent); a Latin-script text of 200+ words with
+     almost no function words (MIN_STOPWORD_SHARE) is a mojibake layer; a pdfminer text that
+     passes with over CID_PREFER_SHARE '(cid:N)' tokens gives way to PyMuPDF's when that passes.
   4. `--ocr` (off by default) renders the pages that failed with PyMuPDF and OCRs them with
      Tesseract through pytesseract, in the `.ris` LA language plus English. The result records
      `extractor: "tesseract"`, `ocr_dpi`, `ocr_lang`, `ocr_engine_version`,
@@ -33,7 +36,8 @@ Schema parity:
 
 Which sidecars a re-extract may replace (`--refresh`):
   only one whose `extractor` is one this pipeline writes (pdfminer.six, pdftotext, pdfplumber,
-  PyMuPDF) or is empty, that carries none of text_preocr, repair_note, ocr_merged, licence,
+  PyMuPDF), is empty, or records an earlier failed extraction with no text (`none`,
+  `none(extract_failed)`), that carries none of text_preocr, repair_note, ocr_merged, licence,
   license, and that is not JATS-sourced. Every other sidecar is merged (OCR text, a hand
   repair, a JATS parse): `--refresh` prints KEEP and leaves it byte-identical, whatever
   siblings exist. `--refresh --force` re-extracts, keeps every field of the old sidecar, and
@@ -100,6 +104,9 @@ EXIT_OK, EXIT_USAGE, EXIT_DEGRADED = 0, 1, 2
 # The extractors this pipeline writes. A sidecar with another extractor (OCR text, a hand-filed
 # sidecar, the JATS tier) or with a merge marker is never replaced by a plain --refresh.
 PIPELINE_EXTRACTORS = ("pdfminer.six", "pdftotext", "pdfplumber", "PyMuPDF")
+# An earlier pipeline's record of a failed extraction (`none`, `none(extract_failed)`) with no text:
+# nothing to keep, so a plain --refresh retries it (W5-C2, C114).
+_FAILED_EXTRACTOR = re.compile(r"^none(?:\([^)]*\))?$")
 MERGED_MARKERS = ("text_preocr", "repair_note", "ocr_merged", "licence", "license")
 # The verdict fields pmc_fetch/unpaywall write (litpipe.identity.Verdict.as_dict, plus doc_kind).
 IDENTITY_FIELDS = ("identity", "identity_score", "identity_evidence", "doc_kind")
@@ -127,6 +134,33 @@ WATERMARK_CHARS_PER_PAGE = _identity.WATERMARK_CHARS_PER_PAGE   # suspect_file's
 PAGE_MIN_CHARS = 40            # a page with fewer non-space characters (after boilerplate) is blank
 MAX_BAD_PAGE_SHARE = 0.6       # this share of blank (image-only) pages fails the document
 BOILERPLATE_SHARE = 0.8        # a line on this share of pages is a stamp or running head
+
+# Stopword share (W5-C2, C215): a glyph-rich mojibake layer can pass every measure above (many
+# distinct "words" of real-looking letters, printable, word-like) while none of its words is a word.
+# The share of tokens that are common function words in the languages the libraries hold is the
+# tell. It applies only to a Latin-script text of some length (a Greek, Cyrillic, Arabic or Indic
+# paper has no Latin function words to count) and counts 3+ letter words only (a substitution
+# cipher turns short words into short stopwords by chance: 2-letter "of" -> "de"). Calibrated
+# 2026-10-07 (evidence w5c2 stopword_calibration.json, cipher_calibration.json): over the 5,482
+# Latin-script stored texts of the W4-C good-side sets that pass every other measure, the lowest
+# share is 0.0039 (a pdfminer text with its word spaces lost) and the median 0.186, so 0.002 fails
+# none of them; it catches 372 of 400 cipher mojibake layers and 20 of 20 accented-glyph soups.
+MIN_STOPWORD_SHARE = 0.002     # function words over 3+ letter words
+STOPWORD_MIN_WORDS = 200       # the rule needs a text of some length (2+ letter words)
+STOPWORD_LATIN_SHARE = 0.9     # Latin-script letters over all letters for the rule to apply
+STOPWORDS = frozenset("""
+the and of to in is for with that was were are on as by this from at an be or which not these their
+has have had than its it we our between after during been also into but all may can such both more
+de la el en los las del que por con una para se es al como lo su sus mas un le les des du et est
+dans pour sur par avec au aux ne pas ce qui une der die das und von mit den des ist im für auf eine
+nicht zu dem sich bei zur auch als wird da do em os com uma dos das na no nos ao foi são il di che
+della per sono nella het een van op voor zijn och att och som på är av för med til og af er paa
+""".split())
+# Fragments: cid share (W5-C2, C114). pdfminer writes '(cid:N)' for a glyph its font map lacks; a
+# text can pass the gate with some of them (22 of 473 stored texts carry over 1 %), and PyMuPDF
+# often reads the same font cleanly.
+CID_PREFER_SHARE = 0.01        # above this share of '(cid:N)' tokens, PyMuPDF's text is preferred
+_CID = re.compile(r"\(cid:\d+\)")
 
 _WORD = re.compile(r"[^\W\d_]{2,}")
 _WORD3 = re.compile(r"[^\W\d_]{3,}")
@@ -263,7 +297,8 @@ def is_replaceable(sidecar):
     if not isinstance(sidecar, dict):
         return True                  # unreadable: nothing to keep (as before W4-C)
     ex = sidecar.get("extractor")
-    if ex not in (None, "") and ex not in PIPELINE_EXTRACTORS:
+    failed = isinstance(ex, str) and bool(_FAILED_EXTRACTOR.match(ex)) and not str(sidecar.get("text") or "").strip()
+    if ex not in (None, "") and ex not in PIPELINE_EXTRACTORS and not failed:
         return False
     if (ex in (None, "") and sidecar.get("extracted_from_pdf") is not True
             and str(sidecar.get("text") or "").strip()):
@@ -413,12 +448,19 @@ def extract_gated(pdf_path, pages=None):
     used: a font pdfminer cannot map ('(cid:N)' for most words) often reads cleanly through the
     other two (all 47 such files in the calibration did). PyMuPDF goes first because
     pdftotext -layout interleaves the columns of a two-column page. Otherwise the first
-    extraction and its failed gate are returned."""
+    extraction and its failed gate are returned. A pdfminer text that passes but carries more than
+    CID_PREFER_SHARE '(cid:N)' tokens gives way to PyMuPDF's text when that passes too (W5-C2)."""
     n = len(pages) if pages is not None else None
     text, extractor, status = extract(pdf_path)
     text = clean_pdf_text(text)
     gate = text_validity(text, pages, n)
     if gate["ok"]:
+        if extractor == "pdfminer.six" and pages and gate["metrics"].get("cid_share", 0.0) > CID_PREFER_SHARE:
+            t2 = clean_pdf_text("\n\n".join(pages))
+            if t2.strip():
+                g2 = text_validity(t2, pages, n)
+                if g2["ok"] and g2["metrics"].get("cid_share", 0.0) < gate["metrics"]["cid_share"]:
+                    return t2, "PyMuPDF", "OK", g2
         return text, extractor, status, gate
     if pages:
         t2 = clean_pdf_text("\n\n".join(pages))
@@ -472,16 +514,44 @@ def bad_pages(page_texts):
     return out
 
 
+def _without_marks(text):
+    """`text` without combining marks (Unicode categories Mn, Mc, Me): the word measures read a
+    Devanagari word (consonants joined by vowel signs and viramas, W4a verifier L APPLY-2) or a
+    decomposed accented Latin word as one word, not as fragments split at every mark."""
+    if text.isascii():
+        return text
+    return "".join(ch for ch in text if not unicodedata.category(ch).startswith("M"))
+
+
+def _is_latin_letter(ch):
+    return ch.isalpha() and ("LATIN" in unicodedata.name(ch, "") if not ch.isascii() else True)
+
+
+def cid_share(text):
+    """'(cid:N)' tokens over 3+ letter words: pdfminer's unmapped glyphs (W5-C2, C114)."""
+    text = text or ""
+    n = len(_CID.findall(text))
+    if not n:
+        return 0.0
+    return n / max(1, len(_WORD3.findall(text)))
+
+
 def text_metrics(text, n_pages=None):
-    """The document-level measures the gate reads."""
+    """The document-level measures the gate reads. Word measures run on the text without
+    combining marks (_without_marks); the printable ratio and the page measures on the text as is."""
     text = text or ""
     nonspace = [ch for ch in text if not ch.isspace()]
     n_ns = len(nonspace)
-    words = _WORD.findall(text)
-    w3 = [w.lower() for w in _WORD3.findall(text)]
+    bare = _without_marks(text)
+    n_bare = sum(1 for ch in bare if not ch.isspace())
+    words = _WORD.findall(bare)
+    w3 = [w.lower() for w in _WORD3.findall(bare)]
     top_word, top_n = (Counter(w3).most_common(1)[0] if w3 else ("", 0))
     unprintable = sum(1 for ch in nonspace
                       if ch == "\ufffd" or unicodedata.category(ch) in _UNPRINTABLE_CATS)
+    letters = [ch for w in words for ch in w]
+    latin = sum(1 for ch in letters if _is_latin_letter(ch)) if not bare.isascii() else len(letters)
+    stop = sum(1 for w in w3 if w in STOPWORDS)
     st = _identity.text_stats(text, n_pages)
     return {
         "chars": n_ns,
@@ -491,7 +561,10 @@ def text_metrics(text, n_pages=None):
         "top_word": top_word[:40],
         "top_word_share": round(top_n / len(w3), 4) if w3 else 0.0,
         "printable_ratio": round(1 - unprintable / n_ns, 4) if n_ns else 0.0,
-        "word_char_ratio": round(_word_char_ratio(text, n_ns), 4),
+        "word_char_ratio": round(_word_char_ratio(bare, n_bare), 4),
+        "stopword_share": round(stop / len(w3), 4) if w3 else 0.0,
+        "latin_share": round(latin / len(letters), 4) if letters else 0.0,
+        "cid_share": round(cid_share(text), 4),
         "n_pages": n_pages,
         "chars_per_page": round(st["chars_per_page"], 1),
         "top_line_share": round(st["top_line_share"], 4),
@@ -535,6 +608,9 @@ def text_validity(text, page_texts=None, n_pages=None):
             reasons.append("unprintable_characters")
         if m["word_char_ratio"] < MIN_WORD_CHAR_RATIO:
             reasons.append("few_word_characters")
+        if (m["words"] >= STOPWORD_MIN_WORDS and m["latin_share"] >= STOPWORD_LATIN_SHARE
+                and m["stopword_share"] < MIN_STOPWORD_SHARE):
+            reasons.append("few_function_words")
         if watermark_only(text, n_pages):
             reasons.append("watermark_only_text")
     bad = []
@@ -548,27 +624,43 @@ def text_validity(text, page_texts=None, n_pages=None):
 
 
 # ---------------------------------------------------------------- Tesseract
+# Where Tesseract is found, on every platform: TESSDATA_PREFIX and a `tesseract` on PATH first (a
+# Linux or macOS package manager installs both). The Windows paths below are USE-CASE-ONLY
+# fallbacks for a per-user Windows install (a separate language folder under %LOCALAPPDATA%, and
+# the installer's %ProgramFiles%\Tesseract-OCR\tesseract.exe), each used only on Windows and only
+# when it exists.
+def _windows():
+    return os.name == "nt"
+
+
 def default_tessdata_dir():
-    """%LOCALAPPDATA%\\Tesseract-OCR\\tessdata: the full language set on this machine (the
-    winget build bundles only eng and osd)."""
+    """Windows only (use-case-only): %LOCALAPPDATA%\\Tesseract-OCR\\tessdata, a per-user language
+    folder (the winget build bundles only eng and osd). "" on any other platform."""
+    if not _windows():
+        return ""
     base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
     return os.path.join(base, "Tesseract-OCR", "tessdata")
 
 
 def ensure_tessdata_prefix():
-    """Set TESSDATA_PREFIX to default_tessdata_dir() when it is unset and that folder exists
-    (setdefault: an inherited value always wins). Returns the value in effect, or ""."""
+    """TESSDATA_PREFIX when it is set (an inherited value always wins, on every platform); else,
+    on Windows only, default_tessdata_dir() when that folder exists. Returns the value in effect,
+    or "" (Tesseract then uses its own compiled-in data path)."""
+    if os.environ.get("TESSDATA_PREFIX"):
+        return os.environ["TESSDATA_PREFIX"]
     d = default_tessdata_dir()
-    if os.path.isdir(d):
+    if d and os.path.isdir(d):
         os.environ.setdefault("TESSDATA_PREFIX", d)
     return os.environ.get("TESSDATA_PREFIX", "")
 
 
 def _tesseract_cmd():
+    """`tesseract` on PATH (every platform); else, on Windows only, the installer's default
+    %ProgramFiles%\\Tesseract-OCR\\tesseract.exe when it exists (use-case-only)."""
     found = shutil.which("tesseract")
     if found:
         return found
-    pf = os.environ.get("ProgramFiles")
+    pf = os.environ.get("ProgramFiles") if _windows() else None
     if pf:
         cand = os.path.join(pf, "Tesseract-OCR", "tesseract.exe")
         if os.path.isfile(cand):

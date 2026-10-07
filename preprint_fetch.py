@@ -92,6 +92,7 @@ from unpaywall_fetch_v2 import (Attempt, MIN_PDF_BYTES, _flagged, _pdf_text, boi
                                 legacy_build_filename, resolve_dest, write_identity_sidecar)
 from litpipe import config, ledger, net  # noqa: E402
 from litpipe import doi as _doi  # noqa: E402
+from litpipe import text as _text  # noqa: E402
 from litpipe.hosts import ProhibitedHost  # noqa: E402
 from litpipe.outcomes import Kind, Outcome, from_legacy  # noqa: E402
 
@@ -143,7 +144,8 @@ REPORT_FIELDS = LEGACY_FIELDS + TYPED_FIELDS + ["doc_kind", "sidecar", "sidecar_
 
 # ---------------------------------------------------------------- titles and names
 def norm_title(t):
-    t = re.sub(r"<[^>]+>", "", t or "")
+    t = _text.comparison_fold(t or "")      # Greek letters, quotes and dashes compare alike (W5 item 25)
+    t = re.sub(r"<[^>]+>", "", t)
     t = re.sub(r"[^a-zA-Z0-9 ]+", " ", t).lower()
     return re.sub(r"\s+", " ", t).strip()
 

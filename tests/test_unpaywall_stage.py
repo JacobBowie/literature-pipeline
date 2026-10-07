@@ -379,14 +379,15 @@ def test_configured_consecutive_403s_refuse_the_host_and_the_next_row_sends_noth
     _, rep, _ = run_stage(tmp_path, rows)
     assert len(web.to(host)) == threshold                        # the row after the threshold: nothing sent
     last = rep[f"10.1152/b.{threshold}"]
-    assert last["outcome"] == "REFUSED" and last["error"] == "HOST_REFUSED" and last["first_status"] == ""
+    assert last["outcome"] == "REFUSED" and last["error"] == f"HOST_REFUSED:{host}" and last["first_status"] == ""
+    assert f"host_refused:{host}" in last["detail"]                # W5-C2: the refused host is named
     for n in range(threshold):
         assert rep[f"10.1152/b.{n}"]["outcome"] == "REFUSED"
         assert rep[f"10.1152/b.{n}"]["first_status"] == "403"
     assert host in web.env.state.refused
     import sweep
     v = sweep.Verdict("unpaywall", Kind(last["outcome"]), last["error"], download_host=True)
-    assert sweep.classify([v]) == ("OA_BLOCKED", "unpaywall: HOST_REFUSED")   # retry_later + worklist
+    assert sweep.classify([v]) == ("OA_BLOCKED", f"unpaywall: HOST_REFUSED:{host}")   # retry_later + worklist
 
 
 def test_mdpi_live_403_refuses_www_mdpi_com_and_skips_prohibited_pmc_pages(web, tmp_path):
@@ -418,7 +419,7 @@ def test_interstitial_page_refuses_the_host_for_the_run(web, tmp_path):
     assert len(web.to(host)) == 1
     assert host in web.env.state.refused and "Client Challenge" in web.env.state.refused[host][0]
     assert rep["10.1186/c.0"]["outcome"] == "REFUSED" and "interstitial" in rep["10.1186/c.0"]["detail"]
-    assert rep["10.1186/c.1"]["error"] == "HOST_REFUSED"
+    assert rep["10.1186/c.1"]["error"] == f"HOST_REFUSED:{host}"
 
 
 def test_identical_size_non_pdf_body_for_two_dois_refuses_the_host(web, tmp_path):
@@ -433,7 +434,7 @@ def test_identical_size_non_pdf_body_for_two_dois_refuses_the_host(web, tmp_path
     _, rep, _ = run_stage(tmp_path, rows)
     assert len(web.to(host)) == 2                                # the third row sends nothing
     assert "identical" in web.env.state.refused[host][0]
-    assert rep["10.1152/d.2"]["error"] == "HOST_REFUSED"
+    assert rep["10.1152/d.2"]["error"] == f"HOST_REFUSED:{host}"
 
 
 def test_same_size_landing_pages_that_name_their_dois_are_not_a_signature(web, tmp_path):

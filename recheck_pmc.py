@@ -26,7 +26,7 @@ import lit_net  # B1/c8: doi_to_pmcid_batch (the DOI -> PMCID route and its iden
 lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import fitz  # pymupdf
+import pymupdf as fitz  # PyMuPDF's module name since 1.24.3
 from jats_to_text import fetch_fulltext  # c13: the shared JATS (then BioC) fetch + parse
 import ris_emit as _R      # title_similarity for the sidecar title sanity check
 

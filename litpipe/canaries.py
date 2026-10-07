@@ -85,7 +85,10 @@ Verdicts and refusals (dispatch amendment 3):
     data.crosscite.org) or on a second host of the check (the OSF download link) is ALARM only.
     litpipe.net itself still refuses a host that answers 403/406/final 429, as for every stage;
   * a wrong answer on a 2xx (drift), a SKIPPED check and an ERROR refuse nothing; refuse() never
-    downgrades a manual refusal (litpipe.state), and this module does not work around that.
+    downgrades a manual refusal (litpipe.state), and this module does not work around that. When
+    the origin is already refused until cleared (litpipe.net refuses a manual-policy host, arXiv,
+    that way), the canary calls no refuse() and its action says "refused until cleared"
+    (ACTION_REFUSED_MANUAL); otherwise "refused for the run".
   A check whose origin host is already refused is SKIPPED and sends nothing. arXiv is SKIPPED with
   nothing sent while any of export.arxiv.org, arxiv.org, www.arxiv.org is refused (manual or run)
   or when no scheduled project's sources include "arxiv"; idconv while pmc.ncbi.nlm.nih.gov is
@@ -134,24 +137,27 @@ Local checks (0 requests, read only; never a library, queue or portfolio.duckdb 
                    W2a): ALARM.
   markup           .ris text lines and .fulltext.json title/subtitle/journal/abstract/authors in
                    library files written since `since`, through litpipe.text strip_tags and
-                   unescape: the rate of files with a leftover tag or entity; ALARM above 0.
+                   unescape: the rate of files with a leftover tag or entity; ALARM above 0; a
+                   file that cannot be read or parsed is ERROR when nothing else alarms (never clean).
   email            the run's report CSVs (written since `since`; plan section 5 counts 90 legacy
                    hits that are W5-B's to scrub) and the run's ledger lines: a plain grep for
                    `email=` and `mailto:` (litpipe.ledger.redact replaces both whole, so any hit is
                    a leak) and for the configured address. ALARM names the file and line, never
-                   the value.
+                   the value; a report that cannot be read is ERROR when nothing alarms.
   doi_fixtures     DOI_FIXTURES through litpipe.doi.normalise / normalise_structured: ALARM on a
                    mismatch.
   index_freshness  index_runs.finished_at per project against the newest top-level PDF, .ris or
                    .fulltext.json in its library: ALARM when the library is newer by more than a
                    day. The DB is opened read-only with tries=1 and closed before returning; a
-                   missing DB or table, a lock or an open error is SKIPPED.
+                   missing DB or table, a lock or an open error is SKIPPED; a library that cannot
+                   be listed is ERROR for its project (never "no PDF").
   lost_artifacts   every stage in `stages` has lit_pull_queue[.<tag>].<sweep_run_id>.<stage>.csv in
                    artifact_dir or the project root: ALARM on a missing one.
 
 State: resolved once per run(): an explicit `state=`, else net.STATE, else litpipe.state, and
-passed to every net.request. "manual" versus "run" is read from litpipe.state.status() only when
-the real state is in use (a stand-in state's is_refused is read as refused). A state file that
+passed to every net.request. "manual" versus "run" is read from litpipe.state.status() when the
+real state is in use, else from a stand-in state's `refused` {host: (reason, persistence)} when it
+keeps one (else its is_refused is read as refused). A state file that
 does not exist yet is never created to answer "is this host refused?".
 """
 from __future__ import annotations
@@ -177,7 +183,9 @@ PHASES = ("network", "local", "all")
 
 PASS, ALARM, SKIPPED, ERROR = "PASS", "ALARM", "SKIPPED", "ERROR"
 ACTION_REFUSED = "refused for the run"
+ACTION_REFUSED_MANUAL = "refused until cleared"   # the host's refusal is manual (python -m litpipe.state --clear-refusal)
 ACTION_NONE = "none"
+_REFUSING_ACTIONS = (ACTION_REFUSED, ACTION_REFUSED_MANUAL)
 
 RECHECK_S = 60.0                 # wait before the one re-check of a 5xx, empty 2xx or transport failure
 MAX_ROUNDS = 2                   # the check and its re-check
@@ -227,9 +235,9 @@ OPENALEX_COST_USD = 0.0001
 CROSSREF_REF_FLOORS = {"10.1152/japplphysiol.00775.2024": 101, "10.1123/ijspp.2022-0026": 39}
 CN_DOIS = ("10.1152/japplphysiol.00775.2024", "10.48550/arxiv.2605.29559")   # V3 C8 raw/s30 (Crossref, DataCite)
 ALIAS_DOI, ALIAS_PRIME = "10.1515/9789882204508-009", "10.5790/hongkong/9789888528011.003.0007"  # V3 C4 raw/s50
-# The doc SICI DOI (V3 C3, raw/s10): Crossref holds it with the `#`. litpipe.doi reads `#` as a URL
-# fragment (doi.py module docstring, "Deliberate deviations"), so normalise() gives None and
-# encode_path raises; migrate_closed_to_md.doi_url falls back to percent-encoding it whole (%23).
+# The doc SICI DOI (V3 C3, raw/s10): Crossref holds it with the `#`, its check character. Since W5-C2
+# litpipe.doi keeps a `#` that ends a "(sici)" form after `;2-` (doi.py, candidates step 5), so
+# normalise() gives the whole DOI and migrate_closed_to_md.doi_url sends it through encode_path (%23).
 SICI_HASH_DOI = "10.1002/(SICI)1521-3951(199911)216:1<135::AID-PSSB135>3.0.CO;2-#"
 
 # DOI fixtures (input, function, expected) as the normaliser is built (W1-B, W3a verifier G).
@@ -241,8 +249,8 @@ DOI_FIXTURES = (
     # SICI DOIs keep their angle brackets (the Crossref class plus `<>`, "Deliberate deviations")
     ("10.1002/(SICI)1097-4636(199709)36:3<385::AID-JBM12>3.0.CO;2-E", "normalise",
      "10.1002/(sici)1097-4636(199709)36:3<385::aid-jbm12>3.0.co;2-e"),
-    # a `;2-#` SICI DOI: `#` is a fragment, so nothing is left ("Deliberate deviations"; W5 question)
-    (SICI_HASH_DOI, "normalise", None),
+    # a `;2-#` SICI DOI: the `#` is its check character, kept (W5-C2; every other `#` is a fragment)
+    (SICI_HASH_DOI, "normalise", "10.1002/(sici)1521-3951(199911)216:1<135::aid-pssb135>3.0.co;2-#"),
     # a letter-tail DOI: free text shortens it, a structured field keeps it (normalise_structured)
     ("10.1088/2053-1591/acdecd", "normalise", "10.1088/2053-1591"),
     ("10.1088/2053-1591/acdecd", "normalise_structured", "10.1088/2053-1591/acdecd"),
@@ -299,6 +307,10 @@ def _refusal(st, host) -> str | None:
                     return str(h["refused"])
         except Exception:      # noqa: BLE001
             pass
+    rec = getattr(st, "refused", None)             # a stand-in state keeps {host: (reason, persistence)}
+    if isinstance(rec, dict) and isinstance(rec.get(host), tuple) and len(rec[host]) > 1 \
+            and rec[host][1] in ("run", "manual"):
+        return rec[host][1]
     return "refused"
 
 
@@ -1067,6 +1079,8 @@ def _dirty(s) -> bool:
 
 
 def _file_has_markup(p: Path) -> bool:
+    """Does a new .ris or .fulltext.json carry markup or character references? A file that cannot
+    be read or parsed raises _Unreadable (K-5's sibling: never read as clean)."""
     try:
         if p.name.endswith(".ris"):
             for line in p.read_text(encoding="utf-8-sig", errors="replace").splitlines():
@@ -1075,8 +1089,8 @@ def _file_has_markup(p: Path) -> bool:
                     return True
             return False
         rec = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return False
+    except (OSError, ValueError) as e:              # ValueError: not JSON, or not UTF-8
+        raise _Unreadable(f"{p.name} ({type(e).__name__})") from None
     if not isinstance(rec, dict):
         return False
     for k in _SIDECAR_FIELDS:
@@ -1097,12 +1111,24 @@ def _l_markup(chk, lc):
         new = _new_files(cands, lc.since_ts)
         if not new:
             continue
-        bad = [p for p in new if _file_has_markup(p)]
-        rate = len(bad) / len(new)
-        out.append(_mk(chk, ALARM if bad else PASS, host=pr.key, target=f"{pr.key}: new .ris / .fulltext.json",
-                       observed={"summary": f"markup or entities in {len(bad)}/{len(new)} new files ({rate:.1%})"
-                                            + (f", e.g. {', '.join(p.name for p in bad[:3])}" if bad else ""),
-                                 "files_checked": len(new), "with_markup": len(bad), "rate": round(rate, 4)}))
+        bad, unreadable = [], []
+        for p in new:
+            try:
+                if _file_has_markup(p):
+                    bad.append(p)
+            except _Unreadable as e:
+                unreadable.append(str(e))
+        checked = len(new) - len(unreadable)
+        rate = len(bad) / checked if checked else 0.0
+        status = ALARM if bad else (ERROR if unreadable else PASS)
+        out.append(_mk(chk, status, host=pr.key, target=f"{pr.key}: new .ris / .fulltext.json",
+                       observed={"summary": f"markup or entities in {len(bad)}/{checked} new files ({rate:.1%})"
+                                            + (f", e.g. {', '.join(p.name for p in bad[:3])}" if bad else "")
+                                            + (f"; unreadable: {', '.join(unreadable[:3])}"
+                                               + (f" (+{len(unreadable) - 3} more)" if len(unreadable) > 3 else "")
+                                               if unreadable else ""),
+                                 "files_checked": checked, "with_markup": len(bad), "rate": round(rate, 4),
+                                 "unreadable": len(unreadable)}))
     return out
 
 
@@ -1125,17 +1151,19 @@ def _l_email(chk, lc):
         if not pr.run_ids:
             continue
         files = _new_files([p for ps in pr.reports().values() for p in ps], lc.since_ts)
-        hits = []
+        hits, bad = [], []
         for f in files:
             try:
                 with open(f, encoding="utf-8", errors="replace") as fh:
                     hits += [f"{f.name}:{i}" for i in _grep_lines(enumerate(fh, 1), pats)]
-            except OSError:
-                continue
-        out.append(_mk(chk, ALARM if hits else PASS, host=pr.key, target=f"{pr.key}: run report CSVs",
-                       observed=f"{len(hits)} lines with an email token in {len(files)} report files"
-                                + (f": {', '.join(hits[:5])}" + (f" (+{len(hits) - 5} more)" if len(hits) > 5 else "")
-                                   if hits else "")))
+            except OSError as e:          # K-5's sibling: a report not read is not a pass
+                bad.append(f"{f.name} ({type(e).__name__})")
+        obs = (f"{len(hits)} lines with an email token in {len(files) - len(bad)} report files"
+               + (f": {', '.join(hits[:5])}" + (f" (+{len(hits) - 5} more)" if len(hits) > 5 else "")
+                  if hits else "")
+               + (f"; unreadable report: {', '.join(bad)}" if bad else ""))
+        status = ALARM if hits else (ERROR if bad else PASS)
+        out.append(_mk(chk, status, host=pr.key, target=f"{pr.key}: run report CSVs", observed=obs))
     led = [(f"{path.name}:{i}", raw) for path, i, raw, _ in lc.ledger_records()]
     hits = [loc for loc, raw in led if any(p.search(raw) for p in pats)]
     out.append(_mk(chk, ALARM if hits else PASS, host="ledger", target=lc.ledger_target(),
@@ -1156,16 +1184,22 @@ def _l_doi_fixtures(chk, lc):
 
 
 def _newest_lib_mtime(lib: Path) -> float | None:
+    """The newest PDF, .ris or .fulltext.json mtime in the library; None when it holds none. A
+    library that cannot be listed raises _Unreadable (K-5's sibling: never read as "no PDF"); a
+    file that vanished between the listing and its stat is skipped."""
     newest = None
     try:
         with os.scandir(lib) as it:
             for e in it:
                 n = e.name
                 if e.is_file() and (n.lower().endswith(".pdf") or n.endswith(".ris") or n.endswith(".fulltext.json")):
-                    t = e.stat().st_mtime
+                    try:
+                        t = e.stat().st_mtime
+                    except FileNotFoundError:
+                        continue
                     newest = t if newest is None or t > newest else newest
-    except OSError:
-        return None
+    except OSError as e:
+        raise _Unreadable(f"library unreadable ({type(e).__name__})") from None
     return newest
 
 
@@ -1190,7 +1224,11 @@ def _l_index(chk, lc):
             row = con.execute("SELECT max(epoch(finished_at)) FROM index_runs WHERE project = ?",
                               [pr.key]).fetchone()
             stamp = float(row[0]) if row and row[0] is not None else None
-            newest = _newest_lib_mtime(pr.lib)
+            try:
+                newest = _newest_lib_mtime(pr.lib)
+            except _Unreadable as e:
+                out.append(_mk(chk, ERROR, host=pr.key, target=f"{pr.key}: index_runs vs library", observed=str(e)))
+                continue
             if newest is None:
                 obs, st = "library holds no PDF or sidecar", PASS
             elif stamp is None:
@@ -1374,6 +1412,18 @@ def _abs(base, p):
     return p if p.is_absolute() or base is None else Path(base) / p
 
 
+def _artifact_dir(key, cfg, root):
+    """The project's artifact directory (litpipe.config.artifact_dir, W5-C1: projects.json
+    `artifact_dir`, global or per project), or None when it is the project root or this checkout's
+    config has no artifact_dir yet. A bad value raises config.ConfigError, as a malformed context does."""
+    fn = getattr(config, "artifact_dir", None)
+    if fn is None:
+        return None
+    d = Path(fn(key, config.load(cfg)))
+    same = os.path.normcase(os.path.abspath(d)) == os.path.normcase(os.path.abspath(root))
+    return None if same else d
+
+
 def _registry_projects(cfg):
     import lit_util
     reg = config.load(cfg).get("projects") or {}
@@ -1452,7 +1502,9 @@ class _LocalCtx:
             return out
         today = self.since.strftime("%Y-%m-%d")
         for key, p, root, lib in _registry_projects(self.cfg):
-            dirs = [root] + ([d for d in sorted(root.iterdir()) if d.is_dir()] if root.is_dir() else [])
+            art = _artifact_dir(key, self.cfg, root)
+            dirs = ([art] if art is not None else []) + [root] + (
+                [d for d in sorted(root.iterdir()) if d.is_dir()] if root.is_dir() else [])
             pr = _Project(key, root, lib, set(config.sources(key, cfg=self.cfg)), dirs, [], None)
             pr.run_ids = sorted({a.run_id for _, a in pr.artifacts() if a.run_id.startswith(today)})
             out.append(pr)
@@ -1554,6 +1606,10 @@ def _run_network(chk, rctx) -> Outcome:
     # Confirmed: a refusal status at once, or a failure that the re-check repeated.
     confirmed = v.verdict == "refused" or (v.verdict == "fail" and first is not None)
     if confirmed and v.host == origin:
+        if _refusal(rctx.state, origin) == "manual":
+            # litpipe.net already refused the origin until cleared (a manual-policy host such as
+            # arXiv on a 406); a run refusal would change nothing (state never downgrades it)
+            return _mk(chk, ALARM, observed=obs, kind=kind, action=ACTION_REFUSED_MANUAL, **common)
         rctx.state.refuse(origin, ledger.redact(f"canary {chk.id}: {_short(v.observed, 200)}"), persistence="run")
         return _mk(chk, ALARM, observed=obs, kind=kind, action=ACTION_REFUSED, **common)
     if confirmed:
@@ -1635,7 +1691,7 @@ def report(outcomes, *, run_id=None, profile=None, started=None) -> dict:
         p = dict(o.payload or {}) if isinstance(o.payload, dict) else {"id": o.detail}
         p.update({"host": o.host, "kind": str(o.kind), "http_status": o.status, "requests": int(o.attempts or 0)})
         checks_out.append(p)
-    refused = sorted({c["host"] for c in checks_out if c.get("action") == ACTION_REFUSED})
+    refused = sorted({c["host"] for c in checks_out if c.get("action") in _REFUSING_ACTIONS})
     if isinstance(started, datetime):
         started = started.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     rep = {"run_id": run_id, "profile": profile, "started": started, "checks": checks_out,
@@ -1661,12 +1717,12 @@ def summary(rep) -> str:
     room = SUMMARY_LINES - 1
     shown = bad if len(bad) <= room else bad[:room - 1]
     for c in shown:
-        act = " [refused for the run]" if c.get("action") == ACTION_REFUSED else ""
+        act = f" [{c['action']}]" if c.get("action") in _REFUSING_ACTIONS else ""
         lines.append(_short(f"{c.get('status')} {c.get('id')} {c.get('host')}: {_observed_text(c)}{act}", 200))
     if len(bad) > len(shown):
         lines.append(f"+{len(bad) - len(shown)} more ALARM")
     elif len(lines) < SUMMARY_LINES and rep.get("refused_hosts"):
-        lines.append("refused for the run: " + ", ".join(rep["refused_hosts"]))
+        lines.append("refused by a canary: " + ", ".join(rep["refused_hosts"]))
     return "\n".join(lines[:SUMMARY_LINES])
 
 

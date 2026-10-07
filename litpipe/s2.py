@@ -807,7 +807,8 @@ class Failed:
 
 
 def _norm(t) -> str:
-    t = unicodedata.normalize("NFKC", t or "").casefold()
+    from litpipe.text import comparison_fold     # Greek letters, quotes and dashes compare alike (W5 item 25)
+    t = unicodedata.normalize("NFKC", comparison_fold(t or "")).casefold()
     return "".join(ch for ch in t if ch.isalnum())
 
 

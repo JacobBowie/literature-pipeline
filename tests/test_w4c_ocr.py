@@ -296,6 +296,7 @@ def test_parse_tsv():
 
 
 def test_ensure_tessdata_prefix(tmp_path, monkeypatch):
+    monkeypatch.setattr(E, "_windows", lambda: True)        # the Windows per-user fallback (use-case-only)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     monkeypatch.delenv("TESSDATA_PREFIX", raising=False)
     assert E.ensure_tessdata_prefix() == ""                 # the folder does not exist: unset

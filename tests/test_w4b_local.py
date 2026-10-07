@@ -369,10 +369,12 @@ def test_doi_fixture_mismatch_alarms(tmp_path, monkeypatch):
     assert o.payload["status"] == canaries.ALARM and "10.1/xyz" in o.payload["observed"]
 
 
-def test_the_sici_hash_fixture_is_none():
+def test_the_sici_hash_fixture_keeps_the_check_character():
+    # W5-C2: a `#` that ends a "(sici)" form after `;2-` is the SICI check character, not a fragment
     from litpipe import doi as _doi
-    assert (canaries.SICI_HASH_DOI, "normalise", None) in canaries.DOI_FIXTURES
-    assert _doi.normalise(canaries.SICI_HASH_DOI) is None
+    whole = canaries.SICI_HASH_DOI.lower()
+    assert (canaries.SICI_HASH_DOI, "normalise", whole) in canaries.DOI_FIXTURES
+    assert _doi.normalise(canaries.SICI_HASH_DOI) == whole
 
 
 # ------------------------------------------------------------------------------ index freshness

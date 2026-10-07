@@ -1,5 +1,5 @@
 """Post-process pymupdf-extracted text to fix three issues observed empirically
-on the getpaid + Physiological_Data libraries (2026-04-27 validation, n=6 papers).
+on two research libraries (2026-04-27 validation, n=6 papers).
 
 Fixes:
   1. Unicode ligatures — pymupdf preserves the glyph (ﬁ U+FB01) instead of ASCII 'fi'.

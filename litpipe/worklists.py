@@ -54,7 +54,7 @@ Pool drawdown (the contract `python -m litpipe.runner batch` is built on, W4-A)
   mark_staged loses nothing and leaves no untracked queue file (the rows are drawn again). A kill
   after the sweep but before mark_swept sweeps that batch again on resume unless the runner takes
   its classes from the run's routing CSV.
-  seed_from(path) imports a VAP-style state file (`staged_dois`): each DOI is marked staged AND
+  seed_from(path) imports a pool state file with a `staged_dois` list: each DOI is marked staged AND
   swept with class "imported", so it is never pending and never drawn; the import is recorded by
   the file's sha256 in `seeded_from`, so importing the same file twice imports once.
 
@@ -209,14 +209,15 @@ def publisher(doi):
 def doi_link(doi):
     """A doi.org link for a DOI, percent-encoded for a URL path (DOI Handbook 2025, 4.7).
 
-    migrate_closed_to_md.doi_url builds it, which survives a DOI that litpipe.doi.encode_path
-    rejects (a SICI `;2-#`). The one exception is a registered DOI that the free-text rule
-    shortens (`10.1088/2053-1591/acdecd`): its whole structured form is encoded with the same
-    4.7 set, so the link never points at a journal-level DOI (W5 unifies the two rules)."""
+    migrate_closed_to_md.doi_url builds it (litpipe.doi.encode_path; a SICI check character `#`
+    is written `%23`), and still links a string that holds no DOI. The one exception is a
+    registered DOI that the free-text rule shortens (`10.1088/2053-1591/acdecd`): its whole
+    structured form is encoded with the same 4.7 set (litpipe.doi.PATH_SAFE), so the link never
+    points at a journal-level DOI (the two rules' unification is parked)."""
     s = _doi.normalise_structured(doi)
     if s and s != _doi.normalise(doi):
         prefix, suffix = s.split("/", 1)
-        safe = _doi._PATH_SAFE
+        safe = _doi.PATH_SAFE
         return "https://doi.org/" + quote(prefix, safe=safe) + "/" + quote(suffix, safe=safe + "/")
     return _migrate.doi_url(doi)
 
@@ -520,23 +521,44 @@ def seed_coverage(project, registry):
 
 
 # ---------------------------------------------------------------- residual CSVs
+def project_artifact_dir(key, registry, root):
+    """The project's artifact directory from litpipe.config.artifact_dir(key, cfg) (projects.json
+    `artifact_dir`, global or per project; W5-C1), or None when it is the project root, unset, or
+    this checkout's litpipe.config has no artifact_dir yet. `registry` is a loaded projects.json or
+    a bare projects mapping (wrapped as {"projects": mapping}). WorklistError on a bad value."""
+    fn = getattr(config, "artifact_dir", None)
+    if fn is None:
+        return None
+    cfg = registry if isinstance(registry.get("projects"), dict) else {"projects": registry}
+    try:
+        d = Path(fn(key, cfg))
+    except config.ConfigError as e:
+        raise WorklistError(f"artifact_dir for {key!r}: {e}") from None
+    same = os.path.normcase(os.path.abspath(d)) == os.path.normcase(os.path.abspath(root))
+    return None if same else d
+
+
 def residual_csvs(registry, *, projects=None):
     """[(project key, path)] of every residual CSV (`lit_pull_queue.*.residual.csv`) in each
-    registered project's root (lit_util.project_root) and its direct subdirectories (sweep's
-    relative --artifact-dir), skipping `archive` and `_archive`. A file reachable from two projects
-    (a subproject root is also its parent's subdirectory) belongs to the one whose root holds it.
-    Ordered by path."""
+    registered project's artifact directory (litpipe.config.artifact_dir, when set), its root
+    (lit_util.project_root) and the root's direct subdirectories (sweep's relative
+    --artifact-dir), skipping `archive` and `_archive`. A file reachable from two projects (a
+    subproject root is also its parent's subdirectory) belongs to the one whose root or artifact
+    directory holds it. Ordered by path."""
     found = {}
     for order, (key, entry) in enumerate(_select(registry, projects)):
         root = lit_util.project_root(key, entry)
-        if not root.is_dir():
+        art = project_artifact_dir(key, registry, root)
+        dirs = [(0, art)] if art is not None and art.is_dir() else []
+        if not root.is_dir() and not dirs:
             continue
-        dirs = [(0, root)]
-        try:
-            dirs += [(1, Path(e.path)) for e in os.scandir(root)
-                     if e.is_dir() and e.name.lower() not in SKIP_DIRS]
-        except OSError:
-            pass
+        if root.is_dir():
+            dirs.append((0, root))
+            try:
+                dirs += [(1, Path(e.path)) for e in os.scandir(root)
+                         if e.is_dir() and e.name.lower() not in SKIP_DIRS]
+            except OSError:
+                pass
         for depth, d in dirs:
             for p in d.glob(RESIDUAL_GLOB):
                 if not p.is_file():
@@ -766,7 +788,7 @@ class Pool:
         return out
 
     def seed_from(self, path, *, dry_run=False):
-        """Import a VAP-style state file: every DOI in its `staged_dois` list is marked staged and
+        """Import a pool state file with a `staged_dois` list: every DOI in it is marked staged and
         swept with class "imported" (never pending, never drawn). DOIs this pool already tracks are
         left as they are. Idempotent through `seeded_from` (the file's sha256)."""
         p = Path(path)
@@ -916,7 +938,7 @@ def main(argv=None) -> int:
     oa = sub.add_parser("oa-blocked", help="the portfolio OA-blocked browser worklist, grouped by host")
     ill = sub.add_parser("ill", help="the ILL list ranked by co-citation count and n_seeds_pointing")
     cov = sub.add_parser("coverage", help="share of each library's PDFs parsed as reverse-walk seeds")
-    ps = sub.add_parser("pool-status", help="a pool's drawdown state; --seed-state imports a VAP state")
+    ps = sub.add_parser("pool-status", help="a pool's drawdown state; --seed-state imports a pool state file with a staged_dois list")
     for p in (oa, ill, cov):
         p.add_argument("--project", action="append", default=None, help="only this project (repeatable)")
     for p in (oa, ill):
@@ -928,7 +950,7 @@ def main(argv=None) -> int:
     ill.add_argument("--limit", type=int, default=None)
     ill.add_argument("--include-held", action="store_true", help="keep DOIs the index holds somewhere")
     ps.add_argument("--pool", required=True, help="the pool CSV")
-    ps.add_argument("--seed-state", default=None, metavar="PATH", help="a VAP-style state (staged_dois) to import")
+    ps.add_argument("--seed-state", default=None, metavar="PATH", help="a pool state file with a `staged_dois` list to import")
     ps.add_argument("--write", action="store_true", help="with --seed-state: import it (default: dry run)")
     args = ap.parse_args(sys.argv[1:] if argv is None else argv)
     kw = {"projects": getattr(args, "project", None), "date": getattr(args, "date", None),

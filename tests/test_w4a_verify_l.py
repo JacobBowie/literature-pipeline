@@ -2,8 +2,8 @@
 consumers (sweep, litpipe.holdings, audit_portfolio, index_portfolio, fill_missing_dois) on temp worlds.
 
 The tests named for APPLY-1 and APPLY-3 locked defects found in verification: each failed on 964c26f
-and passes with its fix, landed in the same commit. APPLY-2 (Devanagari) is deferred to W5 and stays
-xfail(strict=True) until then. No network; every PDF is made here.
+and passes with its fix, landed in the same commit. APPLY-2 (Devanagari) was deferred to W5 under
+xfail(strict=True) and landed in W5-C2 (the lock now passes). No network; every PDF is made here.
 """
 import contextlib
 import hashlib
@@ -120,7 +120,9 @@ def test_scan_with_a_watermark_line_writes_needs_ocr(tmp_path):
 def test_cid_layer_over_the_share_fails():
     toks = [f"(cid:{i % 90 + 3})" for i in range(310)] + [LINES[i % 8].split()[i % 5] + "s" for i in range(690)]
     random.Random(1).shuffle(toks)
-    assert gate(["\n".join(" ".join(toks[i:i + 12]) for i in range(0, 1000, 12))])["reasons"] == ["one_word_dominates"]
+    reasons = gate(["\n".join(" ".join(toks[i:i + 12]) for i in range(0, 1000, 12))])["reasons"]
+    # W5-C2: the synthetic words (each a real word plus "s") carry no function word either
+    assert reasons[0] == "one_word_dominates" and set(reasons) <= {"one_word_dominates", "few_function_words"}
 
 
 # ---------------------------------------------------------------- healthy non-Latin text passes
@@ -152,11 +154,9 @@ def test_healthy_non_latin_text_passes(script):
     assert g["ok"], g["reasons"]
 
 
-@pytest.mark.xfail(strict=True, reason="APPLY-2, deferred to W5 (no Indic-script paper in any library "
-                                       "today; landing it needs the 17-paper bad-side calibration "
-                                       "re-run): combining vowel signs split Indic words, so the gate "
-                                       "empties a healthy Devanagari paper (few_word_characters)")
 def test_healthy_devanagari_text_passes():
+    # APPLY-2, landed in W5-C2: the word measures read the text without combining marks, so vowel
+    # signs and viramas no longer split Indic words (the 17-paper bad-side calibration was re-run)
     g = gate(script_pages(VOCAB["devanagari"]))
     assert g["ok"], g["reasons"]
 

@@ -169,8 +169,8 @@ def test_pin_links_are_percent_encoded(pins):
     assert angle["url"] == "https://doi.org/10.1175/1520-0477(1998)079%3C0001:atdsow%3E2.0.co;2"
     sici = [r for d, r in pins.rows.items() if d.endswith(";2-#")]
     assert len(sici) == 1
-    assert sici[0]["url"] == ("https://doi.org/10.1002/%28sici%291097-4636%28199601%2930%3A1%3C1%3A%3A"
-                              "aid-jbm1%3E3.0.co%3B2-%23")
+    assert sici[0]["url"] == ("https://doi.org/10.1002/(sici)1097-4636(199601)30:1%3C1::"   # W5-C2: encode_path
+                              "aid-jbm1%3E3.0.co;2-%23")                                # keeps the SICI '#'
     assert "(https://doi.org/10.1175/1520-0477(1998)079%3C0001:atdsow%3E2.0.co;2)" in pins.md
 
 

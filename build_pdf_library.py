@@ -15,8 +15,9 @@ dumps: the first in sorted order keeps `<stem>.txt`, a later one gets `<stem>__2
 `__3`, ...); the `txt_file` column names each.
 
 Error-rate gate: when every PDF, or more than half, raised or failed the text gate, none of
-metadata.csv, abstracts.md and library_report.md is overwritten; the rows go to
-metadata.errors.csv and the run exits 2 after a `[step-summary] {json}` line. Exit 1: a usage
+metadata.csv, abstracts.md, library_report.md and the text/ dumps is written; the rows go to
+metadata.errors.csv and the run exits 2 after a `[step-summary] {json}` line. The dumps are
+written only after the gate decides. Exit 1: a usage
 error, a missing --lib-dir, or no PDFs.
 
 Usage:
@@ -32,9 +33,9 @@ lit_util.utf8_stdout()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import extract_pdf_fulltext as _xf  # noqa: E402  (the text-validity gate; TESSDATA_PREFIX default)
 
-# Tesseract's full language set lives in %LOCALAPPDATA%\Tesseract-OCR\tessdata on this machine
-# (the winget build bundles only eng and osd): setdefault, so an inherited value always wins, and
-# only when that folder exists. Never the retired miniconda path.
+# TESSDATA_PREFIX for OCR: an inherited value wins on every platform; else, on Windows only and only
+# when the folder exists, a per-user %LOCALAPPDATA%\Tesseract-OCR\tessdata (use-case-only: a
+# winget install bundles only eng and osd). See extract_pdf_fulltext.ensure_tessdata_prefix.
 _xf.ensure_tessdata_prefix()
 
 import pymupdf  # noqa: E402
@@ -159,11 +160,11 @@ def run(*, base_dir=None, lib_dir="references/literature", out_dir="data/prior_a
         print(f"ERR: --lib-dir not a directory: {lib_dir}", file=sys.stderr)
         res["exit"] = EXIT_USAGE
         return res
-    os.makedirs(text_dir, exist_ok=True)
 
     rows = []
     abstracts_md = ["# Abstracts — auto-extracted\n"]
     gate_failed = []
+    dumps = {}                  # txt name -> text of a gate-passed PDF, written after the error-rate gate
 
     pdfs = sorted(f for f in os.listdir(lib_dir) if f.endswith(".pdf"))
     txt_names = txt_dump_names(pdfs)
@@ -190,8 +191,7 @@ def run(*, base_dir=None, lib_dir="references/literature", out_dir="data/prior_a
             if gate["ok"]:
                 abstract = extract_abstract(full_text)
                 venue = infer_venue(full_text)
-                with open(os.path.join(text_dir, txt_names[fn]), "w", encoding="utf-8") as f:
-                    f.write(full_text)
+                dumps[txt_names[fn]] = full_text
             else:
                 abstract, venue = "", ""
                 gate_failed.append(fn)
@@ -240,26 +240,30 @@ def run(*, base_dir=None, lib_dir="references/literature", out_dir="data/prior_a
     n_bad = n_err + len(gate_failed)
     res.update(ok=len(rows) - n_bad, gate_failed=len(gate_failed), errors=n_err)
     if n_bad == len(rows) or n_bad > len(rows) * MAX_BAD_SHARE:
+        os.makedirs(out_dir, exist_ok=True)
         err_path = os.path.join(out_dir, "metadata.errors.csv")
         lit_util.atomic_write_csv(err_path, rows, FIELDS, newline="\r\n")
         res["errors_csv"] = err_path
         res["reasons"].append(f"{n_bad} of {len(rows)} PDFs raised ({n_err}) or failed the text "
-                              f"gate ({len(gate_failed)}): metadata.csv, abstracts.md and "
-                              f"library_report.md left as they were")
+                              f"gate ({len(gate_failed)}): metadata.csv, abstracts.md, "
+                              f"library_report.md and the text/ dumps left as they were")
         print(f"\nERR: {n_bad} of {len(rows)} PDFs raised ({n_err}) or failed the text-validity "
-              f"gate ({len(gate_failed)}).\n  metadata.csv, abstracts.md and library_report.md "
-              f"were NOT overwritten; the rows are in {err_path}", file=sys.stderr)
+              f"gate ({len(gate_failed)}).\n  metadata.csv, abstracts.md and library_report.md were NOT "
+              f"overwritten and no text/ dump was written; the rows are in {err_path}", file=sys.stderr)
         res["exit"] = EXIT_DEGRADED
         print(SUMMARY_MARKER + json.dumps({"reasons": res["reasons"], "aborted": None,
                                            "transport_failures": 0}, ensure_ascii=False),
               flush=True)
         return res
 
-    # a failed text layer leaves an empty dump: the text corpus keeps one file per PDF, and no
-    # earlier dump of the same bad layer survives
+    # Only now, the error-rate gate passed: the dumps (W5-C2, C114; a degraded run writes none).
+    # A failed text layer leaves an empty dump: the text corpus keeps one file per PDF, and no
+    # earlier dump of the same bad layer survives.
+    os.makedirs(text_dir, exist_ok=True)
+    for name, text in dumps.items():
+        lit_util.atomic_write_text(os.path.join(text_dir, name), text)
     for fn in gate_failed:
-        with open(os.path.join(text_dir, txt_names[fn]), "w", encoding="utf-8") as f:
-            f.write("")
+        lit_util.atomic_write_text(os.path.join(text_dir, txt_names[fn]), "")
 
     lit_util.atomic_write_csv(csv_path, rows, FIELDS, newline="\r\n")
     res["metadata"] = csv_path

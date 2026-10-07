@@ -509,7 +509,9 @@ def test_a_seed_whose_openalex_walk_is_stopped_mid_seed_is_never_reported_fine(w
 
 def test_an_openalex_count_mismatch_fails_the_seed_and_keeps_its_rows(world, tmp_path, monkeypatch):
     """The open question, pinned as built: no recount; the seed is failed, its prior rows kept, and the
-    gate walks it again next run."""
+    gate walks it again next run. W5-C2: a W-id repeated across pages is no longer a mismatch (the rows
+    returned, 120, equal meta.count; the walk keeps the 119 unique rows); a list really short of
+    meta.count still fails as before."""
     monkeypatch.setenv(openalex.KEY_ENV, OA_KEY)
     d = "10.5555/oam.0001"
     world.add(d, 10100, oa=120)
@@ -519,10 +521,27 @@ def test_an_openalex_count_mismatch_fails_the_seed_and_keeps_its_rows(world, tmp
     real = walk.openalex_citing
     monkeypatch.setattr(walk, "openalex_citing",
                         lambda w: {**real(w), "citing_paper_id": "W1"} if w.get("id", "").endswith("05") else real(w))
-    res = fc.run(lib_dir=str(lib))                        # two works share a W-id: 119 rows against meta.count 120
+    res = fc.run(lib_dir=str(lib))                        # two works share a W-id: 120 returned, 119 unique
     with walk.Cache(walk.CACHE_PATH) as c:
         st = c.states()[(d, "openalex")]
-        assert st["state"] == "failed" and st["kind"] == "COUNT_MISMATCH" and len(c.rows(d, "openalex")) == 120
+        assert st["state"] == "complete" and len(c.rows(d, "openalex")) == 119 and "W1" in st["reason"]
+    assert res["failed"] == 0 and res["exit_code"] == 0
+    world.papers[d]["count"] = 10102                     # walked again: now one row short of meta.count
+    from tests.test_walk_forward import RL, _raw
+    real_oa = world._openalex
+
+    def short(path, q):
+        raw = real_oa(path, q)
+        if path == "/works" and q.get("filter", "").startswith("cites:"):
+            body = json.loads(raw.content)
+            body["meta"]["count"] += 1
+            return _raw(200, body, RL)
+        return raw
+    world._openalex = short
+    res = fc.run(lib_dir=str(lib))
+    with walk.Cache(walk.CACHE_PATH) as c:
+        st = c.states()[(d, "openalex")]
+        assert st["state"] == "failed" and st["kind"] == "COUNT_MISMATCH" and len(c.rows(d, "openalex")) == 119
     assert res["failed"] == 1 and res["recounted"] == 0 and res["exit_code"] == 2
 
 

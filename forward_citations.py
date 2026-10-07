@@ -203,7 +203,7 @@ def doi_from_pdf(pdf_path: Path, max_chars=5000, rejected=None) -> str:
     found and `rejected` is a list, it receives litpipe.doi's (position, form, reason) for each form
     dropped, so a caller can tell a placeholder from no DOI at all."""
     try:
-        import fitz
+        import pymupdf as fitz
     except ImportError:
         return ""
     text = ""
@@ -781,7 +781,8 @@ class _Run:
             if not self.locked:
                 try:
                     self.cache.record(d, res.source, state=res.state, count=count, paper_id=pid, rows=res.rows,
-                                      kind=res.kind, reason=res.reason, unreachable=res.unreachable)
+                                      kind=res.kind, reason=res.reason, unreachable=res.unreachable,
+                                      oa_cited_by=res.oa_cited_by)
                 except walk.CacheLocked as e:
                     self.locked = True
                     state, kind, stage, reason = "failed", "CACHE", "cache", f"{CACHE_LOCKED}: {e}"
@@ -844,8 +845,9 @@ class _Run:
         self._group_aliases()
         primaries = list(self.groups)
         counts = {p: self.meta[p][1] for p in primaries}
+        oa_now = self._openalex_counts(primaries)
         self.plan = walk.plan(counts, self.cached, refresh=self.refresh, source=self.source,
-                              openalex_key=self._oa_ok(), n_metadata=len(todo))
+                              openalex_key=self._oa_ok(), n_metadata=len(todo), oa_counts=oa_now)
         print(walk.plan_line(self.plan))
         if self.alias_rows:
             print(f"[aliases] {len(self.alias_rows)} seed DOI(s) S2 knows under another DOI or paperId:")
@@ -858,8 +860,8 @@ class _Run:
             pid, count, _s2doi, _year = self.meta[p]
             r = walk.route(count, source=self.source, oa_ok=self._oa_ok())
             src = walk.route_source(r)
-            if not any(walk.needs_walk(count, self.cached.get((d, src)), refresh=self.refresh)
-                       for d in self.groups[p]):
+            if not any(walk.needs_walk(count, self.cached.get((d, src)), refresh=self.refresh,
+                                       oa_count=oa_now.get(p)) for d in self.groups[p]):
                 kept.append((p, src, count))
                 continue
             wid = walk.walk_id(pid, p)
@@ -906,6 +908,17 @@ class _Run:
                 res = walk.walk_windows(wid, count, year, session=self.sess)
         res.route_taken = r
         return res
+
+    def _openalex_counts(self, primaries) -> dict:
+        """{primary: OpenAlex cited_by_count} for the seeds S2 holds no count for that an OpenAlex
+        walk cached before (source "openalex"): the count gate's input for them (walk.needs_walk
+        oa_count), one free singleton each. Empty under --refresh, another source, or a stopped
+        OpenAlex session."""
+        if self.source != "openalex" or self.refresh or self.osess.aborted:
+            return {}
+        need = [p for p in primaries if self.meta[p][1] is None
+                and any(self.cached.get((d, "openalex")) for d in self.groups[p])]
+        return walk.openalex_counts(need, session=self.osess) if need else {}
 
     def _record_kept(self, kept):
         """Seeds the count gate keeps: journalled as answered (one fsync), not printed one by one."""

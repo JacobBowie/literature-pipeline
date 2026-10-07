@@ -89,7 +89,10 @@ EXIT_OK, EXIT_NO_TRIAGE, EXIT_CONFIG = 0, 1, 2
 REPORT_FIELDS = ["rank", "doi", "year", "cites", "filename", "title", "oa_status",
                  "n_locations", "downloaded", "winning_host", "winning_url", "attempts", "error",
                  # typed columns (W2-B; sweep reads them from W2-G on)
-                 "first_status", "route", "outcome", "detail", "ra", "identity", "doc_kind"]
+                 "first_status", "route", "outcome", "detail", "ra", "identity", "doc_kind",
+                 # W5-C2: the record's best_oa_location (url_for_pdf, else url) from the SAME
+                 # response, on every row Unpaywall answered with an OA location, success or not
+                 "best_oa_url"]
 SIDECAR_EXTS = (".ris", ".fulltext.json", ".identity.json", ".xml")
 
 # ---------- filename synthesis ----------
@@ -314,12 +317,12 @@ def doi_from_pdf_bytes(pdf_path, max_chars=5000):
     """Extract the first well-formed DOI from a PDF's first ~5KB (RC3). '' on failure.
     (pmc_fetch and preprint_fetch still use it; this stage uses the identity check instead.)"""
     try:
-        import fitz
+        import pymupdf
     except ImportError:
         return ""
     text = ""
     try:
-        doc = fitz.open(str(pdf_path))
+        doc = pymupdf.open(str(pdf_path))
         try:
             for p in doc:
                 text += p.get_text()
@@ -439,6 +442,21 @@ def unpaywall_lookup(doi, *, state=None):
         return Outcome(Kind.ERROR, host="api.unpaywall.org", detail=f"not a DOI: {doi!r}")
     return net.get(f"{UNPAYWALL}/{path}", validate=net.expect_json, state=state,
                    purpose="unpaywall: lookup")
+
+
+def best_oa_url(upw) -> str:
+    """The record's best_oa_location link: its url_for_pdf, else its url (which is the PDF URL when
+    there is one, else the landing page; unpaywall.org/data-format), "" when the record has no OA
+    location (best_oa_location null, which the docs tie to is_oa false) or the location carries no
+    URL. Read from the same response the candidates come from; never a second lookup."""
+    best = upw.get("best_oa_location") if isinstance(upw, dict) else None
+    if not isinstance(best, dict):
+        return ""
+    for field in ("url_for_pdf", "url"):
+        u = best.get(field)
+        if isinstance(u, str) and u.strip():
+            return u.strip()
+    return ""
 
 
 def candidate_urls(upw, order="repository"):
@@ -721,8 +739,13 @@ class Stage:
         if p is not None:
             body = p.content if p.content is not None else (p.first_chunk or b"")
         status = _legacy_status(o, o.detail or "")
+        detail = ledger.redact(o.detail or "")
+        if status == "HOST_REFUSED" and o.host:
+            # the token migrate reads (`host_refused:<host>`, as preprint_fetch emits it), so a row
+            # whose only open copy sits on a host refused until cleared waits 30 days (C109 F-1)
+            detail = f"host_refused:{o.host}" + (f" ({detail})" if detail else "")
         att = Attempt(url=ledger.redact(url), status=status, kind=_download_kind(o), host=o.host,
-                      http_status=o.status, sent=o.attempts > 0, detail=ledger.redact(o.detail or ""),
+                      http_status=o.status, sent=o.attempts > 0, detail=detail,
                       size=(p.total_bytes if p is not None else 0), **a)
         final_url = p.url if p is not None else url
         if o.ok:
@@ -783,14 +806,14 @@ def _pdf_text(content_or_path, pages=IDENTITY_PAGES):
     """(first-pages text, first-page text, page count) of PDF bytes or a path; ('', '', 0) when
     unreadable."""
     try:
-        import fitz
+        import pymupdf
     except ImportError:
         return "", "", 0
     try:
         if isinstance(content_or_path, (bytes, bytearray)):
-            doc = fitz.open(stream=bytes(content_or_path), filetype="pdf")
+            doc = pymupdf.open(stream=bytes(content_or_path), filetype="pdf")
         else:
-            doc = fitz.open(str(content_or_path))
+            doc = pymupdf.open(str(content_or_path))
     except Exception:
         return "", "", 0
     try:
@@ -1016,7 +1039,7 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
                "title": title[:120], "oa_status": "", "n_locations": 0, "downloaded": False,
                "winning_host": "", "winning_url": "", "attempts": "", "error": "",
                "first_status": "", "route": "", "outcome": "", "detail": "", "ra": "",
-               "identity": "", "doc_kind": ""}
+               "identity": "", "doc_kind": "", "best_oa_url": ""}
 
         def done(kind, route, error="", detail=""):
             # legacy readers (sweep, migrate) map `error` through from_legacy: make it name `kind`
@@ -1086,6 +1109,7 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
             continue
 
         is_oa = bool(upw.get("is_oa", False))
+        out["best_oa_url"] = best_oa_url(upw)
         cands = candidate_urls(upw, candidate_order) if is_oa else []
         out["oa_status"] = "OA" if is_oa else "CLOSED"
         out["n_locations"] = len(cands)
@@ -1131,6 +1155,8 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
             out["first_status"] = decisive.http_status if decisive and decisive.sent and \
                 decisive.http_status else ""
             error = decisive.status if decisive else "no candidates"
+            if decisive and decisive.status == "HOST_REFUSED" and decisive.host:
+                error = f"HOST_REFUSED:{decisive.host}"        # preprint_fetch's legacy form; names the host
             detail = f"{decisive.host}: {decisive.status} {decisive.detail}".strip() if decisive else ""
             done(kind, decisive.host_type if decisive else "none", error, detail)
             print(f"  [{i:>3}] {fn[:65]:<65} FAIL ({len(attempts)} tries: {error}; {kind})")
