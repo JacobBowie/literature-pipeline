@@ -63,6 +63,12 @@ SURFACE = {
     "litpipe.worklists": (["oa_blocked", "group_by_host", "render_oa_worklist", "ill_list", "render_ill_list",
                            "seed_coverage", "residual_csvs", "read_residuals", "doi_link", "run", "main"],
                           ["Pool", "WorklistError", "PoolStateError"]),
+    # W4b: the scheduled runner and run_daily as its wrapper
+    "litpipe.runner": (["run", "batch", "status", "schedule_text", "schedule_print", "main", "shim",
+                        "read_result", "classify", "earlier_runner", "batch_tag", "subprocess_launcher",
+                        "inprocess_launcher"],
+                       ["RESULT_TABLE", "STAGE_MODULES", "ProcessTree"]),
+    "run_daily": (["run", "main", "exit_code", "queue_data_rows"], []),
     "build_priority_paywall_queue": (["lib_dois", "load_libs", "run", "main"], ["LIBS", "ROOT", "CONFIG_PATH"]),
 }
 
