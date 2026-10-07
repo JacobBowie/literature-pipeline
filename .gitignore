@@ -22,23 +22,38 @@ env/
 .DS_Store
 Thumbs.db
 
-# Pipeline runtime artifacts (these live in <project>/ trees, not here, but guard anyway)
+# Pipeline runtime artifacts (these live in <project>/ trees or state_dir, not here, but guard anyway)
 *.duckdb
 *.duckdb.wal
 portfolio.duckdb*
+/*.sqlite
+/*.sqlite-wal
+/*.sqlite-shm
+/ledger/
+/lit_pull_queue.lock
 
 # Local config that should not be checked in
 .env
 .env.local
 *.local.json
 
-# Concrete queue files (only the template ships with the repo)
+# Concrete queue files and run artifacts (only the template ships with the repo)
 lit_pull_queue.csv
-lit_pull_queue.*.processed*.csv
+# (anchored to the repository root: tests/fixtures holds tracked artifact-shaped files)
+/lit_pull_queue.*.csv
+!/lit_pull_queue.template.csv
+/lit_pull_queue.*.md
 lit_pull_queue.draft.csv
 projects.json
+# Local backups of the registry and of scripts (the registry names private projects)
+projects.json.bak*
+*.bak-[0-9]*
+*.bak_[0-9]*
 
-# Internal / cross-session docs — NEVER publish (leak portfolio structure, paths, audit notes)
+# Agent sessions and their worktrees (local tooling state)
+.claude/
+
+# Internal / cross-session docs: NEVER publish (leak portfolio structure, paths, audit notes)
 CURRENT_STATE.md
 _PORTFOLIO_BRIEF.md
 LOOSE_ENDS.md

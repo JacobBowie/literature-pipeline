@@ -15,8 +15,8 @@ Every kept record keeps its original bytes (quoting, line endings, embedded newl
 filtered record by record, never re-serialised.
 
 Usage:
-  python backfills/fred_placeholder_edges.py PATH/_forward_citations.csv            # dry run
-  python backfills/fred_placeholder_edges.py PATH/_forward_citations.csv --commit   # owner only
+  python backfills/placeholder_edges.py PATH/_forward_citations.csv            # dry run
+  python backfills/placeholder_edges.py PATH/_forward_citations.csv --commit   # owner only
   [--list-out CSV]  write the listed rows (line, seed_pdf, seed_doi, citing_doi) to a CSV
   [--show N]        print the first N listed rows (default 20)
 

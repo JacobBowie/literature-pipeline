@@ -8,22 +8,30 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Actions are pinned by commit SHA (the tag in the comment). setup-uv publishes no floating major
+# tag since v8, so a bare @v10 would not resolve.
+#   actions/checkout   v7.0.1  3d3c42e5aac5ba805825da76410c181273ba90b1
+#   astral-sh/setup-uv v10.2.0 c18668ad3cf93ea998bef934396af7bb5c839dc7
+
 jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # Linux and Windows are the supported platforms; 3.11 and 3.13 are the ends of the
+        # supported Python range (pyproject requires-python >= 3.11).
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
         with:
           enable-cache: true
+          python-version: ${{ matrix.python-version }}
 
       - name: Sync dependencies (Python ${{ matrix.python-version }})
         run: uv sync --locked --python ${{ matrix.python-version }}
@@ -42,13 +50,123 @@ jobs:
       - name: Smoke-test --help on every CLI
         shell: bash
         run: |
-          set -e
-          # ris_emit.py is the only pure library (no __main__); every other
-          # top-level .py exposes --help and must exit 0.
-          for f in $(find . -maxdepth 1 -name '*.py' -not -name 'ris_emit.py'); do
+          set -euo pipefail
+          # ris_emit.py is a library (no CLI of its own); every other top-level script and every
+          # backfill exposes --help and must exit 0.
+          for f in $(find . -maxdepth 1 -name '*.py' -not -name 'ris_emit.py') backfills/*.py; do
             echo "--- $f --help"
             uv run python "$f" --help > /dev/null
           done
+          for m in litpipe.runner litpipe.canaries litpipe.worklists litpipe.enrich_s2 litpipe.gate; do
+            echo "--- python -m $m --help"
+            uv run python -m "$m" --help > /dev/null
+          done
+
+      - name: Windows job objects work on this runner (no skips allowed)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run pytest tests/test_runner_procs.py -k windows -v -rs --junitxml=windows-procs.xml
+          uv run python - <<'EOF'
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse("windows-procs.xml").getroot()
+          suite = root if root.tag == "testsuite" else root.find("testsuite")
+          n, skipped, failed, errors = (int(suite.get(k, 0)) for k in ("tests", "skipped", "failures", "errors"))
+          print(f"windows process-tree tests: {n} run, {skipped} skipped, {failed} failed, {errors} errors")
+          sys.exit(0 if n >= 3 and not (skipped or failed or errors) else 1)
+          EOF
 
       - name: Run pytest
-        run: uv run pytest tests/ -v
+        run: uv run pytest tests/ -q -rs
+
+  foreign-cwd:
+    # The documented invocation form, run from a directory that is not the repository: a temporary
+    # registry (root and state_dir in a temp folder, one project with a one-row queue), then
+    # `sweep.py --dry-run`. It must exit 0 and write nothing.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Sync dependencies
+        run: uv sync --locked --python 3.13
+
+      - name: sweep.py --dry-run from a foreign working directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python - <<'EOF'
+          import json
+          import os
+          import pathlib
+          import shutil
+          import subprocess
+          import sys
+          import tempfile
+
+          repo = pathlib.Path.cwd().resolve()
+          registry = repo / "projects.json"            # gitignored; sweep.py reads the one beside it
+          if registry.exists():
+              sys.exit("projects.json already exists in the checkout")
+          base = pathlib.Path(tempfile.mkdtemp(prefix="litpipe-ci-")).resolve()
+          root, state, elsewhere = base / "projects", base / "state", base / "elsewhere"
+          project = root / "ci-project"
+          (project / "literature").mkdir(parents=True)
+          elsewhere.mkdir()
+          (project / "lit_pull_queue.csv").write_text(
+              "doi,title,authors,year,destination,notes\n"
+              "10.1152/jappl.1972.32.6.812,Predicting rectal temperature,Givoni B; Goldman R,1972,literature/,ci\n",
+              encoding="utf-8")
+          registry.write_text(json.dumps({
+              "root": str(root), "state_dir": str(state),
+              "projects": {"ci-project": {"tier": 2, "lib_dir": "literature", "active": True}}}),
+              encoding="utf-8")
+
+          def snapshot(top):
+              return sorted((str(p.relative_to(top)), p.stat().st_size, p.stat().st_mtime_ns)
+                            for p in top.rglob("*"))
+
+          def repo_files():
+              out = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all", "--ignored"],
+                                   cwd=repo, capture_output=True, text=True, check=True).stdout
+              return sorted(l for l in out.splitlines() if ".venv" not in l and "__pycache__" not in l)
+
+          before, repo_before = snapshot(base), repo_files()
+          try:
+              cmd = ["uv", "run", "--no-sync", "--project", str(repo), "python", str(repo / "sweep.py"),
+                     "--project", "ci-project", "--dry-run"]
+              r = subprocess.run(cmd, cwd=elsewhere, capture_output=True, text=True, encoding="utf-8",
+                                 errors="replace", timeout=600)
+              print(r.stdout)
+              print(r.stderr, file=sys.stderr)
+              after, repo_after = snapshot(base), repo_files()
+          finally:
+              registry.unlink()
+          problems = []
+          if r.returncode != 0:
+              problems.append(f"exit {r.returncode}")
+          if "ci-project" not in r.stdout:
+              problems.append("the dry run did not report the project's queue")
+          if after != before:
+              problems.append(f"files changed under the temp root: {sorted(set(after) ^ set(before))}")
+          if state.exists():
+              problems.append("the state_dir was created")
+          if repo_after != repo_before:
+              problems.append(f"files changed in the checkout: {sorted(set(repo_after) ^ set(repo_before))}")
+          shutil.rmtree(base, ignore_errors=True)
+          if problems:
+              sys.exit("foreign-cwd dry run: " + "; ".join(problems))
+          print("foreign-cwd dry run: exit 0, nothing written")
+          EOF

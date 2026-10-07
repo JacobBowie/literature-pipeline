@@ -14,8 +14,9 @@ A holding is one `<base>` in one library, keyed by every DOI its `.ris` and side
   ris_only    a `.ris` with neither a PDF nor a text-bearing sidecar (not content)
 `where()` returns content holdings only (PDFs first); `records()` returns all four kinds.
 
-Cache. The libraries sit on a Google Drive mirror and one library holds 3,300 sidecars, so the
-parsed DOI of every `.ris` and sidecar is cached under `state_dir` keyed by (size, mtime_ns). A warm
+Cache. A library may sit on a synced or network folder (one use case, not a requirement; listing
+and reading are slow there) and a library can hold thousands of sidecars, so the parsed DOI of
+every `.ris` and sidecar is cached under `state_dir` keyed by (size, mtime_ns). A warm
 build lists each library (on Windows `os.scandir` returns size and mtime with the listing, no extra
 call per file) and reads only the files that changed. PDF presence is never cached: it is re-listed
 every build, so a PDF that arrives turns a text-only holding into a PDF holding at once. Unreadable

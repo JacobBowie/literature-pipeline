@@ -509,9 +509,9 @@ def test_recovery_dry_run_touches_no_file_and_no_state(recovery_root, capsys):
 
 
 @pytest.mark.parametrize("arg,want", [
-    (r"C:\Users\j b\Projects\teaching\_archive\2026-09-30\lit_sweep_exhaust=teaching/course_a",
-     (r"C:\Users\j b\Projects\teaching\_archive\2026-09-30\lit_sweep_exhaust", "teaching/course_a")),
-    (r"C:\Users\j b\Projects\teaching\_archive", (r"C:\Users\j b\Projects\teaching\_archive", None)),
+    (r"C:\Users\some user\Projects\teaching\_archive\2026-09-30\lit_sweep_exhaust=teaching/course_a",
+     (r"C:\Users\some user\Projects\teaching\_archive\2026-09-30\lit_sweep_exhaust", "teaching/course_a")),
+    (r"C:\Users\some user\Projects\teaching\_archive", (r"C:\Users\some user\Projects\teaching\_archive", None)),
     (r"D:\x=", (r"D:\x", None)),
 ])
 def test_recovery_dir_arg_parses_windows_paths(arg, want):

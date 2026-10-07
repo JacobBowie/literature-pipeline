@@ -1,29 +1,51 @@
-"""Extract tables from PDF library using pdfplumber.
+"""Extract tables from a PDF library using pdfplumber.
 
-Walks references/literature/, extracts every detected table per page, and
-writes them as CSVs into data/prior_art/tables/{filename_stem}/page_{N}_table_{i}.csv.
+Walks a library, extracts every detected table per page, and writes them as CSVs into
+<out-dir>/{filename_stem}/page_{N}_table_{i}.csv.
+
+Where it reads and writes:
+  --project KEY   the registered project's library (projects.json lib_dir) and <data_dir>/tables
+                  (a Tier 1 project; a project without data_dir needs --out-dir)
+  --lib-dir/--out-dir   explicit folders; either one overrides --project's value
+  neither         references/literature and data/prior_art/tables relative to the current
+                  directory (the Tier 1 layout's defaults; run it from the project root)
 
 Why pdfplumber and not pymupdf:
 - pymupdf gives flowing text, columns lost. pdfplumber detects ruling lines and
   white-space gridding to recover row/column structure.
-- For papers without JATS sidecars (gated + non-PMC = ~70/96 in getpaid), this
-  is the only structured-table source available.
+- For papers without JATS sidecars (gated and non-PMC papers: about 70 of 96 in one Tier 1
+  library), this is the only structured-table source available.
 
 Output:
-  data/prior_art/tables/{stem}/page_{N}_table_{i}.csv  — one CSV per detected table
-  data/prior_art/tables/_extraction_report.csv         — per-PDF summary
+  <out-dir>/{stem}/page_{N}_table_{i}.csv  -- one CSV per detected table
+  <out-dir>/_extraction_report.csv         -- per-PDF summary
 
 Usage:
-  python tools/extract_tables.py [--lib-dir DIR] [--limit N]
+  python extract_tables.py --project my-project [--limit N]
+  python extract_tables.py [--lib-dir DIR] [--out-dir DIR] [--limit N]
 """
-import os, csv, argparse
+import os, csv, argparse, sys
+from pathlib import Path
+
 import lit_util
 lit_util.utf8_stdout()
 
 import pdfplumber
 
-DEFAULT_LIB = "references/literature"
+DEFAULT_LIB = "references/literature"   # the Tier 1 layout, relative to the current directory
 OUT_DIR     = "data/prior_art/tables"
+CONFIG_PATH = Path(__file__).resolve().parent / "projects.json"
+
+
+def project_dirs(key, cfg=None):
+    """(lib, out) for a registered project: its library and <data_dir>/tables (out is None when the
+    project declares no data_dir). SystemExit(1) when the key is not registered."""
+    cfg = cfg if cfg is not None else lit_util.load_projects_config(CONFIG_PATH, missing_ok=True)
+    reg = cfg.get("projects") or {}
+    if key not in reg:
+        sys.exit(f"[extract_tables] --project {key!r} is not registered in projects.json")
+    _base, lib, data = lit_util.lib_paths(key, reg[key] or {})
+    return lib, (data / "tables" if data else None)
 
 
 def extract_pdf_tables(pdf_path, out_subdir, strategy="lines"):
@@ -83,10 +105,14 @@ def extract_pdf_tables(pdf_path, out_subdir, strategy="lines"):
     return n_tables, pages_with_tables, errors
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--lib-dir", default=DEFAULT_LIB)
-    ap.add_argument("--out-dir", default=OUT_DIR)
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Extract tables from a PDF library with pdfplumber.")
+    ap.add_argument("--project", default=None,
+                    help="a registered project: its library and <data_dir>/tables")
+    ap.add_argument("--lib-dir", default=None,
+                    help=f"PDF folder (default: --project's library, else ./{DEFAULT_LIB})")
+    ap.add_argument("--out-dir", default=None,
+                    help=f"output folder (default: --project's <data_dir>/tables, else ./{OUT_DIR})")
     ap.add_argument("--limit", type=int, default=0,
                      help="Process only N PDFs (0 = all)")
     ap.add_argument("--only-name", action="append", default=[],
@@ -94,10 +120,17 @@ def main():
                           "(use one --only-name flag per substring)")
     ap.add_argument("--strategy", choices=["lines","text"], default="lines",
                      help="lines (default, reliable) or text (lineless tables, noisy)")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
-    lib = os.path.abspath(args.lib_dir)
-    out = os.path.abspath(args.out_dir)
+    lib_dir, out_dir = args.lib_dir, args.out_dir
+    if args.project:
+        p_lib, p_out = project_dirs(args.project)
+        lib_dir = lib_dir or str(p_lib)
+        if out_dir is None and p_out is None:
+            sys.exit(f"[extract_tables] {args.project!r} declares no data_dir: pass --out-dir")
+        out_dir = out_dir or str(p_out)
+    lib = os.path.abspath(lib_dir or DEFAULT_LIB)
+    out = os.path.abspath(out_dir or OUT_DIR)
     os.makedirs(out, exist_ok=True)
 
     pdfs = sorted(f for f in os.listdir(lib) if f.endswith(".pdf"))

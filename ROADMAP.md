@@ -1,9 +1,9 @@
-# Literature Pipeline — Roadmap
+# Literature Pipeline: Roadmap
 
-**Last updated**: 2026-07-28 (status refreshed; the forward plan A–D below is unchanged)
-**Status**: pipeline core stable; bridge script + skill + SOP live; RAG + MCP layers (Stages A–D) planned, not built. Stage 0 (external topic search) was **delivered via Consensus MCP** (2026-05-16), not the pubmed/s2 scripts sketched below. For live index/library counts see [CURRENT_STATE.md](CURRENT_STATE.md) — the totals in this file are a 2026-05-04 snapshot.
+**Last updated**: 2026-10-07 (status refreshed for the public release; the forward plan, Stages A to D, is unchanged)
+**Status**: the pipeline core is stable and documented in [README.md](README.md): fetch stages, walks, the portfolio index, worklists and a scheduled runner. The RAG and MCP layers (Stages A to D) are planned, not built. Stage 0 (external topic search) was met outside this repository by an external literature-search service, not by the scripts sketched below. The totals in this file are a 2026-05-04 snapshot.
 
-This roadmap is the persistent plan that survives across Claude Code sessions. The pipeline as-of 2026-05-04 (puller, citation-walker, DuckDB index) is described in [README.md](README.md). This file captures what's *planned* on top of that.
+This file captures what is *planned* on top of the pipeline that [README.md](README.md) describes.
 
 ---
 
@@ -11,33 +11,34 @@ This roadmap is the persistent plan that survives across Claude Code sessions. T
 
 | Layer | Tool | Status |
 |---|---|---|
-| Fetch (3-stage) | `sweep.py` → `unpaywall_fetch_v2.py` → `pmc_fetch.py` → `preprint_fetch.py` | **stable** |
-| Citation walking | `forward_citations.py` (S2), `reverse_citations.py` (PDF parse) | **stable** |
+| Fetch | `sweep.py` runs `unpaywall_fetch_v2.py`, `pmc_fetch.py`, `preprint_fetch.py` per the project's sources | **stable** |
+| Citation walking | `forward_citations.py`, `reverse_citations.py`, `snowball.py` | **stable** |
 | Library hygiene | `audit_filenames.py`, `audit_portfolio.py`, `backfill_ris.py`, `backfill_fulltext.py` | **stable** |
-| Index | `index_portfolio.py` → `_references/portfolio.duckdb` | **stable** |
+| Index | `index_portfolio.py` writes `<db_dir>/portfolio.duckdb` | **stable** |
 | Project registry | `projects.json` (Tier 1 / Tier 2 layouts) | **stable** |
-| Citation harvest from EndNote downloads | `harvest_citations.py` | **stable** |
+| Scheduled runner | `python -m litpipe.runner` | **stable** |
+| Citation harvest from reference-manager exports | `harvest_citations.py` | **stable** |
 
-Portfolio totals (2026-05-04 snapshot — see [CURRENT_STATE.md](CURRENT_STATE.md) for live counts): 368 papers indexed, 17,527 unique candidate DOIs, 21,104 citation edges.
+Portfolio totals (2026-05-04 snapshot): 368 papers indexed, 17,527 unique candidate DOIs, 21,104 citation edges.
 
 ---
 
-## Build plan: 0 → A → B → C → D
+## Build plan: 0, A, B, C, D
 
 Each stage produces standalone value. None require finishing later stages to be useful.
 
-### Stage 0 — External topic-search wrapper (open-world front-end) — ✅ DELIVERED via Consensus MCP (2026-05-16)
+### Stage 0: External topic-search wrapper (open-world front end). Met another way (2026-05-16)
 
-> **✅ Delivered a different way (2026-05-16):** the open-world front-end is live via `mcp__claude_ai_Consensus__search` (see the SOP's open-world variant). The `pubmed_search.py` / `s2_topic_search.py` scripts sketched below were **not built** — Consensus covers topic→candidates. Kept for history, and in case a keyless S2 topic-search is ever wanted.
+> **Met another way (2026-05-16):** topic-led discovery is done with an external literature-search service, outside this repository. The `pubmed_search.py` / `s2_topic_search.py` scripts sketched below were **not built**. Kept for history, and in case a keyless S2 topic search is ever wanted.
 
-**Goal**: enable topic-led queries ("find evidence for X across the broader literature") without requiring the topic to be in the existing seed neighborhood. Today the pipeline is closed-world snowball — it walks out from existing seeds. Stage 0 adds the front-end discovery from external indexes.
+**Goal**: enable topic-led queries ("find evidence for X across the broader literature") without requiring the topic to be in the existing seed neighborhood. The pipeline itself is a closed-world snowball: it walks out from existing seeds. Stage 0 adds front-end discovery from external indexes.
 
-**Approach** (~150 LOC across two scripts):
-- `pubmed_search.py` — wraps NCBI E-utilities (`esearch` + `esummary`); accepts a query string + filters (year, journal, MeSH); emits a draft queue with DOIs, titles, authors, year. Free + no auth needed.
-- `s2_topic_search.py` — wraps Semantic Scholar `/graph/v1/paper/search` (broader than PubMed; includes preprints + non-biomed). Free with a courteous mailto.
-- Both emit `<project>/lit_pull_queue.draft.csv` in the same format as `seed_queue_from_top_candidates.py` — drops cleanly into the existing triage → sweep → ingest workflow.
+**Approach** (about 150 LOC across two scripts):
+- `pubmed_search.py`: wraps NCBI E-utilities (`esearch` + `esummary`); accepts a query string and filters (year, journal, MeSH); emits a draft queue with DOIs, titles, authors, year. Free, no auth needed.
+- `s2_topic_search.py`: wraps Semantic Scholar `/graph/v1/paper/search` (broader than PubMed; includes preprints and non-biomedical work). Free with a courteous mailto.
+- Both emit `<project>/lit_pull_queue.draft.csv` in the same format as `seed_queue_from_top_candidates.py`, so they drop into the existing triage, sweep and ingest workflow.
 
-**Why Stage 0 (and not just Stage A)**: the open-world variant in [`_portfolio/sop/literature_session.md`](../../_portfolio/sop/literature_session.md) currently relies on WebSearch + manual DOI extraction for step 1. Stage 0 automates that step end-to-end. Together with Stage B (paper-qa2 RAG), this closes the full agentic-research loop the user described 2026-05-06: "use WebSearch OR the tool to find papers, citation-walk, pull, ingest, return evidence."
+**Why Stage 0 (and not just Stage A)**: an open-world literature session otherwise relies on web search and manual DOI extraction for its first step. Stage 0 automates that step end to end. Together with Stage B (paper-qa2 RAG), it closes the loop "find papers, walk citations, pull, ingest, return evidence."
 
 **Why before Stage A** (revised order): topic search produces immediate user-facing value with no GPU dependency. Stage A (embedding ranking) refines what's already there; Stage 0 adds a capability that doesn't exist.
 
@@ -48,7 +49,7 @@ Each stage produces standalone value. None require finishing later stages to be 
 - S2 search returns soft 429s under load; respect `Retry-After`.
 - DOIs aren't in every PubMed result — must `esummary` for ArticleId, filter where `IdType=doi`.
 
-**Trigger to build**: when Jacob says "find papers about X" and the resulting top_candidates probe returns empty/off-topic 2+ times in a row, this is the unblocker.
+**Trigger to build**: when a topic query ("find papers about X") answered from `top_candidates` comes back empty or off-topic twice in a row, this is the unblocker.
 
 ---
 
@@ -180,8 +181,6 @@ seed_vecs = con.execute("SELECT embedding FROM paper_metadata WHERE doi IN (?,?,
 
 **Skills showcase**: MCP server design (HOT skill 2026), security engineering, agent/tool design.
 
-**Resume line**: "Built and open-sourced an MCP server (`mcp-server-litpipe`) exposing a literature-pipeline RAG system to Claude/MCP-compatible clients with documented security mitigations covering prompt-injection, command-injection, SSRF, and confirmation patterns."
-
 ---
 
 ### Stage D — Optional: ensemble relevance ranking
@@ -216,21 +215,6 @@ This determines whether Stage B is "weekend project" (with GPU) or "occasional-u
 - **Stage B paths 1 and 2 are independent** — build the DIY scaffold in parallel as insurance against paper-qa2 breakage.
 - **MCP wrap (C) waits until B is stable** — wrapping a flaky tool layer in MCP just makes the flakiness harder to debug.
 - **Tier B fine-tuning is rejected** — SPECTER2 already trained on 6M citation triplets; our 21k is <0.5% of that and Allen AI's own data shows the fine-tune typically *hurts* performance.
-
----
-
-## Skills mapping (target roles from an internal skill-gap cross-reference)
-
-| Stage | Skill | Roles unlocked |
-|---|---|---|
-| A: SPECTER2 + DuckDB vss | vector DB, scientific embeddings | GenAI/LLMs (4 roles) |
-| B: Ollama + RAG | local LLM serving, retrieval engineering | GenAI/LLMs (4) |
-| C: MCP server | agent design, security engineering | GenAI/LLMs (4), generic SWE |
-| D: PageRank ensemble | graph algorithms | nice-to-have |
-
-Cross-cutting: Python production patterns, DuckDB consistency with ATHENA HR pipeline.
-
-**Resume narrative target**: *"Built a domain-specialized RAG system over a 17k-paper heat-physiology citation graph (forward+reverse extraction via Semantic Scholar), exposed as an MCP server with documented security mitigations. Fully local stack: Ollama + Qwen 2.5 7B + DuckDB vss + SPECTER2 embeddings. Open-sourced as `mcp-server-litpipe`."*
 
 ---
 

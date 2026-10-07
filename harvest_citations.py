@@ -1,5 +1,8 @@
-"""Harvest citation files from a directory (default: ~/Downloads) into a
-canonical RIS-only library at Projects/_references/citations/.
+"""Harvest citation files from a directory into a canonical RIS-only library.
+
+Source: --source-dir (default ~/Downloads, a browser's download folder: one workflow, use-case-only;
+name any folder). Output: --out-dir (default <db_dir>/citations, beside the portfolio index:
+projects.json `db_dir`, default <projects root>/_references, resolved when the command runs).
 
 Per-file flow:
   1. Parse .ris / .enw / .nbib → extract DOI (or PMID for nbib: PMID → DOI through E-utilities
@@ -13,7 +16,7 @@ Per-file flow:
      stem is already taken (this run or on disk) gets `<stem>_<6-hex hash>.ris`, never a skip
 
 Source files in --source-dir are NEVER moved or deleted. After verifying the
-inbox, the user can manually clear Downloads.
+output, the user can clear the source folder by hand.
 
 Usage:
   # Default dry-run (reports what would happen, writes nothing)
@@ -46,8 +49,16 @@ from litpipe.outcomes import Kind, Outcome
 # pipeline since 2026-09-30. litpipe.net adds the NCBI tool/email identity and paces the host.
 ESUMMARY = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
 
-DEFAULT_SOURCE = os.path.expanduser("~/Downloads")
-DEFAULT_OUT    = str(lit_util.PROJECTS_ROOT / "_references" / "citations")
+CONFIG_PATH = Path(__file__).resolve().parent / "projects.json"
+DEFAULT_SOURCE = os.path.expanduser("~/Downloads")   # one workflow (a browser's downloads); --source-dir
+
+
+def default_out_dir() -> Path:
+    """<db_dir>/citations, resolved at call time from this module's CONFIG_PATH (projects.json
+    `db_dir`, default <projects root>/_references): the folder beside the portfolio index, never a
+    path fixed at import."""
+    from litpipe import config
+    return config.db_dir(lit_util.load_projects_config(CONFIG_PATH, missing_ok=True)) / "citations"
 
 EXTS = {".ris", ".enw", ".nbib"}
 
@@ -267,12 +278,14 @@ def _choose_name(stem, ident, emitted, outdir):
     return f"{stem}_{tag}.ris"
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     ap.add_argument("--source-dir", default=DEFAULT_SOURCE,
-                    help=f"Directory of .ris/.enw/.nbib files to harvest (default: {DEFAULT_SOURCE}).")
-    ap.add_argument("--out-dir",    default=DEFAULT_OUT,
-                    help=f"Canonical RIS output directory (default: {DEFAULT_OUT}).")
+                    help="Directory of .ris/.enw/.nbib files to harvest (default: ~/Downloads, "
+                         "a browser's download folder; name any folder).")
+    ap.add_argument("--out-dir",    default=None,
+                    help="Canonical RIS output directory (default: <db_dir>/citations, beside the "
+                         "portfolio index; projects.json db_dir, default <projects root>/_references).")
     ap.add_argument("--commit",     action="store_true",
                     help="Actually write files. Default is dry-run.")
     ap.add_argument("--limit",      type=int, default=0,
@@ -283,10 +296,13 @@ def main():
                     help="Skip title-based CrossRef search for files w/o DOI.")
     ap.add_argument("--overwrite",  action="store_true",
                     help="Overwrite existing .ris files in out-dir.")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     source = Path(args.source_dir)
-    outdir = Path(args.out_dir)
+    try:
+        outdir = Path(args.out_dir) if args.out_dir else default_out_dir()
+    except ValueError as e:   # litpipe.config.ConfigError: a db_dir the pipeline cannot use
+        print(f"[ERR] {e}; pass --out-dir", file=sys.stderr); sys.exit(2)
     if not source.exists():
         print(f"[ERR] source not found: {source}", file=sys.stderr); sys.exit(2)
     if args.commit:

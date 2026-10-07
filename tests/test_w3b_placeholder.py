@@ -1,4 +1,4 @@
-"""backfills/fred_placeholder_edges.py (W3-B step 3): a dry run lists the rows whose seed DOI is a
+"""backfills/placeholder_edges.py (W3-B step 3): a dry run lists the rows whose seed DOI is a
 template placeholder (never an empty seed DOI); --commit removes exactly those rows after writing a
 .bak, and every kept record keeps its bytes. The CSV path is an argument; a temp file here."""
 import csv
@@ -9,7 +9,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "backfills"))
-import fred_placeholder_edges as fpe  # noqa: E402
+import placeholder_edges as fpe  # noqa: E402
 
 HEADER = "seed_pdf,seed_doi,citing_paper_id,citing_doi,citing_title,citing_year,citing_authors,citing_venue,citing_cited_by,citing_abstract\n"
 

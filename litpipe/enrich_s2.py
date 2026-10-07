@@ -475,7 +475,7 @@ def _print_summary(res, commit, project, db, limit, refresh, max_age_days, reche
         print(f"  would fill:         {res['would_fill']} abstracts (count now {res['abstracts_before']})")
         print()
         print("  To write: close other users of the DB (index_portfolio, snowball, enrich_*), check that")
-        print("  Google Drive sync is not holding it, then run from the repository root:")
+        print("  no other process or sync client holds the file, then run from the repository root:")
         print(f"    {_commit_command(project, db, limit, refresh, max_age_days, recheck_elided)}")
     if res["status"] != "ok":
         print(f"  [{res['status'].upper()}] {'; '.join(res['reasons'] or [str(res['aborted'])])}")

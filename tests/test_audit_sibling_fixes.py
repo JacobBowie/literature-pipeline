@@ -161,9 +161,11 @@ def test_default_email_has_no_code_default_and_no_literal():
     """DEC-13: no code default; the name stays importable (dispatch 0.6), and the retired
     maintainer address is hardcoded nowhere (the c12 sweep's 14 sites stay at 0)."""
     assert lit_util.DEFAULT_EMAIL is None
-    retired = "JacobBowie@users.noreply.github.com"
-    offenders = [py.name for py in REPO.glob("*.py") if retired in py.read_text(encoding="utf-8")]
-    assert offenders == [], f"retired email literal hardcoded: {offenders}"
+    import re
+    noreply = re.compile(r"[\w.+-]+@users\.noreply\.github\.com")    # any GitHub no-reply address
+    offenders = [str(py.relative_to(REPO)) for py in [*REPO.glob("*.py"), *REPO.glob("litpipe/*.py")]
+                 if noreply.search(py.read_text(encoding="utf-8"))]
+    assert offenders == [], f"a no-reply email literal is hardcoded: {offenders}"
 
 
 def test_atomic_write_csv_lf_and_roundtrip(tmp_path):

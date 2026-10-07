@@ -848,7 +848,8 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
       - new pipeline: <lib>/_reverse_citations_parsed.csv with columns
         seed, first_author, year, title_snippet, doi, raw[, seed_doi, source]
         (`seed_doi` and `source` are the W3-B additions; both are optional)
-      - legacy getpaid: data/prior_art/references/parsed_references.csv (same columns)
+      - the legacy data_dir layout (a Tier 1 project from before the pipeline's walkers):
+        <data_dir>/references/parsed_references.csv (same columns)
     A cited DOI whose `source` is s2/openalex/crossref/sidecar is read as structured metadata; a
     `regex` or missing source as reference text (litpipe.doi.normalise, tails peeled)."""
     if not csv_path.exists(): return 0
@@ -1140,14 +1141,16 @@ def project_paths(name: str, p: dict):
 
 
 def find_forward_csv(lib: Path, data: Path):
-    """Look for forward-citation CSV in expected locations."""
+    """Look for forward-citation CSV in expected locations: the library's own file first, then the
+    legacy data_dir layout (a Tier 1 project's discovery files from before the walkers wrote into
+    the library), kept as fallbacks only."""
     candidates = [
         lib / "_forward_citations.csv",                                # new pipeline
     ]
     if data:
         candidates += [
-            data / "discovered" / "s2_forward_citations_v2.csv",       # legacy getpaid v2
-            data / "discovered" / "s2_forward_citations.csv",          # legacy getpaid v1
+            data / "discovered" / "s2_forward_citations_v2.csv",       # legacy data_dir layout, v2
+            data / "discovered" / "s2_forward_citations.csv",          # legacy data_dir layout, v1
         ]
     for c in candidates:
         if c.exists(): return c
@@ -1160,7 +1163,7 @@ def find_reverse_csv(lib: Path, data: Path):
     ]
     if data:
         candidates += [
-            data / "references" / "parsed_references.csv",             # legacy getpaid
+            data / "references" / "parsed_references.csv",             # legacy data_dir layout
         ]
     for c in candidates:
         if c.exists(): return c
@@ -1289,7 +1292,7 @@ def run(*, project=None, db=None, no_citations=False, rebuild=False, gc=False,
             print(f"=== {name} ===")
             st = {}
             # C2: one transaction per project on `con` -- the SAME handle every ingest fn writes
-            # through. A crash mid-project (e.g. the recurring GoogleDriveFS lock surfacing on an
+            # through. A crash mid-project (e.g. a sync client or another process locking the file on an
             # INSERT) rolls that project back cleanly instead of committing a DELETE without its
             # INSERT; already-finished projects stay durable. Inner fns must NOT open their own
             # transaction (a nested BEGIN raises).

@@ -585,7 +585,7 @@ def test_help_runs():
     import subprocess
     import sys
     repo = Path(rc.__file__).resolve().parent
-    for script in ("reverse_citations.py", "backfills/fred_placeholder_edges.py"):
+    for script in ("reverse_citations.py", "backfills/placeholder_edges.py"):
         r = subprocess.run([sys.executable, str(repo / script), "--help"], capture_output=True, text=True,
                            encoding="utf-8", timeout=60)
         assert r.returncode == 0 and "usage" in r.stdout.lower()

@@ -42,8 +42,10 @@ KEY_ENVS = ("S2_API_KEY", "OPENALEX_API_KEY")
 RESERVED_DOMAINS = ("example.com", "example.net", "example.org")   # RFC 2606 section 3
 RESERVED_TLDS = ("test", "example", "invalid", "localhost")         # RFC 2606 section 2
 POLITE_POOLS = ("polite", "plus")                                   # x-api-pool prefixes
-EMAIL_FIX = ("set LITPIPE_EMAIL to your own contact address "
-             "(PowerShell: setx LITPIPE_EMAIL you@your.edu, then open a new shell)")
+# One line, both platform families (PA01): a POSIX shell profile and Windows PowerShell.
+EMAIL_FIX = ("set LITPIPE_EMAIL to your own contact address (Linux/macOS: add "
+             "export LITPIPE_EMAIL=you@your.edu to your shell profile; Windows PowerShell: "
+             "setx LITPIPE_EMAIL you@your.edu; then open a new shell)")
 PASS_KINDS = frozenset({Kind.OK, Kind.SKIPPED})
 
 
@@ -135,7 +137,8 @@ def check_unpaywall(request):
     if status in (410, 422):
         j = _json(body)
         msg = j.get("message", "") if isinstance(j, dict) else ""
-        return _o(Kind.CONFIG, "unpaywall", f"Unpaywall answered {status} {msg}; {EMAIL_FIX}"[:300],
+        # The server's message is cut, never the fix: both platform forms stay readable.
+        return _o(Kind.CONFIG, "unpaywall", f"Unpaywall answered {status} {str(msg)[:100]}; {EMAIL_FIX}",
                   host=UNPAYWALL_HOST, status=status)
     if status != 200 or out.kind is not Kind.OK:
         return _failed("unpaywall", UNPAYWALL_HOST, out, status)

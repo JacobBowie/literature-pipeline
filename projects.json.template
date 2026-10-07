@@ -1,27 +1,89 @@
 {
-  "_comment": "Central registry for projects using the literature pipeline. Copy this file to projects.json and edit. Two tiers: Tier 1 = full systematic-review workflow (discovery+fetch+extract+report). Tier 2 = library-only (just PDFs + sidecars + .ris). Promotion 2 to 1 is opt-in; never automatic. Set the OPTIONAL top-level 'root' key to the directory holding all your projects and the shared _references/ index (default '~/Projects'): '~' expands to HOME, an absolute path is used verbatim, a bare-relative path is anchored to HOME. Config-only -- there is NO environment variable for it (unlike LITPIPE_EMAIL). Each project key below resolves to <root>/<key> and its lib_dir to <root>/<key>/<lib_dir>.",
+  "_comment": "Registry for the literature pipeline. Copy this file to projects.json (gitignored) beside the scripts and edit it. Every key below is optional except 'projects' and each project's 'lib_dir'. Keys whose names start with '_' are documentation and are ignored. '_schema' lists every key the pipeline reads, its default, and what it does; the values below it are a working example for two projects. Paths: '~' expands to your home directory; an absolute path is used as given; how a relative path is anchored is stated per key. Configuration lives here, not in environment variables: the only environment variables are LITPIPE_EMAIL (required) and the optional S2_API_KEY, OPENALEX_API_KEY and TESSDATA_PREFIX.",
+
   "_schema": {
-    "root":     "OPTIONAL top-level key (default '~/Projects'): base directory holding every registered project + the shared _references/ index. '~' expands to HOME; an absolute path is used verbatim; a bare-relative path is anchored to HOME. Config-only, no env var.",
-    "tier":     "1 (full pipeline) or 2 (library-only)",
-    "lib_dir":  "PDF/sidecar/.ris directory, relative to project root",
-    "data_dir": "Tier 1 only: build-artifact directory (discovery/triage/tables/text)",
-    "parent":   "Subprojects only: name of containing top-level project",
-    "ris_threshold": "Optional (default 90): pipeline_check Stage 4b min .ris-coverage %% before FAIL; lower it for projects with legitimately DOI-less PDFs",
-    "active":   "false to skip in audits without removing from registry"
+    "root": "Default '~/Projects'. The folder that holds every registered project; a project keyed 'my-review' lives at <root>/my-review. A relative value is anchored to your home directory.",
+    "db_dir": "Default <root>/_references. Where portfolio.duckdb (the index) lives, plus harvest_citations' citations/ and snowball's convergence_log.csv. A relative value is anchored to <root>. The default suits one machine; on a machine that runs the scheduled runner, put it on a local disk (never a synced or network folder) and turn runner.unattended_db_writes on.",
+    "state_dir": "Default ~/.local/db/literature_pipeline. The pipeline's own write-heavy state: litpipe_state.sqlite (host pacing, refusals, runs), s2_cache.duckdb (the walk cache), ledger/, runner/ (run summaries and stage logs), caches. Must be a local disk: SQLite in WAL mode does not work on a synced or network folder. A relative value is anchored to your home directory. One per machine.",
+    "artifact_dir": "Default: unset, so each project's run artifacts (lit_pull_queue.<run_id>.<stage>.csv and friends) are written in the project root. A relative value is resolved inside each project; an absolute value becomes <value>/<project key>. Leave it unset when another tool of yours reads sweep's artifacts from the project root. A project's own artifact_dir wins over this one.",
+    "loose_ends": "Default: unset (nothing is written). A Markdown file that sweep and the runner append one status line per project to (a done, partial or closing line). A relative value is anchored to <root>.",
+    "portfolio_dir": "No default. The folder for portfolio-level paywall queues: build_priority_paywall_queue writes there and paywall_pull reads there. Without it those tools need --out-dir (build_priority_paywall_queue) or --queue (paywall_pull), else they exit 1. Use an absolute path.",
+    "ezproxy_host": "No default. Use-case-only: your library's EZproxy host (for example ezproxy.your-library.example), used by paywall_pull --access ezproxy to open paywalled DOIs through your institution's proxy; without it (or --ezproxy-host) that command exits 1. There is no environment variable for it.",
+
+    "hosts": "Host-policy switches. Both default false.",
+    "hosts.arxiv_pdf_allowed": "Default false. When true, arxiv.org/pdf/ may be fetched (paced at 15 s, arXiv's robots.txt crawl delay); when false that route is never automated.",
+    "hosts.biorxiv_pdf_allowed": "Default false. When true, www.biorxiv.org and www.medrxiv.org PDFs may be fetched; when false they are never automated and such rows are listed for a manual click.",
+
+    "s2": "Semantic Scholar client settings (litpipe.s2). Read whether or not S2_API_KEY is set.",
+    "s2.spacing_s": "Default 6.5 (at least 1.1). Seconds between requests without a key.",
+    "s2.spacing_keyed_s": "Default 1.1 (at least 1.1). Seconds between requests with S2_API_KEY.",
+    "s2.max_requests_per_run": "Default 2000; null for no cap. Requests per walk session; a spent budget stops the walk (exit 3) and the next run resumes it. Raise it for a first full walk of a large library.",
+    "s2.breaker": "Default 3. Consecutive failed calls that stop the session.",
+
+    "openalex": "OpenAlex client settings (litpipe.openalex).",
+    "openalex.max_requests_per_run": "Default 2000; null for no cap. Requests per session. With OPENALEX_API_KEY the daily allowance is 10,000 credits (a single-work lookup costs 0, a list call 1); a first keyed walk of a large library may need a higher value.",
+    "openalex.breaker": "Default 3. Consecutive failed calls that stop the session.",
+    "openalex.content_max_per_run": "Default 0 (none). Paid cached-PDF downloads from content.openalex.org per session; only for projects whose sources list openalex_content.",
+
+    "runner": "Settings of python -m litpipe.runner (the scheduled runner).",
+    "runner.unattended_db_writes": "Default false. When true, the runner's index, enrich_abstracts and enrich_recommendations jobs write portfolio.duckdb; when false it lists each skipped job with the command to run by hand. Turn it on where the runner and the DB share a local disk and nothing else writes the DB during the run.",
+    "runner.candidate_order": "Default: unset, which means 'repository'. 'repository' or 'publisher': which Unpaywall OA location is tried first. The first two scheduled runs that reach Unpaywall try one order each (a comparison); later runs use this value.",
+    "runner.schedule_time": "Default '01:00'. Local time (HH:MM) of the one nightly task that schedule-print writes.",
+    "runner.timeouts": "Default: none. Per-job timeouts in seconds, e.g. {\"sweep\": 14400}; the built-in values are sweep 4 h, walk and reverse 6 h, index 1 h, abstracts and recommendations 3 h, anything else 30 min. --timeout JOB=SECONDS wins for one run.",
+    "runner.lock_stale_s": "Default 7200. Seconds after which a project's lit_pull_queue.lock whose holder stopped heartbeating counts as stale and may be taken over.",
+    "runner.ris_limit": "Default 200. At most this many .ris files the runner's daily ris job writes per project (each needs a metadata lookup).",
+
+    "projects": "Required. One entry per project, keyed by its folder name under <root> ('my-review'), or 'parent/sub' for a subproject.",
+    "projects.<key>.lib_dir": "Required. The project's library (PDFs, .fulltext.json sidecars, .ris), relative to the project folder; for a subproject, relative to the parent's folder, so it starts with the subproject's folder name ('sub/literature').",
+    "projects.<key>.tier": "Default 2. 1 = full systematic-review layout (a data_dir with build artifacts: text dumps, tables, reports); 2 = library only. pipeline_check runs the Tier 1 checks only for tier 1.",
+    "projects.<key>.data_dir": "Tier 1 only. The build-artifact folder relative to the project folder (text/, tables/, discovered/).",
+    "projects.<key>.parent": "Subprojects only: the key of the containing top-level project.",
+    "projects.<key>.active": "Default true. false keeps the entry registered but skips it in sweeps, runs, audits and the index.",
+    "projects.<key>.ris_threshold": "Default 90. pipeline_check's minimum .ris coverage (percent) before it fails; lower it for a library with legitimately DOI-less PDFs.",
+    "projects.<key>.sources": "Default [\"unpaywall\", \"pmc\"]. The fetch sources this project may use: unpaywall, pmc, europepmc_preprints, biorxiv, medrxiv, osf, sportrxiv, arxiv, openalex_content. A stage whose source is not listed is skipped and recorded as such; naming a preprint source turns the preprint stage on. An empty list fetches nothing (the queue is refused before fetching). sweep --sources and runner --sources override it for one run.",
+    "projects.<key>.auto_stage": "Default false. When true, the runner may seed a draft queue from the index (top_candidates) and stage it unattended. Leave false to curate every queue by hand.",
+    "projects.<key>.walk_cadence_days": "Default: absent (no unattended walk). A positive integer: the runner's daily profile walks the project's forward citations once this many days have passed since the last walk.",
+    "projects.<key>.artifact_dir": "Default: the global artifact_dir, else the project root. This project's run-artifact folder: relative to the project folder, or absolute (used as given). Two projects may not share one folder.",
+
+    "_reserved": "relevance_terms (per project) is reserved for a future relevance ranking; no tool reads it yet."
   },
 
   "root": "~/Projects",
+  "db_dir": "_references",
+  "state_dir": "~/.local/db/literature_pipeline",
+  "hosts": {
+    "arxiv_pdf_allowed": false,
+    "biorxiv_pdf_allowed": false
+  },
+  "s2": {
+    "spacing_s": 6.5,
+    "spacing_keyed_s": 1.1,
+    "max_requests_per_run": 2000,
+    "breaker": 3
+  },
+  "openalex": {
+    "max_requests_per_run": 2000,
+    "breaker": 3,
+    "content_max_per_run": 0
+  },
+  "runner": {
+    "unattended_db_writes": false
+  },
   "projects": {
-    "my_systematic_review": {
+    "my-review": {
       "tier": 1,
       "lib_dir": "references/literature",
       "data_dir": "data/prior_art",
-      "active": true
+      "active": true,
+      "sources": ["unpaywall", "pmc", "europepmc_preprints", "osf"],
+      "auto_stage": false,
+      "walk_cadence_days": 14
     },
-    "my_secondary_library": {
+    "my-library": {
       "tier": 2,
-      "lib_dir": "docs/literature",
-      "active": true
+      "lib_dir": "literature",
+      "active": true,
+      "ris_threshold": 80
     }
   }
 }

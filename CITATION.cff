@@ -17,15 +17,17 @@ keywords:
   - unpaywall
   - pubmed-central
   - semantic-scholar
+  - openalex
   - citation-graph
   - duckdb
   - bibliometrics
   - sports-science
   - thermoregulation
 abstract: >-
-  A Python toolkit for systematic biomedical literature workflows: open-access
-  PDF acquisition (Unpaywall + PMC + preprint servers), citation snowballing
-  (Semantic Scholar forward/reverse + recommendations), DuckDB portfolio
-  indexing across multiple research projects, and JATS/PDF structured extraction
-  including MathML-to-LaTeX conversion. Built for reproducible review workflows
-  where the same library is consumed by multiple downstream projects.
+  A Python toolkit for literature acquisition across research projects that share
+  one portfolio: open-access PDF and full-text acquisition (Unpaywall, PubMed
+  Central and preprint servers, chosen per project), residual routing to
+  worklists for what cannot be fetched, citation walking (Semantic Scholar,
+  OpenAlex and Crossref), a DuckDB portfolio index, JATS and PDF structured
+  extraction including MathML-to-LaTeX conversion, and a scheduled runner for
+  Linux and Windows.
