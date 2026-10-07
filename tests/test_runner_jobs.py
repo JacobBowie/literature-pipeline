@@ -678,7 +678,7 @@ WINDOWS_WANT = ("Register-ScheduledTask", "New-ScheduledTaskAction", "-WorkingDi
                 "\\.venv\\Scripts\\python.exe", "-m litpipe.runner run --profile daily --scheduled", "-At 01:00",
                 "-StartWhenAvailable", "-AllowStartIfOnBatteries", "-DontStopIfGoingOnBatteries",
                 "-ExecutionTimeLimit (New-TimeSpan -Hours 20)", "uv run --no-sync --project", "schtasks /Create",
-                'cmd /c \\"cd /d ', "cannot be set", "nothing was registered")
+                '/TR "cmd /c cd /d ', "cannot be set", "nothing was registered")
 
 
 @pytest.mark.parametrize("platform,want", [("linux", LINUX_WANT), ("windows", WINDOWS_WANT)])

@@ -1679,6 +1679,8 @@ class _ScheduledRun(_Run):
         self.order, self.order_source = cfg_order, ("projects.json" if cfg_order else None)
 
     def _stamps(self):
+        if not self.scheduled:          # a manual run never moves the nightly task's escalation
+            return
         end = _now()
         if RANK[self.effective] >= RANK["weekly"]:
             state.kv_set(KV, "profile_done:weekly", end)
@@ -1770,7 +1772,7 @@ class _ScheduledRun(_Run):
                    "refused": list(proj.get("refused") or [])}
         if rec["exit"] == 2:
             self.sweep_abort = p.key
-        ran = any((r.get("stages") or {}).get("unpaywall") not in (None, "not_run") for r in p.sweep["results"])
+        ran = any((r.get("stages") or {}).get("unpaywall") == "completed" for r in p.sweep["results"])
         if ran:
             self.unpaywall_ran = True
             c = rec["counts"]
@@ -2654,12 +2656,15 @@ def _windows_text(checkout):
     py = f"{co}\\.venv\\Scripts\\python.exe"
     cmdline = f'set PYTHONUTF8=1&& "{py}" {RUN_ARGS}'
     inner = f"cd /d {co} && set PYTHONUTF8=1&& {py} {RUN_ARGS}"
+
+    def q(s):                     # a PowerShell single-quoted string doubles its own quote
+        return s.replace("'", "''")
     return (
         "# litpipe runner: ONE nightly run at 01:00 (DEC-03), as a Windows scheduled task.\n"
         "# PowerShell, run once by hand. A scheduled task does not read your shell profile, so PYTHONUTF8 is\n"
         "# set in the command; " + ", ".join(n for n, _ in SECRET_ENVS)
         + " come from your user environment (setx).\n"
-        f"$action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument '/c {cmdline}' -WorkingDirectory '{co}'\n"
+        f"$action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument '/c {q(cmdline)}' -WorkingDirectory '{q(co)}'\n"
         "$trigger = New-ScheduledTaskTrigger -Daily -At 01:00\n"
         "$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries "
         "-DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 20)\n"
@@ -2671,7 +2676,7 @@ def _windows_text(checkout):
         "# schtasks fallback. Its battery settings cannot be set this way (StartWhenAvailable,\n"
         "# AllowStartIfOnBatteries, DontStopIfGoingOnBatteries): a laptop on battery at 01:00 may skip\n"
         "# or stop the run. Prefer the PowerShell form. Quote any path that contains a space.\n"
-        f'schtasks /Create /TN "{TASK_NAME}" /SC DAILY /ST 01:00 /TR "cmd /c \\"{inner}\\""\n')
+        f'schtasks /Create /TN "{TASK_NAME}" /SC DAILY /ST 01:00 /TR "cmd /c {inner}"\n')
 
 
 def schedule_text(platform=None, checkout=None) -> str:
