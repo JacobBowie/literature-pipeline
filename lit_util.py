@@ -134,10 +134,10 @@ def coerce_int(v, default=0):
     Single source of truth for the int()-on-external-numeric bug class
     (2026-06-25 audit T5d + the sibling sweep that found build_priority's year
     sort-key crashing on a non-numeric residual-CSV year). Strips commas and
-    catches both ValueError and TypeError so it never raises."""
+    catches ValueError, TypeError and OverflowError (an 'inf' or '1e400' cell) so it never raises."""
     try:
         return int(float(str(v).replace(",", "").strip() or default))
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, OverflowError):
         return default
 
 # ---------------------------------------------------------------- filename ASCII normalization

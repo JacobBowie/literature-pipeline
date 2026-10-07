@@ -30,6 +30,8 @@ REPO = Path(__file__).resolve().parent.parent
 @pytest.mark.parametrize("raw,expected", [
     ("1,234", 1234), ("  12 ", 12), ("2020.0", 2020), ("42", 42),
     ("in press", 0), ("2020a", 0), ("n/a", 0), ("", 0), (None, 0),
+    # float() parses these, and int() of an infinity raises OverflowError (W5 gate forward)
+    ("inf", 0), ("-Infinity", 0), ("1e400", 0), ("nan", 0),
 ])
 def test_coerce_int(raw, expected):
     assert lit_util.coerce_int(raw) == expected
