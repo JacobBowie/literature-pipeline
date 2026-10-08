@@ -80,7 +80,7 @@ SURFACE = {
     "run_daily": (["run", "main", "exit_code", "queue_data_rows"], []),
     "build_priority_paywall_queue": (["lib_dois", "load_libs", "run", "main", "portfolio_dir"],
                                      ["LIBS", "ROOT", "CONFIG_PATH"]),
-    # W5: the pool-selection gate (the VAP fold-in's engine) and paywall_pull's library-facing surface
+    # W5: the pool-selection gate (the consumer fold-in's engine) and paywall_pull's library-facing surface
     "litpipe.gate": (["run", "main", "load_spec", "gate", "plan", "promote", "read_snapshot", "doi_key_fn",
                       "compile_pattern"],
                      ["SCHEMA", "ENGINE_VERSION", "SpecError", "GateAbort", "GateError"]),

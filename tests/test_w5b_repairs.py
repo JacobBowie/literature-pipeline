@@ -474,7 +474,7 @@ def plant_reports(e):
             f"doi,error\n10.1/x,\"HTTP_422 https://api.unpaywall.org/v2/10.1/x?email={enc}\"\n"
             f"10.1/y,\"retry email={TEST_EMAIL}&x=1\"\n10.1/z,ok\n",
         root / "lit_pull_queue_residuals.md":
-            f"- 10.1/x: contact mailto:{TEST_EMAIL}\n- by {TEST_EMAIL.upper()}\n- other@else.org stays\n",
+            f"- 10.1/x: contact mailto:{TEST_EMAIL}\n- by {TEST_EMAIL.upper()}\n- other@example.net stays\n",
         root / "_archive" / "2026-09-30" / "lit_sweep_exhaust" / "sweep_report_1.csv":
             f"a,b\n1,\"https://h/x?email={TEST_EMAIL}\"\n",
         e.root / "research_parent" / "_archive" / "old" / "_downloads_import_2026.csv":
@@ -485,7 +485,7 @@ def plant_reports(e):
         root / "literature" / "x.ris": f"TY  - JOUR\nN1  - mailto:{TEST_EMAIL}\nER  - \n",
         root / ".git" / "lit_pull_queue.csv": f"email={TEST_EMAIL}\n",
         root / "_archive" / ".git" / "x_report.csv": f"email={TEST_EMAIL}\n",
-        root / "lit_pull_queue.2026-09-02.normalized.csv": "doi\n10.1/q other@else.org\n",
+        root / "lit_pull_queue.2026-09-02.normalized.csv": "doi\n10.1/q other@example.net\n",
         e.lib / "_archive" / "lit_runs" / "lit_pull_queue.2026-05-21.unpaywall.csv":
             f"doi,error\n10.1/w,\"x?email={enc}\"\n",
         e.lib / "_backfill_report.csv": f"pdf,detail\nx.pdf,\"email={TEST_EMAIL}\"\n",
@@ -522,7 +522,7 @@ def test_email_scrub_replaces_leak_forms_in_pipeline_reports_only(env, capsys):
     csv_text = (env.root / "teaching_alpha" / "lit_pull_queue.2026-09-01.unpaywall.csv").read_text(encoding="utf-8")
     assert "[EMAIL-REDACTED]" in csv_text and "&x=1" in csv_text and "10.1/z,ok" in csv_text
     md = (env.root / "teaching_alpha" / "lit_pull_queue_residuals.md").read_text(encoding="utf-8")
-    assert "[MAILTO-REDACTED]" in md and "by REDACTED" in md and "other@else.org stays" in md
+    assert "[MAILTO-REDACTED]" in md and "by REDACTED" in md and "other@example.net stays" in md
     assert res["backups"]
     for b in res["backups"]:
         os.remove(b)
