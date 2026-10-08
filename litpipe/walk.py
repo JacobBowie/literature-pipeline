@@ -198,8 +198,10 @@ class Cache:
         try:
             con.execute("SET TimeZone='UTC'")
             con.execute(_SCHEMA)
-            con.execute("INSERT INTO cache_meta VALUES ('schema_version', ?) ON CONFLICT (key) DO NOTHING",
-                        [str(SCHEMA_VERSION)])
+            # a migrated older cache records the version it now has (never lowered by an older reader)
+            con.execute("INSERT INTO cache_meta VALUES ('schema_version', ?) ON CONFLICT (key) DO UPDATE SET "
+                        "value = excluded.value WHERE TRY_CAST(cache_meta.value AS INTEGER) < "
+                        "TRY_CAST(excluded.value AS INTEGER)", [str(SCHEMA_VERSION)])
         except Exception:
             con.close()
             raise

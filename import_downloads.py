@@ -727,15 +727,19 @@ def file_import(src, dest_pdf, *, sidecar_path, sidecar_rec, new_rec, ris_path, 
         step = ".ris"
         ris = "EXISTS"
         if not ris_path.exists():
+            # the undo is registered before the write: write_ris can raise after the file exists (its
+            # manifest step), which would leave an orphan .ris; a False return wrote nothing of ours
+            key = R.manifest_key(str(ris_path))
+            ours = {"ris": True}
+            undo.add("remove the new .ris", lambda: _forget_ris(ris_path, key) if ours["ris"] else None)
             if R.write_ris(str(ris_path), ris_text, overwrite=False):
-                key = R.manifest_key(str(ris_path))
-                undo.add("remove the new .ris", lambda: _forget_ris(ris_path, key))
                 ris = "WROTE"
             else:
+                ours["ris"] = False
                 ris = "NOT_WRITTEN"
 
         archived = None
-        if strip and _norm(dest_pdf) != _norm(src):
+        if strip:                         # also when dest is src (a Downloads folder that is the library)
             step = "the PDF without its cover pages"
             tmp = dest_pdf.with_name(dest_pdf.name + ".importing.tmp")
             undo.add("remove the temporary PDF", lambda: _remove(tmp))
@@ -1008,11 +1012,18 @@ def _one(p, dest, execute, forced, seen, written, *, import_held_elsewhere=False
         dup_match = dest_path.stem
     else:
         taken = set(written)
-        while True:
-            dest_s, _ = U.resolve_dest(str(dest.lib), new_name, d, taken)
-            if not os.path.exists(dest_s) or _norm(dest_s) == _norm(p):
-                break
-            taken.add(dest_s)                 # never overwrite a PDF, whatever it holds
+        canon = Path(dest.lib) / new_name
+        if _norm(canon) == _norm(p) and _norm(canon) not in {_norm(w) for w in taken}:
+            # already at its canonical name in the library (a Downloads folder that is the library):
+            # filed in place. resolve_dest would read the file as another paper whenever its first
+            # 5,000 characters print no DOI (an ILL cover, a title-identified paper) and suffix it.
+            dest_s = str(p)
+        else:
+            while True:
+                dest_s, _ = U.resolve_dest(str(dest.lib), new_name, d, taken)
+                if not os.path.exists(dest_s) or _norm(dest_s) == _norm(p):
+                    break
+                taken.add(dest_s)             # never overwrite a PDF, whatever it holds
         dest_path = Path(dest_s)
         dup_match = ""
         if dest_path.name != new_name:

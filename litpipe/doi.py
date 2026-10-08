@@ -71,8 +71,9 @@ _SICI_ISSN_DATE = re.compile(r"\d{4}-\d{3}[\dxX]\(\d{4,8}(?:/\d{2,4})?\)")
 _SICI_HEAD = 24                                     # body characters the ISSN(date) head is read from
 # A Wiley SICI's check character may be '#' (10.1002/(sici)1098-240x(200002)23:1<1::aid-nur1>3.0.co;2-#).
 # It is kept only as the DOI's final character right after ";2-" in a "(sici)" form; any other '#'
-# is a URL fragment (10.1056/nejmc1113675#sa3). What may follow it in the token: closing punctuation.
-_SICI_CHECK_TAIL = re.compile(r"[.,;:)\]}>]*$")
+# is a URL fragment (10.1056/nejmc1113675#sa3). What may follow it in the token: closing punctuation,
+# and the quotes and emphasis marks holdings._TRAIL strips (never `_`, a DOI body character).
+_SICI_CHECK_TAIL = re.compile(r"[.,;:)\]}>'\"`*’”]*$")
 _REVISION_TAIL = re.compile(r"r{1,4}")               # FASEB revision suffixes: fj.201900106rrr is real
 _WRAP_WS = " \t\r\n\f\v\u00ad\u00a0\u2009\u202f"    # whitespace and a soft hyphen at a line wrap
 _VALID = re.compile(r"^10\.\d{4,9}/\S+$")

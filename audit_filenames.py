@@ -19,7 +19,7 @@ For each top-level PDF in --lib-dir (sorted; --only and --only-prefix narrow the
    decoded names), then DataCite, then DOI content negotiation for mEDRA, JaLC, KISTI and OP. A
    source that could not answer is META_UNAVAILABLE, never "no record". --offline reads the
    sibling `.ris` instead and sends nothing.
-4. The canonical name: ris_emit.canonical_stem over litpipe.text.normalise_title(title), so
+4. The canonical name: ris_emit.canonical_stem over litpipe.text.filename_title(title), so
    markup and character references never reach a filename (`M&uuml;ndel` gives `Mundel`, never
    `Muumlndel`). A `_preprint` suffix on the current name is kept.
 5. Safety checks, listed for review and never renamed:

@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "requests>=2.31,<3",
     "duckdb>=0.10,<2",   # 1.x stable; we don't yet use 2.x APIs
-    "pymupdf>=1.24,<2",  # imported as `fitz`
+    "pymupdf>=1.24.3,<2",  # imported as `pymupdf` (the module name since 1.24.3)
     "pdfplumber>=0.11,<1",
     "pandas>=2.2,<3",
     "pytesseract>=0.3.13",
