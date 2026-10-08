@@ -99,7 +99,8 @@ cleaned title, and the engine never rewrites a pattern)
   description     str, default "".
   provenance, recorded_run   objects passed through untouched (default {}).
   input.harvest   a path (relative to the library) or {"scope": NAME}, meaning
-                  `<lib>/_<NAME>_forward_citations.csv` (required).
+                  `<lib>/_<NAME>_forward_citations.csv` (required). Write every path in a spec
+                  with forward slashes: a backslash separates folders only on Windows.
   input.seeds_manifest   path or null (default null): the per-seed status report reads it. Two
                   shapes: a JSON object keyed by seed DOI whose values carry `status` (and
                   optionally `label`), or a forward_citations journal (`.partial.jsonl`); else every
@@ -602,12 +603,31 @@ def _check_template(tpl):
             if base not in NOTES_FIELDS:
                 raise SpecError(f"output.notes_template uses {{{fname}}}; allowed: "
                                 f"{', '.join(NOTES_FIELDS)}")
+            if fname != base:
+                raise SpecError(f"output.notes_template uses {{{fname}}}: plain field names only, no "
+                                f"attribute or index access")
         tpl.format(**_template_sample())
     except SpecError:
         raise
-    except (ValueError, IndexError, KeyError, AttributeError) as e:
+    except (ValueError, IndexError, KeyError, AttributeError, TypeError) as e:
         raise SpecError(f"output.notes_template is not a valid format string: {e}") from None
     return tpl
+
+
+def _check_batch_tags(name, lane_names):
+    """Each stable path must give `runner batch` (its default tag) a distinct tag that sweep accepts."""
+    import sweep as _sweep
+    from litpipe import runner as _runner
+    seen = {}
+    for fn in [f"_{name}_gate_selection.csv"] + [f"_{name}_gate_lane_{ln}.csv" for ln in lane_names]:
+        t = _runner.batch_tag(fn)
+        if not _sweep.is_valid_tag(t):
+            raise SpecError(f"name/lanes: {fn} gives the runner batch tag {t!r}, which sweep refuses (date-like "
+                            f"or reserved); rename the gate or the lane")
+        if t in seen:
+            raise SpecError(f"name/lanes: {seen[t]} and {fn} give the same runner batch tag {t!r} (the runner "
+                            f"keeps 32 characters); shorten the gate or lane names")
+        seen[t] = fn
 
 
 def normalise_spec(raw):
@@ -660,7 +680,7 @@ def normalise_spec(raw):
     eff["quotas"] = _norm_quotas(raw["quotas"], topic_names)
     cb = raw.get("chapter_budgets")
     if cb is not None:
-        _obj(cb, "chapter_budgets", set(cb))
+        _obj(cb, "chapter_budgets", set(cb) if isinstance(cb, dict) else ())
         cb = {k: _intv(n, f"chapter_budgets[{k!r}]", minimum=0) for k, n in cb.items()}
     eff["chapter_budgets"] = cb
     o = _obj(raw.get("order", {}), "order", {"method", "bucket_order"})
@@ -686,6 +706,7 @@ def normalise_spec(raw):
                       "years": _norm_years(ln.get("years"), f"{w}.years"),
                       "rank": _norm_rank(ln["rank"], f"{w}.rank") if "rank" in ln else None})
     eff["lanes"] = lanes
+    _check_batch_tags(eff["name"], [ln["name"] for ln in lanes])
     ann, cols = [], set(SELECTION_COLUMNS) | set(POOL_COLUMNS) | {"notes"}
     for i, a in enumerate(_listv(raw.get("annotate", []), "annotate")):
         w = f"annotate[{i}]"
@@ -1730,6 +1751,8 @@ def read_drawn(lib, spec):
             if rec.get("staged") or rec.get("swept"):
                 keys.add(_holdings.doi_key(k))
                 if rec.get("swept"):
+                    if not isinstance(rec["swept"], dict):
+                        raise GateError(f"pool state {p.name}: the swept record for {k!r} is not an object")
                     classes[str(rec["swept"].get("class", ""))] += 1
                 else:
                     unswept += 1

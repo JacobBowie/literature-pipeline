@@ -4,10 +4,15 @@ pattern as a verifier finding, found by sweeping for it. Each test fails on `031
 - lock release (P-1/P-6 pattern, a check then an act): release() read the lock and then deleted it;
   a breaker that moved our stale-looking lock aside and took a fresh one in between lost its lock.
 - the worklist CSV import (P's dry-run note, live since decision A2 = retry): a review row whose DOI
-  is already on the ILL or the browser list was queued for retry, so the next sweep swept it again."""
+  is already on the ILL or the browser list was queued for retry, so the next sweep swept it again.
+- pool state (R-3's pattern, forwarded by verifier R): Pool.pending() and Pool.status() read a
+  `staged` or `swept` value as an object, so a hand-edited state crashed them (and gate promote,
+  which catches only WorklistError) with AttributeError instead of a PoolStateError."""
 from pathlib import Path
 
-from litpipe import lockfile
+import json
+
+from litpipe import lockfile, worklists
 from tests.test_w5c1_import import REVIEW, World, row, run_import, seed_listed
 
 import pytest
@@ -83,3 +88,28 @@ def test_a_review_row_already_on_a_worklist_is_listed_not_queued_for_retry(w):
     assert rev["write"] == 1 and rev["listed"] == 3
     import migrate_closed_to_md as mig
     assert [r["doi"] for r in mig.read_retry_later(root)[1]] == ["10.1000/rev.77"]
+
+
+# ================================================================ pool state records
+def _pool_with_state(tmp_path, field, value):
+    pool = tmp_path / "_pool.csv"
+    pool.write_text("doi,title\n10.1000/p.1,One\n10.1000/p.2,Two\n", encoding="utf-8")
+    key = worklists.doi_key("10.1000/p.1")
+    worklists.state_path_for(pool).write_text(json.dumps(
+        {"version": worklists.STATE_VERSION, "dois": {key: {"doi": "10.1000/p.1", field: value}}}), encoding="utf-8")
+    return worklists.Pool(pool)
+
+
+@pytest.mark.parametrize("field", ["staged", "swept"])
+@pytest.mark.parametrize("value", [True, "2026-10-01", 5])
+def test_a_staged_or_swept_value_that_is_not_an_object_is_a_pool_state_error(tmp_path, field, value):
+    pool = _pool_with_state(tmp_path, field, value)
+    for call in (pool.pending, pool.status):
+        with pytest.raises(worklists.PoolStateError, match=f"the {field} record for"):
+            call()
+
+
+@pytest.mark.parametrize("value", [None, False, {}])
+def test_an_empty_staged_or_swept_value_still_reads_as_not_staged(tmp_path, value):
+    pool = _pool_with_state(tmp_path, "swept", value)
+    assert pool.pending() == [] and pool.status()["swept"] == 0

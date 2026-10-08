@@ -321,12 +321,15 @@ def test_promote_refuses_pending_batches_unless_forced(proj):
 
 
 def test_promote_refuses_files_that_would_share_a_runner_batch_tag(proj):
-    long_name = "a" * 30
-    spec = example(name=long_name)
-    res = run(spec=spec, holdings_as_of=str(proj.snap), write=True)
-    pr = gate.run("promote", project=PROJECT, spec=spec, run_id=Path(res["run_dir"]).name, quiet=True)
+    # one gate's own names clash at load since the batch-tag check (verifier R-4); two gates of one
+    # project whose long names truncate to one tag are still caught at promote
+    first, second = example(name="a" * 30, lanes=[]), example(name="a" * 31, lanes=[])
+    for spec in (first, second):
+        res = run(spec=spec, holdings_as_of=str(proj.snap), write=True)
+        pr = gate.run("promote", project=PROJECT, spec=spec, run_id=Path(res["run_dir"]).name, quiet=True)
     assert pr["exit_code"] == 1 and "share a runner batch tag" in pr["error"]
-    assert not (proj.lib / f"_{long_name}_gate_selection.csv").exists()
+    assert (proj.lib / f"_{'a' * 30}_gate_selection.csv").exists()
+    assert not (proj.lib / f"_{'a' * 31}_gate_selection.csv").exists()
 
 
 def test_promote_of_an_unknown_run_exits_1(proj):

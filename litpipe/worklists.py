@@ -662,6 +662,11 @@ class Pool:
         bad = next((k for k, v in st["dois"].items() if not isinstance(v, dict)), None)
         if bad is not None:
             raise PoolStateError(f"pool state {self.state_path}: the record for {bad!r} is not an object")
+        # a staged or swept value is read as an object everywhere (pending, status, the gate's drawn set)
+        bad = next(((k, f) for k, v in st["dois"].items() for f in ("staged", "swept")
+                    if v.get(f) and not isinstance(v[f], dict)), None)
+        if bad is not None:
+            raise PoolStateError(f"pool state {self.state_path}: the {bad[1]} record for {bad[0]!r} is not an object")
         for k, v in self._empty().items():
             st.setdefault(k, v)
         return st
