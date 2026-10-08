@@ -18,24 +18,30 @@ effect (a file that is not JSON, such as one caught between its create and its w
 
 Stale: the heartbeat is older than STALE_S (projects.json `runner.lock_stale_s` overrides the
 2 h default), or the holder is on THIS host and its pid is dead (litpipe.state.pid_alive, which
-never signals a process: on Windows os.kill would terminate it). An unreadable lock is stale when
-its file is older than STALE_S. A live lock is never broken. A stale one is broken by os.replace to
-a unique tombstone name (lit_pull_queue.lock.stale-<token>), re-read there, and the takeover goes
-on only when the tombstone holds the very record judged stale (same bytes, same mtime); then the
-exclusive create is tried again. When the tombstone holds another record (a racer broke the stale
-lock and took it first), it is put back (a hard link, which never overwrites) and the racer's lock
-reads as live. The warning names the old holder.
+never signals a process: on Windows os.kill would terminate it). An unreadable lock, or a JSON
+record with neither a parseable heartbeat nor a parseable started time, is stale when its file is
+older than STALE_S. A live lock is never broken. A stale one is broken only by the process holding
+the breaker file (lit_pull_queue.lock.break, an O_EXCL create; one older than BREAK_STALE_S is a
+crashed breaker's and is removed), which re-reads the lock and moves it only when it still holds the
+very record judged stale: os.replace to a unique tombstone name (lit_pull_queue.lock.stale-<token>),
+re-read there, the takeover going on only when the tombstone holds that record (same bytes, same
+mtime); then the exclusive create is tried again. When the tombstone holds another record, it is put
+back (a hard link, which never overwrites) and that lock reads as live. The breaker file is needed
+because Windows renames by handle: two concurrent os.replace calls of one file both succeed, so
+without it three or more breakers could leave two holders. The warning names the old holder.
 
 Holding it: the taker heartbeats from a daemon thread every STALE_S / 8. Each beat re-reads the
 file and treats the lock as LOST when the file no longer holds our host, pid and run id; a taker
-whose own last beat is older than STALE_S (the machine slept) does not write again, it reads its
-lock as lost, since another process may have judged it stale and taken it. Callers check `lost`
-(an Event) at their stage boundaries and stop that project's work as an abort. Release deletes the
-file only while it still holds our host, pid and run id.
+whose own last beat is older than STALE_S (the machine slept), checked before the write and again
+just before the file is replaced, does not write, it reads its lock as lost, since another process
+may have judged it stale and taken it. Callers check `lost` (an Event) at their stage boundaries and
+stop that project's work as an abort. Release deletes the file only while it still holds our host,
+pid and run id, reading and deleting it under the breaker file so no breaker swaps it in between.
 
-Re-entrant by run id: a lock held on THIS host with the SAME run id (LITPIPE_RUN_ID, which the
-runner's stage shim sets for its children) is joined, never refused; the joiner never heartbeats
-and never releases it (only its taker does). A lock this process itself holds is joined the same
+Re-entrant by run id: a lock a RUNNER tool holds on THIS host with the SAME run id (LITPIPE_RUN_ID,
+which the runner's stage shim sets for its children) is joined, never refused; the joiner never
+heartbeats and never releases it (only its taker does). A lock taken by any other tool is never
+joined by run id, so two interactive sweeps in a shell that exported LITPIPE_RUN_ID never share one. A lock this process itself holds is joined the same
 way (the runner's in-process test launcher).
 
 Known limit: sync latency. In a folder that a sync client mirrors between machines, a lock taken on
@@ -48,6 +54,7 @@ os.replace, os.link), never fcntl or msvcrt locks.
 from __future__ import annotations
 
 import json
+import math
 import os
 import secrets
 import socket
@@ -68,6 +75,10 @@ FS_RETRIES = 40                   # a Windows sharing violation (a reader has th
 FS_WAIT_S = 0.025
 MISSING_RETRIES = 3               # a heartbeat that finds no file looks again (a racer's restore)
 MISSING_WAIT_S = 0.1
+BREAK_SUFFIX = ".break"           # lit_pull_queue.lock.break: held by the one process breaking a stale lock
+BREAK_STALE_S = 60.0              # a breaker that crashed mid-break left it: older than this, removed
+BREAK_WAIT_S = 0.05               # another process is breaking the lock: look again after this
+RELEASE_TRIES = 20                # release waits this many BREAK_WAIT_S for the breaker file (1 s)
 
 _time = time.time                 # test seam: a fake clock for staleness
 _HELD: dict = {}                  # normcased lock path -> Lock taken by this process
@@ -156,6 +167,9 @@ def _inspect(path):
             raise ValueError
     except (UnicodeDecodeError, ValueError):
         rec = {"unreadable": True, "mtime": _iso(mt / 1e9)}
+    else:
+        if _epoch(rec.get("heartbeat")) is None and _epoch(rec.get("started")) is None:
+            rec = {"unreadable": True, "mtime": _iso(mt / 1e9)}   # no time to judge: its file's age decides
     return raw, mt, rec
 
 
@@ -228,7 +242,7 @@ def stale_s_from(cfg=None) -> float:
     v = b.get("lock_stale_s")
     if v is None:
         return STALE_S
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0:
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0:
         raise config.ConfigError(f"runner.lock_stale_s must be a positive number of seconds, got {v!r}")
     return float(v)
 
@@ -278,6 +292,32 @@ def _restore(tomb, path):
     _unlink(tomb)
 
 
+def _take_breaker(path) -> bool:
+    """The right to break the project's stale lock: an O_EXCL create of <lock>.break. Only its holder
+    moves the lock file aside, so no breaker moves a lock another just took, and two moves never run
+    at once (Windows renames by handle: two concurrent os.replace calls of one file both succeed and
+    one tombstone comes up empty). A breaker file older than BREAK_STALE_S (its process crashed
+    mid-break) is removed and the create tried once more."""
+    b = Path(str(path) + BREAK_SUFFIX)
+    for _ in range(2):
+        try:
+            _write_new(b, str(os.getpid()).encode("ascii"))
+            return True
+        except FileExistsError:
+            try:
+                age = time.time() - os.stat(b).st_mtime
+            except FileNotFoundError:
+                continue
+            if age < BREAK_STALE_S:
+                return False
+            _unlink(b)
+    return False
+
+
+def _drop_breaker(path):
+    _unlink(Path(str(path) + BREAK_SUFFIX))
+
+
 # ------------------------------------------------------------------------------ the lock
 class Lock:
     """One project's lock. `acquire()` takes or joins it (LockHeld when a live holder has it);
@@ -317,8 +357,10 @@ class Lock:
             mine = _HELD.get(_key(self.path))
         if mine is not None and mine is not self and mine._ours(rec):
             return True
+        # a run id joins only a runner's lock: the runner's stage shim is what sets LITPIPE_RUN_ID, so
+        # two interactive sweeps in a shell that exported it never join each other
         return self._joinable_id and _same_host(rec.get("host"), self.host) \
-            and str(rec.get("run_id") or "") == self.run_id
+            and str(rec.get("run_id") or "") == self.run_id and str(rec.get("tool") or "").startswith("runner")
 
     # -- take, beat, give back
     def acquire(self):
@@ -349,18 +391,27 @@ class Lock:
             stale, why = is_stale(cur, stale_s=self.stale_s)
             if not stale:
                 raise LockHeld(self.path, cur)
-            tomb = self.path.with_name(f"{LOCK_NAME}{TOMB_INFIX}{secrets.token_hex(6)}")
-            try:
-                _retry_fs(os.replace, str(self.path), str(tomb))
-            except FileNotFoundError:
-                continue                  # a racer broke it first: try the create again
-            moved = _inspect(tomb)
-            if moved is not None and moved[0] == raw and moved[1] == mt:
-                _warn(f"{self.root.name}: breaking a stale lock ({why}); old holder: {describe(cur)}")
-                self.broke = cur
-                _unlink(tomb)
+            if not _take_breaker(self.path):
+                time.sleep(BREAK_WAIT_S)  # another process is breaking it: look again
                 continue
-            _restore(tomb, self.path)     # a racer's fresh lock: put it back; it reads as live next round
+            try:
+                again = _inspect(self.path)
+                if again is None or again[0] != raw or again[1] != mt:
+                    continue              # it changed since it was judged (a racer broke and took it)
+                tomb = self.path.with_name(f"{LOCK_NAME}{TOMB_INFIX}{secrets.token_hex(6)}")
+                try:
+                    _retry_fs(os.replace, str(self.path), str(tomb))
+                except FileNotFoundError:
+                    continue              # released meanwhile: try the create again
+                moved = _inspect(tomb)
+                if moved is not None and moved[0] == raw and moved[1] == mt:
+                    _warn(f"{self.root.name}: breaking a stale lock ({why}); old holder: {describe(cur)}")
+                    self.broke = cur
+                    _unlink(tomb)
+                    continue
+                _restore(tomb, self.path)  # its holder released and another took it: put it back
+            finally:
+                _drop_breaker(self.path)
         cur = read(self.root)
         raise LockHeld(self.path, cur or {"unreadable": True, "mtime": _iso(_time())})
 
@@ -397,6 +448,13 @@ class Lock:
                 f.write(json.dumps(rec, ensure_ascii=False).encode("utf-8"))
                 f.flush()
                 os.fsync(f.fileno())
+            if _time() - self.last_beat >= self.stale_s:
+                # the beat stalled past STALE_S after its check (a sleep inside it): another process
+                # may have judged the lock stale and taken it, so its file is never overwritten
+                _unlink(tmp)
+                self._mark_lost(f"our own heartbeat stalled past {_fmt_age(self.stale_s)} while it was "
+                                f"written: another process may have taken it")
+                return False
             _retry_fs(os.replace, str(tmp), str(self.path))
         except OSError as e:              # skipped this beat; the next one tries again
             _unlink(tmp)
@@ -424,11 +482,24 @@ class Lock:
         with _HELD_GUARD:
             if _HELD.get(_key(self.path)) is self:
                 del _HELD[_key(self.path)]
-        got = _inspect(self.path)
-        if got is not None and self._ours(got[2]):
-            _unlink(self.path)
-            return True
-        return False
+        # the read and the delete run under the breaker file, so no breaker can move our lock aside
+        # and take a fresh one between them (we would delete the new holder's lock); a breaker file
+        # still there after RELEASE_TRIES looks is a crashed breaker's: release as before
+        took = False
+        for _ in range(RELEASE_TRIES):
+            if _take_breaker(self.path):
+                took = True
+                break
+            time.sleep(BREAK_WAIT_S)
+        try:
+            got = _inspect(self.path)
+            if got is not None and self._ours(got[2]):
+                _unlink(self.path)
+                return True
+            return False
+        finally:
+            if took:
+                _drop_breaker(self.path)
 
     def __enter__(self):
         return self.acquire()

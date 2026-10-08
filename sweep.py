@@ -39,9 +39,11 @@ routing). --dry-run takes no lock and only reports a held one.
 Sources (DEC-31): each project's `sources` list (default unpaywall + pmc), or --sources for one
 run, gates every stage. A stage whose source is not listed is skipped, as --skip-preprint skips the
 preprint stage: the report reads "skipped (the project's sources omit <stage>)", the residual lists
-it in skipped_sources, and it never blocks retirement. Without Unpaywall, PMC's input is built from
-the queue (lit_pull_queue[.<tag>].<run_id>.pmc_input.csv: each row's DEC-14 filename, and
-SKIP_EXISTS where the library already holds the paper). A sources list that leaves no sweep stage
+it in skipped_sources, and it never blocks retirement. Without Unpaywall, sweep's own-library check
+builds lit_pull_queue[.<tag>].<run_id>.pmc_input.csv from the queue (each row's DEC-14 filename, and
+SKIP_EXISTS where the library already holds the paper) whatever the later stages are, PMC's input
+when PMC runs, and a held paper never reaches the preprint stage or the ILL list (also for
+preprint-only sources). A sources list that leaves no sweep stage
 (an empty list, or openalex_content only) refuses the project's queues before fetching (exit 4).
 
 Per queue: a row with an invalid or placeholder DOI (NO_DOI_*) is skipped (INVALID_DOI); a row
@@ -1000,7 +1002,8 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
     project's sources set; None: unpaywall and pmc both run, as before) skips the Unpaywall or PMC
     stage the set omits, as --skip-preprint skips the preprint stage: the stage reads "skipped (the
     project's sources omit <stage>)" in the report and is listed in the residual's skipped_sources;
-    without Unpaywall, PMC's input is built from the queue (build_pmc_input). `stop` (a callable)
+    without Unpaywall, the own-library check (build_pmc_input) runs for every source set, PMC's
+    input when PMC runs, and held rows skip every later stage. `stop` (a callable)
     is asked before each stage: True (the project's lock was lost) stops the queue as an abort, its
     later stages not_run and the queue kept. `history` is {doi: attempts} from retry_later before
     admission (default: read it now), so a DOI re-queued fresh keeps its count."""
@@ -1102,13 +1105,16 @@ def run_pipeline(project_dir, queue_csv, dry_run=False, run_date=None, skip_prep
     # the later stages run when Unpaywall completed or the project's sources skip it
     upstream_ok = status["unpaywall"] in ("completed", "skipped")
 
+    if status["unpaywall"] == "skipped" and not lock_lost:
+        # Without Unpaywall, sweep's own-library check (each row's DEC-14 filename, existing_holds)
+        # stands in for its SKIP_EXISTS for EVERY later stage: PMC reads it as its input, and the
+        # preprint stage (whose own check knows only _preprint names) never fetches, nor routes to
+        # ILL, a paper the library holds
+        pre_held = build_pmc_input(to_fetch, lib_dir, names[PMC_INPUT_STAGE])
     if upstream_ok and status["pmc"] != "skipped" and not _stopped("pmc"):
         # Stage 2: PMC (reads the unpaywall report to find the rows still missing; without
         # Unpaywall, an input built from the queue with the same filename and own-library check)
-        pmc_in = report_unpw
-        if status["unpaywall"] == "skipped":
-            pmc_in = names[PMC_INPUT_STAGE]
-            pre_held = build_pmc_input(to_fetch, lib_dir, pmc_in)
+        pmc_in = names[PMC_INPUT_STAGE] if status["unpaywall"] == "skipped" else report_unpw
         r2 = _run_stage([py, str(HERE / "pmc_fetch.py"),
                          "--report-in", str(pmc_in),
                          "--lib-dir", str(lib_dir),
@@ -1771,7 +1777,8 @@ def main(argv=None):
                     help="Comma-separated fetch sources for this run only, replacing every project's "
                          "`sources` (DEC-31): unpaywall, pmc, europepmc_preprints, biorxiv, medrxiv, osf, "
                          "sportrxiv, arxiv, openalex_content. A stage whose source is not listed is skipped "
-                         "(reported, not a failure); an invalid list exits 2.")
+                         "(reported, not a failure), and a row retires on the listed stages alone (one "
+                         "the run never tried can be routed to ILL); an invalid list exits 2.")
     args = ap.parse_args(argv)
     res = run(project=args.project, dry_run=args.dry_run, skip_preprint=args.skip_preprint,
               date=args.date, loose_ends=not args.no_loose_ends, migrate=args.migrate,

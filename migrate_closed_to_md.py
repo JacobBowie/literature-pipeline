@@ -1301,8 +1301,9 @@ def import_csv(path, *, projects=None, project_map=None, review_as="retry", comm
     lit_pull_queue.review.md is the identity-flag list and is never written here.
 
     Skipped and counted: a DOI held now (litpipe.holdings content: a PDF or a text-only sidecar), a
-    DOI already listed in the target (any DOI form; for review: retry_later or a live queue; a DOI
-    repeated in the CSV counts as listed after its first row). Unregistered projects and malformed
+    DOI already listed in the target (any DOI form; for review: retry_later, a live queue, the ILL
+    list or the browser list, including rows this import adds to them; a DOI repeated in the CSV
+    counts as listed after its first row). Unregistered projects and malformed
     rows are counted and listed, never written. Every text field passes litpipe.ledger.redact. The
     input file is only read. Dry by default; commit=True takes each project's lock file
     (litpipe.lockfile) and writes; a held lock skips that project (status "locked"). A second commit
@@ -1403,7 +1404,10 @@ def import_csv(path, *, projects=None, project_map=None, review_as="retry", comm
                         counts[t]["held"] += 1
                         counts[t]["held_text_only"] += not any(h.has_pdf for h in held)
                         continue
-                    if rec["doi_norm"] in present[t]:
+                    # a review row is listed when any worklist has it: a DOI already on the ILL or the
+                    # browser list was swept and routed, so retrying it would sweep it again
+                    seen = (present["review"], present["ill"], present["oa-blocked"]) if t == "review" else (present[t],)
+                    if any(rec["doi_norm"] in s for s in seen):
                         counts[t]["listed"] += 1
                         continue
                     present[t].add(rec["doi_norm"])

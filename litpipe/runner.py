@@ -218,6 +218,7 @@ import hashlib
 import importlib
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -393,7 +394,7 @@ def _has_rows(path) -> bool:
 
 # ------------------------------------------------------------------------------ the registry
 def _positive(v):
-    return not isinstance(v, bool) and isinstance(v, (int, float)) and v > 0
+    return not isinstance(v, bool) and isinstance(v, (int, float)) and math.isfinite(v) and v > 0
 
 
 def runner_block(cfg) -> dict:
