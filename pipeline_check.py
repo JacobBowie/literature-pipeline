@@ -192,13 +192,13 @@ def check_project(base, lib, data, tier, ris_threshold, *, key=None, full=False,
               items=scan["fake_pdfs"])
         rep.warn("tiny PDFs (<10KB)", scan["tiny_pdfs"], fmt=lambda t: f"{t[0]} ({t[1]}B)")
         if scan["text_only"]:
-            rep.note(f"TEXT_ONLY holdings (DEC-08; {scan['text_only_with_ris']} with .ris)",
+            rep.note(f"TEXT_ONLY holdings (text, no PDF; {scan['text_only_with_ris']} with .ris)",
                      scan["text_only"])
         rep.warn("identity flags (review; not holdings)", scan["flags"], fmt=ap._fmt_flag)
         rep.warn("orphan .identity.json (no PDF)", scan["orphan_identity"])
         rep.warn("unparseable .identity.json", scan["bad_identity"], fmt=lambda t: f"{t[0]}: {t[1]}")
         mm = scan["mismatch"]
-        rep.warn(f"_mismatch/ quarantine (DEC-07; {mm['pdfs']} PDFs; restoring is a separate step)",
+        rep.warn(f"_mismatch/ quarantine ({mm['pdfs']} PDFs; restoring is a separate step)",
                  mm["files"])
         for kind_of_file in ("sidecar", "ris"):
             for k in ap.DAMAGE_KINDS:

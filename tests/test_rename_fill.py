@@ -287,7 +287,7 @@ def test_a_different_ris_doi_is_kept_and_the_match_stored_aside(ris_doi, key, tm
     assert F.apply_match(str(lib / fn), sc, sd, _accepted()) == (True, key)
     after = json.loads(Path(sc).read_text(encoding="utf-8"))
     assert _sha(ris) == before
-    assert after["doi"] == ris_doi and after[key] == "10.1234/match.1" and "DEC-20" in after["doi_note"]
+    assert after["doi"] == ris_doi and after[key] == "10.1234/match.1" and "the .ris DOI wins" in after["doi_note"]
     assert not after.get("title")                    # the other record's fields are not copied in
 
 

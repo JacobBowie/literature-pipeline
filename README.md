@@ -1,7 +1,7 @@
 # literature-pipeline
 
 A Python toolkit for literature acquisition across several research projects that share one
-portfolio. You give it a curated list of DOIs per project; it fetches the open-access copies it is
+portfolio (every project you register with it). You give it a curated list of DOIs per project; it fetches the open-access copies it is
 allowed to fetch (Unpaywall, PubMed Central, preprint servers), names and files them in each
 project's library with a text sidecar and a `.ris` record, routes everything it could not fetch to
 worklists a person acts on, walks the citation graph around each library, and keeps one DuckDB
@@ -56,10 +56,12 @@ This creates a project-local `.venv/` from `uv.lock`. Run every command through 
 ```bash
 uv run python sweep.py --help                          # from the repository root
 uv run --project /path/to/checkout python /path/to/checkout/sweep.py --help   # from anywhere else
+uv run --directory /path/to/checkout python -m litpipe.runner --help         # a module, from anywhere else
 ```
 
 The scripts are a flat layout, not an installed package (`pyproject.toml` sets `package = false`):
-run them by path, or `python -m litpipe.<module>` from the repository root. Runtime dependencies
+run them by path, or `python -m litpipe.<module>` from the repository root (from another folder,
+`uv run --directory <checkout>`: `--project` alone does not put the checkout on the module path). Runtime dependencies
 are in `pyproject.toml` (requests, duckdb, pandas, pymupdf, pdfplumber, pytesseract, pillow). The
 MathML-to-LaTeX converter is vendored under `vendor/`.
 
@@ -80,8 +82,9 @@ that identify you or are secret:
 domains): the pipeline sends no placeholder. The Unpaywall stage stops before its first request
 with a CONFIG outcome, so `sweep.py` exits 2 and leaves the queue in place; the runner's preflight
 fails and the run exits 3 (`run_daily.py` exits 1); the other tools send their requests with no
-contact address at all (`sweep.py` and `snowball.py` print a warning first). Set it in your shell
-profile:
+contact address at all (`sweep.py` and `snowball.py` print a warning first; `sweep.py --dry-run`
+only prints that warning, so a clean dry run does not prove the address is set). Set it in your
+shell profile:
 
 ```bash
 export LITPIPE_EMAIL="your.name@your-institution.edu"      # Linux, macOS: add to ~/.bashrc or ~/.profile
@@ -160,7 +163,7 @@ Top-level keys:
 | `artifact_dir` | unset (the project root) | Where sweep and the runner write each run's artifacts. Relative: inside each project; absolute: `<value>/<project key>`. |
 | `loose_ends` | unset (nothing written) | A Markdown file that gets one status line per project per run (done, partial, or a line closing an earlier partial). Relative to `<root>`. |
 | `portfolio_dir` | none | The folder for portfolio-level paywall queues (`build_priority_paywall_queue.py` writes there, `paywall_pull.py` reads there). Without it those tools need `--out-dir` or `--queue`, else they exit 1. |
-| `ezproxy_host` | none | Use-case-only: your library's EZproxy host for `paywall_pull.py --access ezproxy` (which exits 1 without it or `--ezproxy-host`). |
+| `ezproxy_host` | none | Use-case-only (see [Platforms and scope](#platforms-and-scope)): your library's EZproxy host for `paywall_pull.py --access ezproxy` (which exits 1 without it or `--ezproxy-host`). |
 | `hosts` | both `false` | `arxiv_pdf_allowed`, `biorxiv_pdf_allowed`: may arXiv PDFs, and bioRxiv or medRxiv PDFs, be fetched automatically. Off, such rows become a manual click. |
 | `s2` | see template | Semantic Scholar client: `spacing_s` 6.5, `spacing_keyed_s` 1.1, `max_requests_per_run` 2000 (null: no cap), `breaker` 3. |
 | `openalex` | see template | OpenAlex client: `max_requests_per_run` 2000, `breaker` 3, `content_max_per_run` 0 (paid cached PDFs). |
@@ -207,12 +210,12 @@ are filled from Crossref or DataCite when blank. Lines starting with `#` are ign
 
 ### The stages and `sources`
 
-Each project's `sources` decide which stages run (DEC-31):
+Each project's `sources` decide which stages run:
 
 | Stage | Sources | What it does |
 |---|---|---|
 | Unpaywall | `unpaywall` | Asks Unpaywall (Crossref DOIs only) for open-access locations and downloads the PDF, repositories first by default. A row the library already holds is `SKIP_EXISTS`. |
-| PMC | `pmc` | For rows Unpaywall did not deliver: finds the PMCID, then fetches the PDF and JATS full text only from the routes NCBI allows for automated retrieval (the PMC Cloud Service and E-utilities), or Europe PMC's full text for articles it marks open access. An author manuscript has no PDF there and becomes a text-only holding. |
+| PMC | `pmc` | For rows Unpaywall did not deliver: finds the PMCID, then fetches the PDF and JATS full text (the XML format PMC serves) only from the routes NCBI allows for automated retrieval (the PMC Cloud Service and E-utilities), or Europe PMC's full text for articles it marks open access. An author manuscript has no PDF there and becomes a text-only holding. |
 | Preprint | `europepmc_preprints`, `biorxiv`, `medrxiv`, `osf`, `sportrxiv`, `arxiv` | Looks for a preprint copy on the servers the project names. A row with an arXiv DOI or ID reaches arXiv whatever the sources. |
 | Extraction | always | Writes the `.fulltext.json` text sidecar for every new PDF. |
 
@@ -230,7 +233,8 @@ the same day, so nothing is overwritten. Every artifact carries it:
 
 ```
 lit_pull_queue[.<tag>].<run_id>.<stage>.csv
-    stage: normalized, unpaywall, pmc, preprint, residual, report, processed
+    stage: normalized (removed when the queue retires), unpaywall, pmc, preprint, residual,
+           report, processed
 lit_pull_queue[.<tag>].<run_id>.routing.csv        (written by the route step)
 ```
 
@@ -477,7 +481,10 @@ their write flag (`--execute`, `--apply`, `--commit`).
   `needs_ocr: true` and empty text instead of noise. `--ocr` runs Tesseract on those PDFs (about 2
   to 4 s a page; manual only). `--refresh` re-extracts sidecars the pipeline wrote and keeps merged
   or hand-repaired ones (`--force` replaces those too); `--suspect-report PATH` lists PDFs worth
-  re-fetching and changes nothing.
+  re-fetching and changes nothing. Text comes from a JATS XML sibling when there is one, else
+  pdfminer.six first; poppler's `pdftotext` is optional and used when it is on `PATH` (as a
+  fallback, and as the only extractor for PDFs over 30 MB), so a machine without it can extract
+  different text from the same PDF.
 * **Tesseract (optional, for `--ocr`).** Install the engine and the language data your papers need
   (OCR asks for the `.ris` record's language plus English):
   Debian or Ubuntu `sudo apt install tesseract-ocr` (languages as `tesseract-ocr-<lang>`), macOS
@@ -523,7 +530,8 @@ the contact address and keys redacted.
   independently before claiming coverage.
 * **Recency.** Forward walks favour older papers (they have had time to be cited), while
   recency-weighted ranking does the opposite: one recency-weighted relevance pass over a topic
-  dropped both of its anchor papers. `--recent-first` sorts by year; check that your anchors survive
+  dropped both of its anchor papers. The seeder's `--recent-first`
+(`seed_queue_from_top_candidates.py`) sorts by year; check that your anchors survive
   any ranking you apply.
 * **PDF-only retrieval.** The fetch stages retrieve the article (a PDF, or its full text) and
   nothing else: supplementary files, datasets and videos are never fetched.
@@ -595,7 +603,7 @@ lit_util.py, lit_net.py, ris_emit.py                            shared helpers
 litpipe/        net (the HTTP client), hosts (host policy), state, ledger, outcomes, config,
                 doi, text, identity, holdings, s2, openalex, walk, worklists, canaries,
                 preflight, runner, lockfile, gate, enrich_s2
-backfills/      one-off repair scripts (dry run by default)
+backfills/      one-off repairs for libraries built by older versions (dry run by default)
 vendor/         the vendored MathML-to-LaTeX converter
 tests/          the test suite (offline: every network call is mocked)
 ```

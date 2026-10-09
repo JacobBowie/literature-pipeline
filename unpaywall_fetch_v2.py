@@ -1,4 +1,5 @@
-"""Unpaywall stage: fetch open-access PDFs for queue rows (refactor scope 3.2; dispatch W2-B).
+"""Unpaywall stage: fetch open-access PDFs for queue rows.
+(Maintainer refs: refactor scope 3.2; dispatch W2-B.)
 
 Every request goes through litpipe.net (host policy, pacing, refusals, ledger, redaction; the
 Unpaywall `email=` identity is added by net itself). Per row, in order:
@@ -1239,7 +1240,7 @@ def main():
                      help="Skip writing .ris sidecar next to each successfully fetched PDF.")
     ap.add_argument("--candidate-order", choices=CANDIDATE_ORDERS, default="repository",
                      help="Try repository locations first (default) or publisher locations first "
-                          "(plan DEC-11: the runner alternates the two for an A/B).")
+                          "(the runner alternates the two for an A/B comparison).")
     args = ap.parse_args()
     res = run(top_n=args.top_n, dry_run=args.dry_run, min_cites=args.min_cites,
               base_dir=args.base_dir, triage=args.triage, lib_dir=args.lib_dir,

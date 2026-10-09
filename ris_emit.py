@@ -129,10 +129,10 @@ def warn_if_default_email():
     if not problem:
         return
     _email_warned = True
-    print(f"[litpipe] {problem}: API requests go out without a usable contact address. Unpaywall "
-          "answers HTTP 422 to a missing address (and to example.com), which fails every "
-          "Unpaywall lookup, and Crossref says repeated invalid addresses can get API access "
-          f"blocked. Fix: {EMAIL_FIX}.", file=sys.stderr)
+    print(f"[litpipe] {problem}. In a real sweep the Unpaywall stage stops before its first "
+          "request (CONFIG: sweep exits 2 and leaves the queue in place); other API requests go "
+          "out with no contact address, and Crossref says repeated invalid addresses can get API "
+          f"access blocked. Fix: {EMAIL_FIX}.", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------- text
@@ -731,7 +731,7 @@ def write_ris(path: str, ris_text: str, overwrite: bool = True, force: bool = Fa
                     _kv_set(RIS_NS, manifest_key(path), _sha256_file(path))
                     return True
                 why = "edited since the pipeline wrote it" if owner == "edited" else "no pipeline record"
-                print(f"  [ris] kept {os.path.basename(path)}: {why} (DEC-29); force=True replaces it",
+                print(f"  [ris] kept {os.path.basename(path)}: {why}; force=True replaces it",
                       file=sys.stderr)
                 return False
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)

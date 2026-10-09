@@ -1,5 +1,5 @@
-"""Restore the right papers the old DOI-mismatch guard moved into `_mismatch/` (W5-B; issue rows
-M081, C046; plan DEC-07). Dry run by default.
+"""Restore the right papers the old DOI-mismatch guard moved into `_mismatch/`. Dry run by default.
+(Maintainer refs: W5-B; issue rows M081, C046; plan DEC-07.)
 
 Until W2a a fetch stage moved a PDF to `<library>/_mismatch/` when the first DOI printed in it was
 not the queued DOI; the identity check (W1-B) found most of them were the right paper and proposed
@@ -242,7 +242,7 @@ def dest_name(pdf: Path, meta: dict, uf):
     ratio = SequenceMatcher(None, _slug_key(old_slug), _slug_key(new_slug)).ratio()
     if ratio < 0.8:
         return pdf.name, f"kept name (the index title is not this file's title: slug ratio {ratio:.2f})"
-    return new, f"DEC-14 name (index author and title, slug ratio {ratio:.2f})"
+    return new, f"canonical name (index author and title, slug ratio {ratio:.2f})"
 
 
 def write_identity(dest: Path, doi, verdict, kind, n_pages, restored_from, backup=True):
@@ -250,7 +250,7 @@ def write_identity(dest: Path, doi, verdict, kind, n_pages, restored_from, backu
            "source_url": "", "host": "", "host_type": "", "version": "",
            "checked_at": ledger.now_iso(), "n_pages": n_pages, "doc_kind": str(kind),
            "restored_from": restored_from,
-           "restored_by": "mismatch_restore (DEC-07: a HIGH RESTORE row of the W1-B proposal, identity re-checked)"}
+           "restored_by": "mismatch_restore (a HIGH-confidence RESTORE row of the restore proposal, identity re-checked)"}
     rec.update(verdict.as_dict())
     path = lit_util.companion_path(dest, ".identity.json")
     if path.exists() and backup:
@@ -316,7 +316,7 @@ def run(*, proposal=None, projects=None, lib_dirs=None, commit=False, report=Non
            "metadata": "", "statuses": {}, "error_list": [], "restored_files": []}
     try:
         if not proposal:
-            raise config.ConfigError("--proposal CSV is required (W1-B's mismatch_restore_proposal.csv)")
+            raise config.ConfigError("--proposal CSV is required (the restore proposal; its columns are in this script's docstring)")
         if write_ris and not commit:
             raise config.ConfigError("--write-ris needs --commit")
         rows_in = read_proposal(proposal)
@@ -368,7 +368,7 @@ def run(*, proposal=None, projects=None, lib_dirs=None, commit=False, report=Non
             if conf != "HIGH":
                 res["not_high"] += 1
                 statuses[f"NOT_HIGH {prop}"] += 1
-                out_rows.append(_row(pdf, "file", pdf.name, "(kept in _mismatch)", f"{label}: not HIGH, kept (DEC-07)"))
+                out_rows.append(_row(pdf, "file", pdf.name, "(kept in _mismatch)", f"{label}: not HIGH confidence, kept"))
                 continue
             if prop in ("DUPLICATE_COPY", "ALREADY_HELD"):
                 res["delete_candidates"] += 1
@@ -416,7 +416,7 @@ def run(*, proposal=None, projects=None, lib_dirs=None, commit=False, report=Non
                     res["unproposed"] += 1
                     statuses["UNPROPOSED"] += 1
                     out_rows.append(_row(p, "file", fn, "(kept in _mismatch)",
-                                         "UNPROPOSED: not in the W1-B proposal; judge it by hand or re-run the proposal"))
+                                         "UNPROPOSED: not in the restore proposal; judge it by hand or re-run the proposal"))
     finally:
         meta_src.close()
     if commit:
@@ -453,7 +453,7 @@ def _print(res, rows, show):
 def main(argv=None) -> int:
     lit_util.utf8_stdout()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--proposal", default=None, help="W1-B's mismatch_restore_proposal.csv (required)")
+    ap.add_argument("--proposal", default=None, help="the restore proposal CSV (required; columns project, path, queue_doi, report, proposal, confidence, pdf_doi_primary, evidence)")
     ap.add_argument("--project", action="append", default=None, metavar="KEY",
                     help="only this registered project's rows (repeatable); default: every project in the proposal")
     ap.add_argument("--lib-dir", action="append", default=None, metavar="DIR",

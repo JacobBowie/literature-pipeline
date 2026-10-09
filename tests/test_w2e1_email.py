@@ -20,7 +20,7 @@ def test_warns_for_unusable_addresses(monkeypatch, capsys, value):
         monkeypatch.setenv("LITPIPE_EMAIL", value)
     R.warn_if_default_email()
     err = capsys.readouterr().err
-    assert "LITPIPE_EMAIL" in err and "422" in err and "Unpaywall" in err and "Crossref" in err
+    assert "LITPIPE_EMAIL" in err and "CONFIG" in err and "Unpaywall" in err and "Crossref" in err
     assert "None" not in err and "maintainer" not in err
     if value and "@" in value:
         assert value not in err                                  # the address is never echoed

@@ -1008,7 +1008,7 @@ def fmt_report(audit: dict, queue: dict, index=None, full=False) -> str:
     if audit["orphan_sidecars"]:
         emit(lines, "WARN", "orphan sidecars (no PDF, not text-only)", audit["orphan_sidecars"], full)
     if audit["text_only"]:
-        emit(lines, "INFO", f"TEXT_ONLY holdings (DEC-08; {audit['text_only_with_ris']} with .ris)",
+        emit(lines, "INFO", f"TEXT_ONLY holdings (text, no PDF; {audit['text_only_with_ris']} with .ris)",
              audit["text_only"], full)
     if audit["flags"]:
         emit(lines, "WARN", "identity flags (review; not holdings)", audit["flags"], full,
@@ -1031,7 +1031,7 @@ def fmt_report(audit: dict, queue: dict, index=None, full=False) -> str:
                 emit(lines, "WARN", f"{kind_of_file} text damage: {k}", names, full)
     mm = audit["mismatch"]
     if mm["files"]:
-        emit(lines, "WARN", f"_mismatch/ quarantine (DEC-07; {mm['pdfs']} PDFs)", mm["files"], full)
+        emit(lines, "WARN", f"_mismatch/ quarantine ({mm['pdfs']} PDFs)", mm["files"], full)
 
     if audit["al_antipattern"]:
         emit(lines, "WARN", "'_al_' antipattern (audit_filenames.py can fix)", audit["al_antipattern"], full)
@@ -1224,8 +1224,8 @@ def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full):
                  full, fmt=lambda t: f"[{t[0]}] {t[1]}")
     mm = [(a["project"], f) for a in audits for f in a["mismatch"]["files"]]
     emit(lines, "WARN" if mm else "INFO",
-         f"_mismatch/ quarantined files (DEC-07; {sum(a['mismatch']['pdfs'] for a in audits)} PDFs; "
-         f"restoring them is W5-B's)", mm, full, fmt=lambda t: f"[{t[0]}] {t[1]}")
+         f"_mismatch/ quarantined files ({sum(a['mismatch']['pdfs'] for a in audits)} PDFs; "
+         f"restore with backfills/mismatch_restore.py)", mm, full, fmt=lambda t: f"[{t[0]}] {t[1]}")
     unattr = [u for e in entries for u in e["queue"]["unattributed"]]
     uniq_unattr = list({(u["dir"], u["tag"], u["run_id"]): u for u in unattr}.values())
     if uniq_unattr:

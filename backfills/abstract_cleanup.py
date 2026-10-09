@@ -1,5 +1,5 @@
-"""Clean the abstracts stored in an index database with the current abstract cleaner (W5-B; issue
-rows M282, C046). Dry run by default.
+"""Clean the abstracts stored in an index database with the current abstract cleaner. Dry run by default.
+(Maintainer refs: W5-B; issue rows M282, C046.)
 
 `enrich_abstracts` stored Crossref abstracts with an older cleaner that decoded three character
 references only, so `paper_metadata.abstract` still holds JATS markup (`<jats:p>`), escaped text

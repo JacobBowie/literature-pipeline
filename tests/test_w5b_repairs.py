@@ -678,7 +678,7 @@ def test_mismatch_dest_name_guard():
     pdf = Path("2026_Unknown_NetworkEdgeInferenceLargeLanguageModels.pdf")
     name, how = mismatch_restore.dest_name(pdf, {"title": "Network Edge Inference for Large Language Models",
                                                  "authors": "Zhixiong Chen; B. Zhu"}, uf)
-    assert name == "2026_Chen_NetworkEdgeInferenceLargeLanguageModels.pdf" and "DEC-14" in how
+    assert name == "2026_Chen_NetworkEdgeInferenceLargeLanguageModels.pdf" and "canonical name" in how
     for meta in ({"title": "Neck circumference screening for elevated blood pressure", "authors": "Anon"},
                  {"title": "6 https doi org 10 1002", "authors": "A. Khudairy"}, {"title": "x", "authors": ""}):
         name, how = mismatch_restore.dest_name(Path("2026_Recio_NeckCircumferenceScreeningElevated.pdf"), meta, uf)

@@ -824,7 +824,7 @@ def content_pdf(wid, *, allow_paid=False, project=None, cfg=None, session: Sessi
         return Outcome(Kind.CONFIG, host=host, detail=ledger.redact(str(e))[:300])
     if "openalex_content" not in srcs:
         return Outcome(Kind.SKIPPED, host=host,
-                       detail=f"project {project!r}: sources do not include openalex_content (DEC-31)")
+                       detail=f"project {project!r}: sources do not include openalex_content")
     if not key_present():
         return Outcome(Kind.SKIPPED, host=host, detail=f"{KEY_ENV} is not set (the content API needs a key)")
     try:

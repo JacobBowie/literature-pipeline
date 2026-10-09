@@ -810,7 +810,7 @@ def ingest_forward(con, name: str, csv_path: Path, lib: Path = None):
     # c11/E1: shared writer -- no redundant per-key DELETEs (prune ran); cites via ON CONFLICT.
     _write_citation_rows(con, cand_rows, meta_rows, cite_rows)
     if n_rejected:
-        print(f"  [RC1-gate] forward: dropped {n_rejected} row(s) with malformed/truncated/placeholder DOI")
+        print(f"  [doi-gate] forward: dropped {n_rejected} row(s) with malformed/truncated/placeholder DOI")
     if n_changed:
         print(f"  [doi] forward: normalised {n_changed} DOI value(s)")
     return len(cand_rows)
@@ -894,7 +894,7 @@ def ingest_reverse(con, name: str, csv_path: Path, lib: Path):
     # c11/E1: shared writer (see ingest_forward) -- prune ran, so no redundant per-key DELETEs.
     _write_citation_rows(con, cand_rows, meta_rows, cite_rows)
     if n_rejected:
-        print(f"  [RC1-gate] reverse: dropped {n_rejected} row(s) with malformed/truncated/placeholder DOI")
+        print(f"  [doi-gate] reverse: dropped {n_rejected} row(s) with malformed/truncated/placeholder DOI")
     if n_changed:
         print(f"  [doi] reverse: normalised {n_changed} DOI value(s)")
     return len(cand_rows)
@@ -966,7 +966,7 @@ def ingest_scoped(con, name: str, scope: str, csv_path: Path):
     _bulk_insert(con, "scoped_cites", ["project", "scope", "citing_doi", "cited_doi", "source_pipeline"],
                  _dedup_first(cites, key=lambda r: (r[2], r[3])))
     if n_rejected:
-        print(f"  [RC1-gate] scope {scope}: dropped {n_rejected} row(s) with malformed/placeholder DOI")
+        print(f"  [doi-gate] scope {scope}: dropped {n_rejected} row(s) with malformed/placeholder DOI")
     return len(cand)
 
 

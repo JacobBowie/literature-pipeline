@@ -2314,7 +2314,7 @@ class _ScheduledRun(_Run):
         if not monthly:
             self._job(None, "recommendations", SKIPPED, f"monthly job (profile {self.effective})", counts_for_exit=False)
         elif not keyed:
-            self._job(None, "recommendations", SKIPPED, "no S2 key (DEC-18: off until the key)", counts_for_exit=False)
+            self._job(None, "recommendations", SKIPPED, "no S2 key (recommendations are off until S2_API_KEY is set)", counts_for_exit=False)
         elif not self.db_writes:
             self.skipped_db.append({"project": None, "job": "recommendations", "command": cmd})
             self._job(None, "recommendations", SKIPPED, "DB writes off", command_=cmd, counts_for_exit=False)
@@ -3080,7 +3080,7 @@ def _linux_text(checkout, state_dir, at=SCHEDULE_TIME):
     log = f"{state_dir.rstrip('/')}/runner/cron.log"
     env_lines = "".join(f"#Environment={name}=<{what}>\n" for name, what in SECRET_ENVS)
     return (
-        f"# litpipe runner: ONE nightly run at {at} (DEC-03), as a systemd user service and timer.\n"
+        f"# litpipe runner: ONE nightly run at {at}, as a systemd user service and timer.\n"
         "# Printed only: nothing was registered. Values are never printed; set them yourself.\n"
         f"# Save as ~/.config/systemd/user/{UNIT}.service\n"
         "[Unit]\n"
@@ -3130,7 +3130,7 @@ def _macos_text(checkout, state_dir, at=SCHEDULE_TIME):
     py = f"{co}/.venv/bin/python"
     log = f"{state_dir.rstrip('/')}/runner/cron.log"
     return (
-        f"# litpipe runner: ONE nightly run at {at} (DEC-03), as a crontab line (crontab -e).\n"
+        f"# litpipe runner: ONE nightly run at {at}, as a crontab line (crontab -e).\n"
         "# macOS is BEST-EFFORT: no launchd unit is printed and macOS is not tested; Linux and Windows are\n"
         "# the supported platforms. Printed only: nothing was registered. Values are never printed.\n"
         f"# cron has no catch-up: a night the machine is asleep or off at {at} is skipped. Nor does cron\n"
@@ -3150,7 +3150,7 @@ def _windows_text(checkout, at=SCHEDULE_TIME):
     def q(s):                     # a PowerShell single-quoted string doubles its own quote
         return s.replace("'", "''")
     return (
-        f"# litpipe runner: ONE nightly run at {at} (DEC-03), as a Windows scheduled task.\n"
+        f"# litpipe runner: ONE nightly run at {at}, as a Windows scheduled task.\n"
         "# PowerShell, run once by hand. A scheduled task does not read your shell profile, so PYTHONUTF8 is\n"
         "# set in the command; " + ", ".join(n for n, _ in SECRET_ENVS)
         + " come from your user environment (setx).\n"
@@ -3230,7 +3230,8 @@ def _parser():
     ap = _Parser(prog="python -m litpipe.runner",
                  description="The literature pipeline's scheduled runner. Exit 0 clean, 1 usage or config, "
                              "2 completed with failures, 3 aborted.")
-    sub = ap.add_subparsers(dest="command", required=True, parser_class=_Parser)
+    sub = ap.add_subparsers(dest="command", required=True, parser_class=_Parser,
+                         metavar="{run,batch,status,schedule-print}")   # _stage stays unlisted
     r = sub.add_parser("run", help="one run of a profile")
     r.add_argument("--profile", required=True, choices=PROFILES)
     r.add_argument("--project", action="append", default=None, help="only this project (repeatable)")
@@ -3245,7 +3246,7 @@ def _parser():
     r.add_argument("--json", metavar="PATH", help="also write the summary here")
     r.add_argument("--timeout", action="append", metavar="JOB=SECONDS", help="override one stage's timeout")
     r.add_argument("--sources", default=None, metavar="LIST",
-                   help="comma-separated DEC-31 sources for this run only (every project), passed to sweep and "
+                   help="comma-separated fetch sources for this run only (every project), passed to sweep and "
                         "migrate; an invalid list exits 1 before anything runs")
     b = sub.add_parser("batch", help="draw a pool down in batches (resumable)")
     b.add_argument("--project", required=True)
@@ -3260,7 +3261,7 @@ def _parser():
     b.add_argument("--json", metavar="PATH")
     b.add_argument("--timeout", action="append", metavar="JOB=SECONDS")
     b.add_argument("--sources", default=None, metavar="LIST",
-                   help="comma-separated DEC-31 sources for this invocation, passed to sweep and migrate")
+                   help="comma-separated fetch sources for this invocation, passed to sweep and migrate")
     sub.add_parser("status", help="live runs, last run per project, refused and deferred hosts, today's counts")
     sp = sub.add_parser("schedule-print", help="print the nightly task as a template (never registers it)")
     sp.add_argument("--platform", choices=PLATFORMS, default=None,

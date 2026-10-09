@@ -1,4 +1,5 @@
-"""Recent-feed recommendations from Semantic Scholar (DEC-18, K7, T1; dispatch W3-E).
+"""Recent-feed recommendations from Semantic Scholar.
+(Maintainer refs: DEC-18, K7, T1; dispatch W3-E.)
 
 What the feed is: /recommendations/v1/papers/forpaper/{DOI} with the default `recent` pool returns
 papers published in about the last 60 days that resemble a seed (probe P8-C1, C2). It is a "new
@@ -82,8 +83,8 @@ SUMMARY_MARKER = _db.SUMMARY_MARKER
 EXIT_OK, EXIT_CONFIG, EXIT_DEGRADED, EXIT_ABORTED, EXIT_INTERRUPTED = 0, 1, 2, 3, 130
 REQUIRED_TABLES = ("paper_locations", "paper_metadata", "recommendations")
 
-OFF_LINE = ("[enrich_recommendations] off: recommendations run only with --recent-feed (DEC-18: a "
-            "monthly recent feed once the S2 key is set); nothing sent")
+OFF_LINE = ("[enrich_recommendations] off: recommendations run only with --recent-feed (a "
+            "monthly recent feed once an S2 key is set); nothing sent")
 NO_KEY_LINE = ("[enrich_recommendations] --recent-feed needs S2_API_KEY (key: absent); nothing sent. "
                "Pass --allow-unkeyed to run unkeyed at 6.5 s per request")
 
@@ -414,7 +415,7 @@ def _print_summary(res):
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     ap.add_argument("--recent-feed", action="store_true",
-                    help="Run the recommendation pass (DEC-18). Without it nothing is sent.")
+                    help="Run the recommendation pass. Without it nothing is sent.")
     ap.add_argument("--allow-unkeyed", action="store_true",
                     help="With --recent-feed: run even without S2_API_KEY (6.5 s per request).")
     ap.add_argument("--db", default=None,

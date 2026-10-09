@@ -1,4 +1,5 @@
-"""Route a sweep run's residual rows by residual class (dispatch 0.5; W1-D2).
+"""Route a sweep run's residual rows by residual class.
+(Maintainer refs: dispatch 0.5; W1-D2.)
 
 After a sweep, every row that no stage fetched is classified by the residual table (first match
 wins) and routed:
@@ -1517,7 +1518,7 @@ def main(argv=None):
                          "to the project); the .md lists and retry_later stay in the project root")
     ap.add_argument("--dry-run", action="store_true", help="classify and print; write nothing")
     ap.add_argument("--sources", default=None, metavar="LIST",
-                    help="the run's DEC-31 sources (sweep --sources, one run): a stage the list omits "
+                    help="the run's fetch sources (sweep --sources, one run): a stage the list omits "
                          "blocks nothing; default: the project's own `sources`")
     ap.add_argument("--import-csv", default=None, metavar="PATH",
                     help="import a DOI-keyed CSV into the worklists (see below); dry unless --commit")

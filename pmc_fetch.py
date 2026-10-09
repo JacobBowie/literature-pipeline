@@ -459,7 +459,7 @@ def _text_from_s3_or_fallback(row, ctx, pmcid, klass, meta):
     if is_am:
         parse_bioc = _parse_bioc_fn()
         if parse_bioc is None:
-            row.add(ROUTE_BIOC, Outcome(Kind.SKIPPED, detail="jats_to_text.parse_bioc not available (W2-A2)"))
+            row.add(ROUTE_BIOC, Outcome(Kind.SKIPPED, detail="jats_to_text.parse_bioc not available"))
             return None, None
         bo = row.add(ROUTE_BIOC, bioc_json(pmcid, state=ctx.state, cfg=ctx.cfg))
         if bo.ok:

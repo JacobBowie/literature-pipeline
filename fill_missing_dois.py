@@ -589,7 +589,7 @@ def apply_match(pdf_path, sidecar_path, sidecar, match_meta, today=None):
                 sidecar["doi"] = rdoi
             sidecar[key] = doi
             sidecar["doi_note"] = (f"{today}: fill_missing_dois matched {doi}; the .ris carries {rdoi} "
-                                   f"and is kept (DEC-20)")
+                                   f"and is kept (the .ris DOI wins)")
             lit_util.atomic_write_json(sidecar_path, sidecar)
             return True, key
         if sidecar is None:
@@ -909,8 +909,8 @@ def run_project(name, lib_dir, args):
     if applied_rows:
         print(f"\n  Next: python index_portfolio.py --project {name}   (picks up the new .ris files)")
     if no_doi_ris:
-        print(f"  [!] {no_doi_ris} fill(s) landed in sidecars whose .ris has no DOI and was kept (curated or "
-              f"pre-DEC-29). backfill_ris replaces such a file only with --force, and --force replaces "
+        print(f"  [!] {no_doi_ris} fill(s) landed in sidecars whose .ris has no DOI and was kept (curated, or "
+              f"written before the pipeline recorded its own .ris files). backfill_ris replaces such a file only with --force, and --force replaces "
               f"EVERY curated .ris in the library, EndNote edits included. Dry run first:\n"
               f"        python backfill_ris.py --lib-dir \"{lib_dir}\"\n"
               f"        python backfill_ris.py --lib-dir \"{lib_dir}\" --commit --force   "

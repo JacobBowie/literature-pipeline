@@ -1,5 +1,5 @@
-"""Normalise the text stored in `.fulltext.json` sidecars with the extractor's current rules (W5-B;
-issue row M151). Dry run by default.
+"""Normalise the text stored in `.fulltext.json` sidecars with the extractor's current rules. Dry run by default.
+(Maintainer refs: W5-B; issue row M151.)
 
 The PDF extractor and import_downloads now pass every text through
 `pdf_text_clean.clean_pdf_text` (ligatures U+FB00 to U+FB06 expanded; no-break, figure, thin and

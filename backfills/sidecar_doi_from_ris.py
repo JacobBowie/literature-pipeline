@@ -1,5 +1,5 @@
-"""Give a `.fulltext.json` sidecar with no DOI the DOI its same-stem `.ris` records (W5-B; issue row
-M222, "Gap2"). Dry run by default.
+"""Give a `.fulltext.json` sidecar with no DOI the DOI its same-stem `.ris` records. Dry run by default.
+(Maintainer refs: W5-B; issue row M222, "Gap2".)
 
 Since W4-C the extractor seeds a new sidecar's DOI from its `.ris` (extract_pdf_fulltext
 finish_record); the sidecars written before that still have an empty `doi` while the `.ris` beside

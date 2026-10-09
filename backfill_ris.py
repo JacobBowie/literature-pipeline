@@ -377,7 +377,7 @@ def run(*, lib_dir=None, project=None, commit=False, overwrite=False, force=Fals
     if include_text_only:
         print(f"  text-only holdings: {len(items) - n_pdf}")
     if force:
-        print("  --force: curated and edited .ris files are replaced too (DEC-29 override)")
+        print("  --force: curated and edited .ris files are replaced too")
     print()
 
     rows = []
@@ -434,13 +434,13 @@ def main(argv=None) -> int:
     ap.add_argument("--commit", action="store_true",
                     help="Actually write .ris files. Default is dry-run.")
     ap.add_argument("--overwrite", action="store_true",
-                    help="Replace existing .ris files the pipeline wrote and nobody edited since "
-                         "(DEC-29); curated or edited files are kept and counted KEPT_CURATED.")
+                    help="Replace existing .ris files the pipeline wrote and nobody edited since; "
+                         "curated or edited files are kept and counted KEPT_CURATED.")
     ap.add_argument("--force", action="store_true",
                     help="Replace any existing .ris, curated or edited ones too (implies --overwrite).")
     ap.add_argument("--include-text-only", action="store_true",
                     help="Also write a .ris from the sidecar's own metadata for each text-only holding "
-                         "(a .fulltext.json with text and no PDF; DEC-08).")
+                         "(a .fulltext.json with text and no PDF).")
     ap.add_argument("--limit", type=int, default=0,
                     help="Process first N holdings only (testing).")
     ap.add_argument("--sleep", type=float, default=0.0,

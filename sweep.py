@@ -1622,9 +1622,9 @@ def run(project=None, dry_run=False, skip_preprint=False, date=None, loose_ends=
                 print(f"  {key}/{q.name}")
             if loose_ends and not dry_run and not warned_loose and resolve_loose_ends_path() is None:
                 warned_loose = True
-                print("[litpipe] no `loose_ends` key in projects.json -- cross-project "
-                      "lit-pull log is off this run; see the literature-pipeline skill to "
-                      "enable it.", file=sys.stderr)
+                print("[litpipe] no `loose_ends` key in projects.json -- the per-run status "
+                      "lines are off (optional; see the registry keys in README.md to "
+                      "enable it).", file=sys.stderr)
             print(f"\n=== {key} ===")
             run_id = choose_run_id(run_id_dirs(proj, art_dir), today)
             print(f"[sweep] run_id={run_id} project={key}")
@@ -1771,11 +1771,11 @@ def main(argv=None):
                          "project (refused by default: a doubled subproject tail lands a shadow "
                          "library).")
     ap.add_argument("--candidate-order", choices=CANDIDATE_ORDERS, default=None,
-                    help="Unpaywall candidate order, passed to the Unpaywall stage (DEC-11; the stage's "
+                    help="Unpaywall candidate order, passed to the Unpaywall stage (the stage's "
                          "default is repository). Omitted: the stage decides.")
     ap.add_argument("--sources", default=None, metavar="LIST",
                     help="Comma-separated fetch sources for this run only, replacing every project's "
-                         "`sources` (DEC-31): unpaywall, pmc, europepmc_preprints, biorxiv, medrxiv, osf, "
+                         "`sources`: unpaywall, pmc, europepmc_preprints, biorxiv, medrxiv, osf, "
                          "sportrxiv, arxiv, openalex_content. A stage whose source is not listed is skipped "
                          "(reported, not a failure), and a row retires on the listed stages alone (one "
                          "the run never tried can be routed to ILL); an invalid list exits 2.")

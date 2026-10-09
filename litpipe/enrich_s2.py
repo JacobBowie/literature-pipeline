@@ -491,7 +491,7 @@ def _print_summary(res, commit, project, db, limit, refresh, max_age_days, reche
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m litpipe.enrich_s2",
                                  description="Library abstracts, OA PDF URLs and citation counts from "
-                                             "Semantic Scholar's paper batch (K6). Dry run unless --commit.")
+                                             "Semantic Scholar's paper batch. Dry run unless --commit.")
     ap.add_argument("--db", default=None,
                     help="DuckDB portfolio index (default: portfolio.duckdb in projects.json db_dir).")
     ap.add_argument("--project", default=None, help="Only this registered project's library DOIs.")

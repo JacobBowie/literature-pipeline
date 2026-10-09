@@ -378,7 +378,7 @@ def repair_file(path: Path, lib: Path, commit=False, backup=True, damage_only=Fa
         return res
     sha = hashlib.sha256(raw).hexdigest()
     if rec and rec != sha:
-        res.update(status="skipped", reason="curated: edited since the pipeline wrote it (DEC-29)")
+        res.update(status="skipped", reason="curated: edited since the pipeline wrote it")
         return res
     entries, why = pipeline_shape(raw)
     if entries is None:

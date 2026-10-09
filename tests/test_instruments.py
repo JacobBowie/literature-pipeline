@@ -186,7 +186,7 @@ def test_audit_portfolio_prints_each_acceptance_item_once_in_its_severity(world,
     assert rc == 0, out
     assert "  WARN sidecar text damage: ligature: 1\n     2021_Jones_Reflex.fulltext.json" in out
     assert "  WARN ris text damage: entity: 1\n     2022_Brown_Humidity.ris" in out
-    assert "  INFO TEXT_ONLY holdings (DEC-08; 1 with .ris): 1\n     2023_Green_JatsOnly.fulltext.json" in out
+    assert "  INFO TEXT_ONLY holdings (text, no PDF; 1 with .ris): 1\n     2023_Green_JatsOnly.fulltext.json" in out
     assert "  WARN identity flags (review; not holdings): 2" in out
     assert out.count("2023_Green_JatsOnly") == 1
     assert out.count("2021_Jones_Reflex.fulltext.json") == 2      # project block + portfolio rollup
@@ -200,7 +200,7 @@ def test_pipeline_check_prints_each_acceptance_item_once_in_its_severity(world, 
     assert rc == 0, out
     assert "  [WARN] sidecar text damage: ligature: 1\n      2021_Jones_Reflex.fulltext.json" in out
     assert "  [WARN] ris text damage: entity: 1\n      2022_Brown_Humidity.ris" in out
-    assert "  [INFO] TEXT_ONLY holdings (DEC-08; 1 with .ris): 1\n      2023_Green_JatsOnly.fulltext.json" in out
+    assert "  [INFO] TEXT_ONLY holdings (text, no PDF; 1 with .ris): 1\n      2023_Green_JatsOnly.fulltext.json" in out
     assert "  [WARN] identity flags (review; not holdings): 2" in out
     assert "[OK] no orphan sidecars (no PDF)" in out
     assert "[OK] no orphan .ris (no PDF)" in out
@@ -263,9 +263,9 @@ def test_mismatch_folder_is_a_warn_with_its_count(world, capsys):
     _pdf(lib / "_mismatch" / "2019_Other_Paper.pdf")
     _write(lib / "_mismatch" / "2019_Other_Paper.ris", _ris("Other"))
     assert pc.main(["--project", PROJECT]) == 0
-    assert "[WARN] _mismatch/ quarantine (DEC-07; 1 PDFs; restoring is a separate step): 2" in capsys.readouterr().out
+    assert "[WARN] _mismatch/ quarantine (1 PDFs; restoring is a separate step): 2" in capsys.readouterr().out
     assert ap.main(["--no-holdings"]) == 0
-    assert "WARN _mismatch/ quarantine (DEC-07; 1 PDFs): 2" in capsys.readouterr().out
+    assert "WARN _mismatch/ quarantine (1 PDFs): 2" in capsys.readouterr().out
 
 
 def test_item_lists_cap_at_twenty_and_full_prints_all(world, capsys):

@@ -258,7 +258,7 @@ def check_schema(con, key, mode):
     if need and need not in have:
         what = {"cocitation": "--rank cocitation", "scope": "--scope"}.get(mode, f"--rank {mode}")
         raise SeedError(f"{what} needs the `{need}` {'view' if need != 'scoped_candidates' else 'table'}, "
-                        f"which this index lacks (indexed before W3-C1's schema); re-index first: "
+                        f"which this index lacks (built by an older index_portfolio.py); re-index first: "
                         f"{INDEX_COMMAND.format(key=key)}")
 
 
