@@ -9,4 +9,4 @@ import nothing from the flat scripts except lit_util, so a script can import lit
 cycle.
 """
 
-__version__ = "0.2.0.dev0"
+__version__ = "0.2.0"

@@ -308,7 +308,7 @@ wheels = [
 
 [[package]]
 name = "literature-pipeline"
-version = "0.1.1"
+version = "0.2.0"
 source = { virtual = "." }
 dependencies = [
     { name = "duckdb" },

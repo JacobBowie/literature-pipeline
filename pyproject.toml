@@ -1,6 +1,6 @@
 [project]
 name = "literature-pipeline"
-version = "0.1.1"
+version = "0.2.0"
 description = "Portfolio literature discovery + citation-graph pipeline (fetch -> index -> snowball)."
 requires-python = ">=3.11"
 dependencies = [
