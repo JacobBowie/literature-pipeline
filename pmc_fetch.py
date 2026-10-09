@@ -507,7 +507,7 @@ def _fetch_pdf(row, ctx, meta):
 
 
 def _read_sidecar(path):
-    """An existing sidecar's record, or {} when it cannot be read (then it is measured as empty)."""
+    """An existing sidecar's record, or {} when it cannot be read (then it is not judged abstract-only)."""
     try:
         with open(path, encoding="utf-8") as f:
             rec = json.load(f)

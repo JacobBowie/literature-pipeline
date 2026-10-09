@@ -575,7 +575,8 @@ def lib_world(net_env, tmp_path, monkeypatch):
     (lib / "2021_Beta_TextOnly.fulltext.json").write_text(json.dumps(
         {"doi": "10.5555/seam.0002", "title": "Text only holding", "authors": ["Beta Bo", "Gamma Cy"],
          "year": 2021, "journal": "J Seam", "volume": "3", "issue": "2", "pages": "10-20",
-         "abstract": "Abstract &lt;b&gt;Purpose&lt;/b&gt; seam test", "text": "full text body",
+         "abstract": "Abstract &lt;b&gt;Purpose&lt;/b&gt; seam test",
+         "text": "full text body: " + "the seam results are reported section by section. " * 40,  # a body, not only an abstract
          "has_pdf": False, "source": "pmc_jats"}), encoding="utf-8")
     (lib / "2019_Gamma_Legacy.fulltext.json").write_text(json.dumps(
         {"doi": "10.5555/seam.0003", "title": "Legacy jats record", "text": "legacy body"}), encoding="utf-8")

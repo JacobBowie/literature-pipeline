@@ -38,7 +38,8 @@ def test_an_unstructured_full_text_is_measured_whole_and_odd_records_are_empty()
     long_text = "Paragraph of article text without section structure. " * 60
     assert not T.is_abstract_only({"text": long_text})              # no abstract field: never undercounted
     assert T.body_chars({"text": long_text, "sections": None}) == len(long_text)
-    assert T.body_chars(None) == 0 and T.body_chars([]) == 0 and T.is_abstract_only({})
+    assert T.body_chars(None) == 0 and T.body_chars([]) == 0
+    assert not T.is_abstract_only({}) and not T.is_abstract_only({"text": "a few words"})  # says nothing of its parts
     refs = {"text": "x" * 3000, "sections": [{"title": "References", "text": "y" * 2900}]}
     assert T.is_abstract_only(refs)                                  # a reference list is not body
     caption = "Average force in concentric and eccentric phases during one set of contractions. " * 40

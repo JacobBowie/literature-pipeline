@@ -583,12 +583,15 @@ class Destination:
         return None
 
     def text_only(self, doi):
-        """(sidecar path, record) of a text-only holding of `doi` here, by the instruments' predicate."""
+        """(sidecar path, record) of a PDF-less text sidecar of `doi` here, by the instruments'
+        predicates: a text-only holding, or an abstract-only sidecar. A PDF that arrives for either
+        fills it (the sidecar's stem, has_pdf true)."""
         for h in self.hm.records(doi):
-            if self.here(h) and h.kind == holdings.TEXT_ONLY:
+            if self.here(h) and h.kind in (holdings.TEXT_ONLY, holdings.ABSTRACT_ONLY):
                 rec = _read_json(h.path)
                 pdf = Path(str(h.path)[:-len(holdings.SIDECAR_SUFFIX)] + ".pdf")
-                if rec is not None and AP.is_text_only_sidecar(rec) and not pdf.exists():
+                held_text = AP.is_text_only_sidecar(rec) or AP.is_abstract_only_sidecar(rec)
+                if rec is not None and held_text and not pdf.exists():
                     return Path(h.path), rec
         return None
 

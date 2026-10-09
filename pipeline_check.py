@@ -194,6 +194,9 @@ def check_project(base, lib, data, tier, ris_threshold, *, key=None, full=False,
         if scan["text_only"]:
             rep.note(f"TEXT_ONLY holdings (text, no PDF; {scan['text_only_with_ris']} with .ris)",
                      scan["text_only"])
+        if scan.get("abstract_only"):
+            rep.note("ABSTRACT_ONLY sidecars (an abstract, no article body: not holdings; ILL or browser "
+                     "candidates)", scan["abstract_only"])
         rep.warn("identity flags (review; not holdings)", scan["flags"], fmt=ap._fmt_flag)
         rep.warn("orphan .identity.json (no PDF)", scan["orphan_identity"])
         rep.warn("unparseable .identity.json", scan["bad_identity"], fmt=lambda t: f"{t[0]}: {t[1]}")

@@ -294,5 +294,9 @@ def body_chars(record):
 
 def is_abstract_only(record):
     """True when a text sidecar record holds less article body than TEXT_ONLY_MIN_BODY_CHARS: its
-    text is an abstract, a stub or a truncated text, not a text-only holding."""
+    text is an abstract, a stub or a truncated text, not a text-only holding. Only a record that says
+    what its parts are (it carries an `abstract` or a `sections` field, as every JATS, BioC and PDF
+    extraction does) is judged; one with neither (a hand-made or unreadable record) is not."""
+    if not isinstance(record, dict) or not ("abstract" in record or "sections" in record):
+        return False
     return body_chars(record) < TEXT_ONLY_MIN_BODY_CHARS

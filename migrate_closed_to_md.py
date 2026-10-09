@@ -581,7 +581,9 @@ def _norm_lib(p):
 
 
 def _sidecar_text_on_disk(row, lib):
-    """True when this row's PMC sidecar sits in `lib` with text and no PDF beside it."""
+    """True when this row's PMC sidecar sits in `lib` with the article's text and no PDF beside it. A
+    sidecar holding only an abstract (litpipe.text.is_abstract_only) is no text-only holding: the row
+    routes like any unfetched one."""
     fn = row.get("pmc_filename") or row.get("filename") or ""
     if not fn or lib is None or not fn.lower().endswith(".pdf"):
         return False
@@ -590,7 +592,8 @@ def _sidecar_text_on_disk(row, lib):
     if not sc.exists() or (lib / fn).exists():
         return False
     try:
-        return holdings.read_sidecar(sc)[1] > 0
+        got = holdings.read_sidecar(sc)
+        return got[1] > 0 and not got[4]
     except (OSError, ValueError):
         return False
 

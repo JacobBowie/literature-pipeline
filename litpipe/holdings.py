@@ -38,15 +38,18 @@ from urllib.parse import unquote
 import lit_util
 from litpipe import config
 from litpipe import doi as _doi
+from litpipe import text as _text
 
-CACHE_VERSION = 4   # 2: DOIs normalised by litpipe.doi; 3: identity-FLAG sidecars give no DOI;
+CACHE_VERSION = 5   # 2: DOIs normalised by litpipe.doi; 3: identity-FLAG sidecars give no DOI;
                     # 4: a PDF-extracted sidecar whose PDF is gone is an orphan, not text-only
+                    # 5: an abstract-only sidecar is ABSTRACT_ONLY, not text-only (rows gain the flag)
 CACHE_NAME = "holdings_cache.json"
 SIDECAR_SUFFIX = ".fulltext.json"
 
 PDF = "pdf"
 TEXT_ONLY = "text_only"
 EMPTY_SIDECAR = "empty_sidecar"
+ABSTRACT_ONLY = "abstract_only"   # a sidecar with an abstract but no article body: not a holding
 ORPHAN_SIDECAR = "orphan_sidecar"
 RIS_ONLY = "ris_only"
 CONTENT_KINDS = frozenset({PDF, TEXT_ONLY})
@@ -112,12 +115,13 @@ def read_ris_doi(path) -> str:
 
 
 def read_sidecar(path):
-    """(doi, text_chars, has_pmcid, pdf_derived) of a .fulltext.json sidecar. Raises OSError, or ValueError when
+    """(doi, text_chars, has_pmcid, pdf_derived, abstract_only) of a .fulltext.json sidecar. Raises OSError, or ValueError when
     the file is not a JSON object. A sidecar whose identity verdict is FLAG gives no DOI: the PMC stage
     records the queue DOI there for a PDF judged to be another work, which is a review item, not a
     holding (W2a verifier A, V-A2). `pdf_derived` is true for text extracted from a PDF (`has_pdf` true,
     or no `has_pdf` key and `extracted_from_pdf` true): with that PDF gone the sidecar is an orphan, not
-    a text-only holding (W2b verifier F; the instruments' predicate)."""
+    a text-only holding (W2b verifier F; the instruments' predicate). `abstract_only` is
+    litpipe.text.is_abstract_only: an abstract with no article body is not a text-only holding."""
     with open(path, "rb") as f:
         data = json.loads(f.read().decode("utf-8", errors="replace"))
     if not isinstance(data, dict):
@@ -126,7 +130,7 @@ def read_sidecar(path):
     n = len(text.strip()) if isinstance(text, str) else 0
     doi = "" if data.get("identity") == "FLAG" else normalise_doi(data.get("doi") or "")
     pdf_derived = data.get("has_pdf") is True or ("has_pdf" not in data and data.get("extracted_from_pdf") is True)
-    return doi, n, bool(data.get("pmcid")), pdf_derived
+    return doi, n, bool(data.get("pmcid")), pdf_derived, _text.is_abstract_only(data)
 
 
 # ---------------------------------------------------------------- the map
@@ -136,7 +140,7 @@ class Holding:
     path: Path       # the PDF when there is one, else the sidecar, else the .ris
     project: str     # the registry key whose library holds it
     library: Path
-    kind: str        # PDF, TEXT_ONLY, EMPTY_SIDECAR, ORPHAN_SIDECAR or RIS_ONLY
+    kind: str        # PDF, TEXT_ONLY, ABSTRACT_ONLY, EMPTY_SIDECAR, ORPHAN_SIDECAR or RIS_ONLY
 
     @property
     def has_pdf(self) -> bool:
@@ -147,7 +151,7 @@ class Holding:
         return self.kind in CONTENT_KINDS
 
 
-_KIND_ORDER = {PDF: 0, TEXT_ONLY: 1, EMPTY_SIDECAR: 2, ORPHAN_SIDECAR: 3, RIS_ONLY: 4}
+_KIND_ORDER = {PDF: 0, TEXT_ONLY: 1, ABSTRACT_ONLY: 2, EMPTY_SIDECAR: 3, ORPHAN_SIDECAR: 4, RIS_ONLY: 5}
 
 
 class HoldMap:
@@ -258,7 +262,7 @@ def build(registry=None, *, cache_dir=None, use_cache=True, write_cache=True) ->
     libs = libraries(registry)
     stats = {
         "libraries": [], "files_scanned": 0, "files_read": 0, "cache_hits": 0, "unreadable": [],
-        "orphan_ris": 0, "empty_sidecars": 0, "ris_sidecar_doi_disagreements": [],
+        "orphan_ris": 0, "empty_sidecars": 0, "abstract_only_sidecars": 0, "ris_sidecar_doi_disagreements": [],
         "cache_path": None, "cache_used": False, "cache_written": False, "cache_error": None,
     }
     cpath = cache_path(registry, cache_dir, create=write_cache) if (use_cache and libs) else None
@@ -329,12 +333,13 @@ def build(registry=None, *, cache_dir=None, use_cache=True, write_cache=True) ->
             if base in ris:
                 got = parsed(ris[base], read_ris_doi)
                 ris_doi = got[0] if got else ""
-            sc_doi, sc_chars, has_sc, pdf_derived = "", 0, False, False
+            sc_doi, sc_chars, has_sc, pdf_derived, abstract_only = "", 0, False, False, False
             if base in sidecars:
                 got = parsed(sidecars[base], read_sidecar)
                 if got:
                     sc_doi, sc_chars, has_sc = got[0], int(got[1] or 0), True
                     pdf_derived = bool(got[3]) if len(got) > 3 else False
+                    abstract_only = bool(got[4]) if len(got) > 4 else False
             dois = [d for d in dict.fromkeys((ris_doi, sc_doi)) if d]
             if not dois:
                 continue
@@ -347,6 +352,9 @@ def build(registry=None, *, cache_dir=None, use_cache=True, write_cache=True) ->
             elif has_sc and sc_chars > 0 and pdf_derived:
                 kind, path = ORPHAN_SIDECAR, Path(sidecars[base].path)   # its PDF was renamed or deleted
                 stats["orphan_sidecars"] = stats.get("orphan_sidecars", 0) + 1
+            elif has_sc and sc_chars > 0 and abstract_only:
+                kind, path = ABSTRACT_ONLY, Path(sidecars[base].path)    # routed for a fetch, not held
+                stats["abstract_only_sidecars"] += 1
             elif has_sc and sc_chars > 0:
                 kind, path = TEXT_ONLY, Path(sidecars[base].path)
             elif has_sc:

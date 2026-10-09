@@ -33,7 +33,7 @@ def jats_sidecar(doi, **extra):
     """The pre-W2a JATS text-only shape: no has_pdf, no extracted_from_pdf."""
     d = {"pmcid": "PMC100001", "pmid": "1", "doi": doi, "title": "Text only paper", "subtitle": "",
          "year": "2015", "journal": "A Journal", "authors": ["Morgan Avery-Lee", "Petrov Ilan"],
-         "abstract": "An abstract.", "sections": [], "figures": [], "tables": [], "text": "Body text " * 20}
+         "abstract": "An abstract.", "sections": [], "figures": [], "tables": [], "text": "Body text " * 200}
     d.update(extra)
     return json.dumps(d)
 

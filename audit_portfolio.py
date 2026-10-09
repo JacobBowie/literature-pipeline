@@ -197,17 +197,29 @@ def ocr_line(names, first=3):
     return f"{len(names)} (first: {', '.join(stems)}{more}; extract_pdf_fulltext.py --ocr)"
 
 
-def is_text_only_sidecar(d):
-    """The shared TEXT_ONLY predicate (DEC-08) for a `.fulltext.json` whose PDF is absent: it is a
-    JSON object, is not identity-flagged, carries non-empty `text`, and was not extracted from a
-    PDF: `has_pdf` is false (pmc since W2a), or `has_pdf` is absent and `extracted_from_pdf` is not
-    true (JATS sidecars written before W2a). A sidecar whose PDF was deleted or renamed
-    (`has_pdf: true`, or `extracted_from_pdf: true`) is an orphan, not a holding."""
+def _text_sidecar_shape(d):
+    """A `.fulltext.json` whose PDF is absent and that is not an orphan: a JSON object, not
+    identity-flagged, with non-empty `text`, not extracted from a PDF (`has_pdf` false, or absent with
+    `extracted_from_pdf` not true: JATS sidecars written before W2a)."""
     if not isinstance(d, dict) or identity_flag(d) or not _has_text(d):
         return False
     if "has_pdf" in d:
         return d.get("has_pdf") is False
     return d.get("extracted_from_pdf") is not True
+
+
+def is_text_only_sidecar(d):
+    """The shared TEXT_ONLY predicate (DEC-08) for a `.fulltext.json` whose PDF is absent: the text
+    sidecar shape (above), holding the article body. A sidecar whose PDF was deleted or renamed
+    (`has_pdf: true`, or `extracted_from_pdf: true`) is an orphan, and one whose text is only an
+    abstract (litpipe.text.is_abstract_only) is ABSTRACT_ONLY: neither is a holding."""
+    return _text_sidecar_shape(d) and not _text.is_abstract_only(d)
+
+
+def is_abstract_only_sidecar(d):
+    """A PDF-less text sidecar that holds an abstract but no article body: not a holding, but the
+    paper's record of an unfetched full text (an ILL or browser candidate)."""
+    return _text_sidecar_shape(d) and _text.is_abstract_only(d)
 
 
 def text_damage(s):
@@ -285,7 +297,7 @@ def scan_library(lib) -> dict:
     out = {
         "lib": str(lib), "exists": False, "error": None,
         "n_pdfs": 0, "n_sidecars": 0, "n_ris": 0, "n_identity": 0,
-        "pdf_names": [], "pdf_holdings": 0, "text_only": [], "text_only_with_ris": 0,
+        "pdf_names": [], "pdf_holdings": 0, "text_only": [], "text_only_with_ris": 0, "abstract_only": [],
         "flags": [], "fake_pdfs": [], "tiny_pdfs": [], "bad_sidecars": [], "empty_sidecars": [],
         "needs_ocr": [],
         "bad_identity": [], "orphan_sidecars": [], "orphan_ris": [], "orphan_identity": [],
@@ -372,6 +384,9 @@ def scan_library(lib) -> dict:
         elif is_text_only_sidecar(d):
             r["text_only"] = True
             out["text_only"].append(name)
+        elif is_abstract_only_sidecar(d):
+            r["abstract_only"] = True
+            out["abstract_only"].append(name)
         else:
             out["orphan_sidecars"].append(name)
 
@@ -389,7 +404,7 @@ def scan_library(lib) -> dict:
             continue
         if r["text_only"]:
             out["text_only_with_ris"] += 1
-        else:
+        elif not r.get("abstract_only"):              # an abstract-only sidecar's .ris is its record
             out["orphan_ris"].append(name)
 
     for stem, name in sorted(pdfs.items()):
@@ -1010,6 +1025,9 @@ def fmt_report(audit: dict, queue: dict, index=None, full=False) -> str:
     if audit["text_only"]:
         emit(lines, "INFO", f"TEXT_ONLY holdings (text, no PDF; {audit['text_only_with_ris']} with .ris)",
              audit["text_only"], full)
+    if audit.get("abstract_only"):
+        emit(lines, "INFO", "ABSTRACT_ONLY sidecars (an abstract, no article body: not holdings; ILL or "
+             "browser candidates)", audit["abstract_only"], full)
     if audit["flags"]:
         emit(lines, "WARN", "identity flags (review; not holdings)", audit["flags"], full,
              fmt=_fmt_flag)
