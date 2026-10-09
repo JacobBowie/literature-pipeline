@@ -690,7 +690,7 @@ def _restore_bytes(path, data):
     tmp = f"{path}.restore.tmp"
     with open(tmp, "wb") as fh:
         fh.write(data)
-    os.replace(tmp, path)
+    lit_util._replace_with_retry(tmp, path)
 
 
 def _remove(path):
@@ -768,7 +768,7 @@ def file_import(src, dest_pdf, *, sidecar_path, sidecar_rec, new_rec, ris_path, 
             undo.add("return the original to its folder", back)
             shutil.move(str(src), str(archived))
             step = "the PDF"
-            os.replace(tmp, dest_pdf)
+            lit_util._replace_with_retry(tmp, dest_pdf)
         elif _norm(dest_pdf) != _norm(src):
             step = "the PDF"
             undo.add("remove a partial PDF copy",

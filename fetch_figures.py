@@ -196,7 +196,7 @@ def _write_bytes(path, data):
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
-        os.replace(tmp, path)
+        lit_util._replace_with_retry(tmp, path)
     except BaseException:
         try:
             os.unlink(tmp)

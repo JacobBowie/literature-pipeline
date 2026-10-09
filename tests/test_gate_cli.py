@@ -332,6 +332,25 @@ def test_promote_refuses_files_that_would_share_a_runner_batch_tag(proj):
     assert not (proj.lib / f"_{'a' * 31}_gate_selection.csv").exists()
 
 
+def test_a_transient_windows_denial_on_the_run_folder_rename_is_retried(proj, monkeypatch):
+    # a scanner or indexer can hold a just-written file for a moment, and renaming its folder then
+    # fails with WinError 5; the folder move retries like every other atomic write (lit_util RC4)
+    real_rename, real_replace, denied = gate.os.rename, gate.os.replace, []
+
+    def deny_once(real):
+        def move(src, dst, *a, **k):
+            if Path(str(src)).name.startswith(".") and str(src).endswith(".tmp") and not denied:
+                denied.append(str(src))
+                raise PermissionError(13, "Access is denied (injected)", str(src))
+            return real(src, dst, *a, **k)
+        return move
+    monkeypatch.setattr(gate.os, "rename", deny_once(real_rename))
+    monkeypatch.setattr(gate.os, "replace", deny_once(real_replace))
+    res = run(holdings_as_of=str(proj.snap), write=True)
+    assert res["exit_code"] == 0 and denied
+    assert Path(res["run_dir"]).is_dir() and not list(Path(res["run_dir"]).parent.glob(".*.tmp"))
+
+
 def test_promote_of_an_unknown_run_exits_1(proj):
     pr = gate.run("promote", project=PROJECT, spec=str(EXAMPLE), run_id="19990101T000000Z-x", quiet=True)
     assert pr["exit_code"] == 1 and "manifest.json" in pr["error"]

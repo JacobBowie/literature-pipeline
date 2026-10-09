@@ -293,10 +293,10 @@ def restore_row(row, pdf: Path, lib: Path, meta_src: Metadata, commit=False, wri
         return "WOULD_RESTORE", rows, detail
     if dest.exists():                             # checked above; a file that appeared since is kept
         raise FileExistsError(str(dest))
-    os.replace(pdf, dest)
+    lit_util._replace_with_retry(pdf, dest)
     for src, dst in companions:
         if not dst.exists():
-            os.replace(src, dst)                  # a moved .identity.json is backed up, then rewritten
+            lit_util._replace_with_retry(src, dst)  # a moved .identity.json is backed up, then rewritten
     write_identity(dest, doi, verdict, kind, n_pages, f"{MISMATCH}/{pdf.name}", backup=backup)
     if write_ris:
         import ris_emit as R

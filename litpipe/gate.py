@@ -1879,7 +1879,9 @@ def write_run(root, res, report, rows, manifest, run_id=None):
     try:
         for name, text in files.items():
             lit_util.atomic_write_text(str(tmp / name), text, newline="\n")
-        os.rename(tmp, final)
+        # a scanner or indexer holding a just-written file fails the folder move with WinError 5
+        # for a moment: retried like every atomic write (lit_util RC4); `final` was checked absent
+        lit_util._replace_with_retry(str(tmp), str(final))
     finally:
         if tmp.exists():
             for p in tmp.iterdir():

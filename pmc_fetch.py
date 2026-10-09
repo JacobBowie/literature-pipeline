@@ -409,7 +409,7 @@ def _write_pdf(dest, body):
     tmp = dest + ".part"
     with open(tmp, "wb") as f:
         f.write(body)
-    os.replace(tmp, dest)
+    lit_util._replace_with_retry(tmp, dest)
 
 
 def _sidecar_record(parsed, *, row, pmcid, meta, extractor, has_pdf, verdict):

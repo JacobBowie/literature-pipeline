@@ -800,7 +800,7 @@ def _write_bytes(dest, content):
     tmp = f"{dest}.part"
     with open(tmp, "wb") as f:
         f.write(content)
-    os.replace(tmp, dest)
+    lit_util._replace_with_retry(tmp, dest)
 
 
 def _pdf_text(content_or_path, pages=IDENTITY_PAGES):
