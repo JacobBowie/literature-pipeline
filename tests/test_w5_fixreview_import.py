@@ -6,6 +6,7 @@ import pytest
 import import_downloads as ID
 from tests.test_import_downloads import COVERS, FILLER, doi_of, env, make_pdf, meta, page, title_of  # noqa: F401
 from tests.test_w5c3_import import pages_of
+from tests.test_w5c3_locks import _case_insensitive
 
 
 # ---------------------------------------------------------------- FR-4: a case variant of the canonical name
@@ -19,7 +20,10 @@ def test_fr4_a_case_variant_of_its_canonical_name_is_not_reported_as_a_suffixed_
     row = env.run(downloads=str(env.lib), execute=True)["rows"][0]
     print(f"\nFR-4 row: action={row['action']} new_name={row['new_name']} note={row['note']!r}")
     assert row["action"] == "MOVED"
-    assert [p.name for p in env.lib.glob("*.pdf")] == [variant]          # filed in place, not renamed
+    # Case-insensitive (Windows, macOS): the variant IS the canonical file, filed in place. Case-sensitive
+    # (Linux): they are different names, so renaming to the canonical one is correct, not a collision.
+    expect = variant if _case_insensitive(env.lib) else name
+    assert [p.name for p in env.lib.glob("*.pdf")] == [expect]
     assert "suffixed" not in row["note"] and "duplicate" not in row["note"]
 
 

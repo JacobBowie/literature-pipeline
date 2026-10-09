@@ -276,6 +276,9 @@ def _ini(block):
 
 
 def test_o_the_linux_units_parse_as_ini_with_every_key_and_no_windows_trace(monkeypatch):
+    # Print as a foreign-platform template so the cron log is the <state_dir> placeholder on every
+    # host: on Linux, "linux" is native and would resolve the machine's real registry state_dir.
+    monkeypatch.setattr(runner, "current_platform", lambda: "windows")
     text = runner.schedule_text("linux", checkout="/srv/litpipe")
     service = text[text.index("[Unit]"):text.index("# Save as ~/.config/systemd/user/litpipe-runner.timer")]
     timer = text[text.index("# Save as ~/.config/systemd/user/litpipe-runner.timer"):text.index("# Enable it")]

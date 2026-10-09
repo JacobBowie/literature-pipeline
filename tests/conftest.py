@@ -20,16 +20,27 @@ OFFLINE_HOSTS = frozenset({"127.0.0.1", "127.0.0.2", "127.0.0.3", "dns-fail.test
 REAL_STATE_DIR = Path.home() / ".local" / "db" / "literature_pipeline"
 
 
+def real_state_snapshot():
+    """None when the real state dir is absent, else (relative path, size, mtime_ns) for everything in
+    it. A machine that has run the pipeline has this dir, so isolation is "unchanged", not "absent"."""
+    if not REAL_STATE_DIR.exists():
+        return None
+    return sorted((str(p.relative_to(REAL_STATE_DIR)), p.stat().st_size, p.stat().st_mtime_ns)
+                  for p in REAL_STATE_DIR.rglob("*"))
+
+
 def pytest_sessionstart(session):
-    session.config._litpipe_real_state_existed = REAL_STATE_DIR.exists()
+    session.config._litpipe_real_state_before = real_state_snapshot()
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Fail the run if it created the real state dir (it did not exist when the session started)."""
-    existed = getattr(session.config, "_litpipe_real_state_existed", True)
-    if not existed and REAL_STATE_DIR.exists():
-        sys.stderr.write(f"\nERROR: the test run created the real state dir {REAL_STATE_DIR}; a test resolved "
-                         "litpipe state or the holdings cache without a temp registry. Find it, then delete "
+    """Fail the run if it created or changed the real state dir."""
+    before = getattr(session.config, "_litpipe_real_state_before", None)
+    after = real_state_snapshot()
+    if after != before:
+        what = "created" if before is None else "changed"
+        sys.stderr.write(f"\nERROR: the test run {what} the real state dir {REAL_STATE_DIR}; a test resolved "
+                         "litpipe state or the holdings cache without a temp registry. Find it, then restore "
                          "the dir by hand.\n")
         session.exitstatus = 1
 

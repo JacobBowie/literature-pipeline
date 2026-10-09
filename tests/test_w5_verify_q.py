@@ -375,12 +375,24 @@ _LEGACY_FITZ = __import__("re").compile(r"^\s*(?:import\s+fitz\b(?!\S)|from\s+fi
 _REPO = Path(__file__).resolve().parent.parent
 
 
+def _repo_py_files():
+    """The repo's .py files: in a git checkout, tracked plus untracked-not-ignored (a new module counts
+    before it is committed; a gitignored local scratch folder does not). Otherwise every .py file."""
+    import subprocess
+    try:
+        out = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "*.py"],
+                             cwd=_REPO, capture_output=True, check=True, timeout=60).stdout
+    except (OSError, subprocess.SubprocessError):
+        return list(_REPO.rglob("*.py"))
+    return [_REPO / r for r in sorted(set(out.decode("utf-8").split("\0"))) if r and (_REPO / r).is_file()]
+
+
 def test_no_non_test_module_anywhere_in_the_repo_imports_fitz():
     """tests/test_w5c2_pymupdf.py pins a list of 21 modules (every PyMuPDF user today); this scans
     every non-test module, so a module outside the list (preprint_fetch, lit_util, backfills/) that
     starts using PyMuPDF under the legacy name is caught too."""
     hits = []
-    for p in _REPO.rglob("*.py"):
+    for p in _repo_py_files():
         rel = p.relative_to(_REPO).as_posix()
         if rel.startswith(("tests/", ".venv/", "vendor/", ".claude/")) or "/site-packages/" in rel:
             continue

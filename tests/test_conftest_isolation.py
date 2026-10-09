@@ -30,3 +30,8 @@ def test_the_session_guard_fails_a_run_that_creates_the_real_state_dir(tmp_path,
     conftest.pytest_sessionstart(session)             # existed before (after cutover): not flagged
     conftest.pytest_sessionfinish(session, 0)
     assert session.exitstatus == 0
+    session = SimpleNamespace(config=SimpleNamespace(), exitstatus=0)
+    conftest.pytest_sessionstart(session)
+    (fake_real / "litpipe_state.sqlite").write_bytes(b"x")
+    conftest.pytest_sessionfinish(session, 0)
+    assert session.exitstatus == 1                    # existed, then changed during the run: the run fails

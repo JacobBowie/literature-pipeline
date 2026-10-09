@@ -22,7 +22,7 @@ import lit_util
 from litpipe import hosts, net, openalex, s2, walk
 
 REPO = Path(__file__).resolve().parent.parent
-REAL_STATE_DIR = Path.home() / ".local" / "db" / "literature_pipeline"
+from tests.conftest import real_state_snapshot
 BATCH = "/graph/v1/paper/batch"
 RL = {"X-RateLimit-Limit": "10000", "X-RateLimit-Remaining": "9000", "X-RateLimit-Credits-Used": "1",
       "X-RateLimit-Reset": "3600"}
@@ -631,10 +631,10 @@ def test_a_registry_without_state_dir_and_cache_path_set_leaves_the_real_state_d
     reg.write_text(json.dumps({"projects": {"teaching_x": {"lib_dir": "literature"}}}), encoding="utf-8")
     monkeypatch.setattr(fc, "CONFIG_PATH", reg)
     monkeypatch.setattr(lit_util, "PROJECTS_ROOT", root)
-    existed = REAL_STATE_DIR.exists()
+    before = real_state_snapshot()
     res = fc.run(project="teaching_x")
     assert res["exit_code"] == 0 and Path(res["cache"]) == Path(walk.CACHE_PATH) and Path(walk.CACHE_PATH).exists()
-    assert REAL_STATE_DIR.exists() == existed and not REAL_STATE_DIR.exists()
+    assert real_state_snapshot() == before        # untouched (absent on a fresh machine)
 
 
 def test_cache_path_resolves_state_dir_without_creating_it(tmp_path, monkeypatch):

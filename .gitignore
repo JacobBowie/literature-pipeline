@@ -8,7 +8,8 @@ build/
 dist/
 
 # Virtualenvs
-.venv/
+# No trailing slash: on Linux uv's centralized env is a symlink, which ".venv/" does not match.
+.venv
 venv/
 env/
 
