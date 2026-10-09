@@ -78,6 +78,7 @@ MISSING_WAIT_S = 0.1
 BREAK_SUFFIX = ".break"           # lit_pull_queue.lock.break: held by the one process breaking a stale lock
 BREAK_STALE_S = 60.0              # a breaker that crashed mid-break left it: older than this, removed
 BREAK_WAIT_S = 0.05               # another process is breaking the lock: look again after this
+WRITE_GRACE_S = 0.2               # an unreadable lock this young is a create whose bytes are not written yet
 RELEASE_TRIES = 20                # release waits this many BREAK_WAIT_S for the breaker file (1 s)
 
 _time = time.time                 # test seam: a fake clock for staleness
@@ -414,6 +415,11 @@ class Lock:
             if got is None:
                 continue                  # released or broken between our create and our read
             raw, mt, cur = got
+            if cur.get("unreadable") and _time() - mt / 1e9 < WRITE_GRACE_S:
+                # _write_new is O_EXCL create, then write: a racer read the empty file in between.
+                # Read again rather than report a holder with no record (Linux CI, ~30% of races).
+                time.sleep(FS_WAIT_S)
+                continue
             if self._joinable(cur):
                 self.record, self.joined = cur, True
                 return self
