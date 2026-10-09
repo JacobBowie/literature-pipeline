@@ -353,11 +353,18 @@ def test_a_lock_lost_during_the_sweep_stops_the_projects_route(w, monkeypatch):
     w.set_fake("sweep", "research_a", sleep=2.0)
 
     def usurp():
+        # A takeover of a lock that is not stale is what the protocol never does, so one write can land
+        # inside a heartbeat's read-then-replace and be overwritten (it failed that way on a loaded CI
+        # runner). Writing for a second instead means the first heartbeat that reads it marks the lock
+        # lost and stops beating, whatever the timing.
         deadline = time.time() + 10
         while time.time() < deadline:
             if lockfile.read(w.proot("research_a")) is not None:
                 time.sleep(0.2)
-                write_record(w.proot("research_a"), run_id="usurper")
+                until = time.time() + 1.0
+                while time.time() < until:
+                    write_record(w.proot("research_a"), run_id="usurper")
+                    time.sleep(0.03)
                 return
             time.sleep(0.02)
     t = threading.Thread(target=usurp, daemon=True)
