@@ -121,6 +121,7 @@ from pdf_text_clean import clean_pdf_text  # noqa: E402
 SCAN_PAGES = 6            # pages read to get past cover sheets (a two-page ILL cover was seen)
 ARTICLE_PAGES = 3         # article pages used for DOIs and the identity check
 MAX_DOI_LOOKUPS = 4       # distinct DOIs resolved per file
+REFLIST_PAGE1_DOIS = 4    # distinct DOIs on page 1 from which identify() reads every candidate (a list?)
 SEARCH_ROWS = 5           # Crossref: "2-5 rows might be enough" for a query
 SNIPPET_CHARS = 300       # opening article text sent as query.bibliographic
 TITLE_THRESHOLD = _identity.TITLE_THRESHOLD
@@ -376,8 +377,12 @@ def identify(scan, forced=None) -> Ident:
         d, meta, src = forced
         v = _identity.check(art, d, queue_title=meta.get("title"))
         return Ident("OK", d, meta, src, v, "--doi", f"identity {v.decision} (overridden by --doi)")
-    tried, unconfirmed = [], []
+    tried, unconfirmed, matched = [], [], []
     page1 = set(holdings.extract_dois(scan.first_article_text))
+    # A reference list or a product bibliography prints many works' DOIs and titles on its first
+    # page, so the first title that matches is one cited entry, not this file. Past the threshold,
+    # every candidate is read before one is taken, and two matching titles mean a list.
+    listing = len(page1) >= REFLIST_PAGE1_DOIS
     art_dois = holdings.extract_dois(art)
     cands = [(d, "article") for d in art_dois]
     cands += [(d, "cover") for d in holdings.extract_dois(scan.cover_text) if d not in art_dois]
@@ -392,14 +397,28 @@ def identify(scan, forced=None) -> Ident:
                 continue
             score = _identity.title_similarity(meta.get("title"), head)
             if score >= TITLE_THRESHOLD:
-                v = _identity.check(art, d, queue_title=meta.get("title"))
-                return Ident("OK", meta.get("doi") or d, meta, src, v, f"doi_{where}",
-                             f"title {score:.2f}")
+                if not listing:
+                    v = _identity.check(art, d, queue_title=meta.get("title"))
+                    return Ident("OK", meta.get("doi") or d, meta, src, v, f"doi_{where}",
+                                 f"title {score:.2f}")
+                matched.append((d, where, meta, src, score))
+                tried.append(f"{d}: title {score:.2f} '{_short(meta)}'")
+                continue
             unconfirmed.append((d, where, meta, src, score))
             tried.append(f"{d}: title {score:.2f} '{_short(meta)}'")
+        if listing:
+            if len({m[0] for m in matched}) >= 2:
+                v = _identity.check(art, matched[0][0], queue_title=matched[0][2].get("title"))
+                return Ident("FLAG", "", {}, "", v, "listing", f"page 1 prints {len(page1)} DOIs and the titles of "
+                             f"{len(matched)} of them: a reference list or bibliography, not one article; "
+                             + "; ".join(tried))
+            if matched:
+                d, where, meta, src, score = matched[0]
+                v = _identity.check(art, d, queue_title=meta.get("title"))
+                return Ident("OK", meta.get("doi") or d, meta, src, v, f"doi_{where}", f"title {score:.2f}")
 
         snippet = _snippet(scan)
-        if len(snippet) >= 20:
+        if len(snippet) >= 20 and not listing:
             best, best_score = None, 0.0
             for it in crossref_search(snippet):
                 m = R.crossref_meta(it)
@@ -955,8 +974,10 @@ def _one(p, dest, execute, forced, seen, written, *, import_held_elsewhere=False
     kind = _identity.doc_kind(first, scan.n_pages)
     if ident.status == "FLAG" or (kind == _identity.DocKind.SUPPLEMENT and ident.how != "--doi"):
         why = ident.detail if ident.status == "FLAG" else "doc_kind=SUPPLEMENT"
-        return _row(p, size_kb, "IDENTITY_FLAG", note="identity not confirmed; left in Downloads for review "
-                    "(--doi resolves it)", identity=_identity.Decision.FLAG.value, doc_kind=str(kind),
+        note = ("page 1 prints many DOIs and several of their titles: a reference list or bibliography? "
+                "Left in Downloads; check it by hand before any --doi" if ident.how == "listing" else
+                "identity not confirmed; left in Downloads for review (--doi resolves it)")
+        return _row(p, size_kb, "IDENTITY_FLAG", note=note, identity=_identity.Decision.FLAG.value, doc_kind=str(kind),
                     outcome=Kind.SKIPPED.value, detail="; ".join(x for x in (cover_note, why) if x))
 
     meta, d = ident.meta, (ident.doi or "").lower()
