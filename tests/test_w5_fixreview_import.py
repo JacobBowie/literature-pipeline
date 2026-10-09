@@ -16,10 +16,16 @@ def test_fr4_a_case_variant_of_its_canonical_name_is_not_reported_as_a_suffixed_
     assert variant != name
     body = [page(title_of("autonomic"), doi_of("autonomic")), page("", "", header="Results", body=FILLER)]
     make_pdf(env.lib / variant, body)
+    probe = env.lib / "CaseProbe.tmp"
+    probe.write_text("x", encoding="ascii")
+    case_insensitive = (env.lib / "caseprobe.tmp").exists()             # Windows and macOS defaults
+    probe.unlink()
     row = env.run(downloads=str(env.lib), execute=True)["rows"][0]
     print(f"\nFR-4 row: action={row['action']} new_name={row['new_name']} note={row['note']!r}")
     assert row["action"] == "MOVED"
-    assert [p.name for p in env.lib.glob("*.pdf")] == [variant]          # filed in place, not renamed
+    # case-insensitive: the variant IS its canonical name, filed in place; case-sensitive (Linux): another
+    # name, so it is renamed to the canonical one. Never a suffixed "duplicate" of itself either way.
+    assert [p.name for p in env.lib.glob("*.pdf")] == [variant if case_insensitive else name]
     assert "suffixed" not in row["note"] and "duplicate" not in row["note"]
 
 

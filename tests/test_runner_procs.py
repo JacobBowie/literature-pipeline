@@ -92,7 +92,8 @@ def test_a_real_childs_timeout_kills_its_tree_and_the_next_project_still_runs(w)
     assert code == 2, w.harness_log()
     j = jobs(last_summary(w), "walk")
     assert j["p1_slow"]["status"] == "ERROR" and j["p1_slow"]["reason"] == "timeout after 4 s"
-    assert j["p1_slow"]["counts"]["killed_by"] in ("job object", "taskkill /T /F", "process group")
+    assert j["p1_slow"]["counts"]["killed_by"] in ("job object", "taskkill /T /F", "process group (SIGTERM)",
+                                                   "process group (SIGTERM, then SIGKILL)")   # runner.py kill_method
     assert 4 <= j["p1_slow"]["elapsed_s"] < 30
     assert not state.pid_alive(pid_of(child)) and not state.pid_alive(pid_of(gc))     # the tree died
     assert j["p2_next"]["status"] == "OK"
