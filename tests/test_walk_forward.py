@@ -631,10 +631,16 @@ def test_a_registry_without_state_dir_and_cache_path_set_leaves_the_real_state_d
     reg.write_text(json.dumps({"projects": {"teaching_x": {"lib_dir": "literature"}}}), encoding="utf-8")
     monkeypatch.setattr(fc, "CONFIG_PATH", reg)
     monkeypatch.setattr(lit_util, "PROJECTS_ROOT", root)
-    existed = REAL_STATE_DIR.exists()
+    # the machine's real state dir exists and is live since the cutover, so the check is on the DEFAULT
+    # state dir under a temp home: the walk must not fall back to it
+    home = tmp_path / "default_home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    default_state = Path.home() / ".local" / "db" / "literature_pipeline"
+    assert str(default_state).startswith(str(home))
     res = fc.run(project="teaching_x")
     assert res["exit_code"] == 0 and Path(res["cache"]) == Path(walk.CACHE_PATH) and Path(walk.CACHE_PATH).exists()
-    assert REAL_STATE_DIR.exists() == existed and not REAL_STATE_DIR.exists()
+    assert not default_state.exists()
 
 
 def test_cache_path_resolves_state_dir_without_creating_it(tmp_path, monkeypatch):

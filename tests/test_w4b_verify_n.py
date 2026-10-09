@@ -30,7 +30,22 @@ from w4a_world import REPO, World, stand_in_overrides  # noqa: E402
 
 REAL_CANARIES_RUN = canaries.run          # captured at import: World replaces it per test
 REAL_PREFLIGHT_RUN = preflight.run
-REAL_STATE_DIR = Path.home() / ".local" / "db" / "literature_pipeline"
+
+
+def default_state_dir():
+    """The state dir a process falls back to with no registry state_dir: under the (temp) home."""
+    return Path.home() / ".local" / "db" / "literature_pipeline"
+
+
+@pytest.fixture(autouse=True)
+def _temp_home(tmp_path, monkeypatch):
+    """Since the cutover this machine's real state dir exists and is live (consumer sweeps write it), so
+    "the real state dir is absent" no longer proves isolation. Each test runs with HOME and USERPROFILE
+    on a temp folder (children inherit them), and the check is that the DEFAULT state dir there was
+    never created: no process fell back from the temp registry to the default."""
+    home = tmp_path / "default_home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
 RUN_ID = "20261007T010000Z-runner-1-abcdef"
 STAGE_MODULE_NAMES = ("sweep", "migrate_closed_to_md", "forward_citations", "reverse_citations",
                       "index_portfolio", "enrich_abstracts", "enrich_recommendations", "audit_portfolio",
@@ -106,7 +121,7 @@ def test_import_runner_in_a_fresh_interpreter_loads_no_stage_module():
     assert out.returncode == 0, out.stderr
     mods = set(json.loads(out.stdout.strip().splitlines()[-1]))
     assert not mods & set(STAGE_MODULE_NAMES), sorted(mods & set(STAGE_MODULE_NAMES))
-    assert not REAL_STATE_DIR.exists()
+    assert not default_state_dir().exists()
 
 
 PROBE = '''
@@ -152,7 +167,7 @@ def test_the_shim_child_resolves_only_the_temp_registry_paths(tmp_path, monkeypa
         assert Path(r[k]).is_relative_to(tmp_path / "Projects"), (k, r[k])
     assert r["run_env"] == RUN_ID and r["current_run"] == RUN_ID
     assert (r["utf8"], r["unbuffered"]) == ("1", "1") and same(r["cwd"], REPO)
-    assert not REAL_STATE_DIR.exists()
+    assert not default_state_dir().exists()
 
 
 # ================================================================ 2. one runner at a time
@@ -189,7 +204,7 @@ def test_two_real_runners_on_a_barrier_exactly_one_proceeds(wr, pair):
     pf = [j for s in w.summaries() for j in s["jobs"] if j["job"] == "preflight"]
     assert [j["status"] for j in pf] == ["OK"]                     # the loser ran no preflight
     assert len(w.calls("sweep")) == 1
-    assert not REAL_STATE_DIR.exists()
+    assert not default_state_dir().exists()
 
 
 LATE_RUNNER = '''
@@ -418,7 +433,7 @@ def test_a_real_kill_at_each_batch_point_then_a_fresh_process_resumes(wr, point)
     first = "abandoned" if hard_kill else "aborted: terminated (SIGTERM)"
     assert statuses == sorted([first, "ok"]), statuses                      # the killed run, then the resume
     assert pool.read_bytes().startswith(b"doi,title,authors,year\n")       # the pool is never written
-    assert not REAL_STATE_DIR.exists()
+    assert not default_state_dir().exists()
 
 
 def test_a_retired_batch_whose_sweep_log_holds_a_traceback_stops_the_loop(tmp_path, monkeypatch):

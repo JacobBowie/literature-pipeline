@@ -83,7 +83,8 @@ def test_preprint_text_sidecar_survives_an_address_after_a_line_break(tmp_path):
     ctx = SimpleNamespace(lib_dir=str(tmp_path))
     row = SimpleNamespace(doi="10.5555/p.1")
     c = SimpleNamespace(doi="10.5555/p.1", ppr="PPR1", server="medrxiv")
-    got = SimpleNamespace(text={"text": LINE_START_ADDRESS})
+    body = "The preprint reports a randomised trial of interval training in older adults. " * 30
+    got = SimpleNamespace(text={"text": LINE_START_ADDRESS + "\n" + body})   # a body, not only an address
     assert preprint_fetch._write_text_sidecar(ctx, row, c, "2024_Author_Title.pdf", got) == "OK"
     rec = _read_json(tmp_path / "2024_Author_Title.fulltext.json")
     assert "jo.author@uni.example" not in rec["text"] and rec["has_pdf"] is False
