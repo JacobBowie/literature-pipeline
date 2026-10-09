@@ -215,7 +215,7 @@ Each project's `sources` decide which stages run:
 | Stage | Sources | What it does |
 |---|---|---|
 | Unpaywall | `unpaywall` | Asks Unpaywall (Crossref DOIs only) for open-access locations and downloads the PDF, repositories first by default. A row the library already holds is `SKIP_EXISTS`. |
-| PMC | `pmc` | For rows Unpaywall did not deliver: finds the PMCID, then fetches the PDF and JATS full text (the XML format PMC serves) only from the routes NCBI allows for automated retrieval (the PMC Cloud Service and E-utilities), or Europe PMC's full text for articles it marks open access. An author manuscript has no PDF there and becomes a text-only holding. |
+| PMC | `pmc` | For rows Unpaywall did not deliver: finds the PMCID, then fetches the PDF and JATS full text (the XML format PMC serves) only from the routes NCBI allows for automated retrieval (the PMC Cloud Service and E-utilities), or Europe PMC's full text for articles it marks open access. An author manuscript has no PDF there and becomes a text-only holding, unless its text holds no article body beyond the abstract (under 1,500 characters: `sidecar_status` `ABSTRACT_ONLY`), which is routed like any unfetched row. |
 | Preprint | `europepmc_preprints`, `biorxiv`, `medrxiv`, `osf`, `sportrxiv`, `arxiv` | Looks for a preprint copy on the servers the project names. A row with an arXiv DOI or ID reaches arXiv whatever the sources. |
 | Extraction | always | Writes the `.fulltext.json` text sidecar for every new PDF. |
 

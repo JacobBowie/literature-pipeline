@@ -538,7 +538,8 @@ def test_europe_pmc_preprint_full_text_is_a_text_only_sidecar_500_sent_once(env)
     env.web.add(f"https://api.biorxiv.org/details/biorxiv/{doi}/na/json", (200, JSON, fx("biorxiv_details_64898.json")))
     jats = (f'<article><front><article-meta><article-id pub-id-type="doi">{doi}</article-id><title-group>'
             f'<article-title>{rec["title"]}</article-title></title-group></article-meta></front>'
-            '<body><sec><title>Results</title><p>Fibre types adapt.</p></sec></body></article>')
+            '<body><sec><title>Results</title><p>' + "Fibre types adapt to the training load. " * 60 +
+            '</p></sec></body></article>')               # a body, not only an abstract (is_abstract_only)
     env.web.add(f"https://www.ebi.ac.uk/europepmc/webservices/rest/{rec['id']}/fullTextXML",
                 (200, {"Content-Type": "application/xml"}, jats))
     _, out = env.run([{"doi": doi, "title": rec["title"], "year": "2025", "authors": "Dilbaz S"}])

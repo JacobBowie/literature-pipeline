@@ -1190,17 +1190,23 @@ def _judge(content, c, row):
 
 def _write_text_sidecar(ctx, row, c, fn, got):
     """The Europe PMC preprint text as `<stem>.fulltext.json` (has_pdf false). An existing sidecar
-    is kept. Returns 'OK' or 'EXISTS'."""
+    is kept. Returns 'OK', 'EXISTS', or 'ABSTRACT_ONLY' when the text written or found holds an
+    abstract but not the article body (litpipe.text.is_abstract_only: not a text-only holding)."""
     path = os.path.join(ctx.lib_dir, fn[:-4] + ".fulltext.json")
     if os.path.exists(path):
-        return "EXISTS"
+        try:
+            with open(path, encoding="utf-8") as f:
+                held = json.load(f)
+        except (OSError, ValueError):
+            held = {}
+        return "ABSTRACT_ONLY" if _text.is_abstract_only(held) else "EXISTS"
     sc = dict(got.text or {})
     sc.update({"doi": row.doi or c.doi, "preprint_doi": c.doi, "ppr": c.ppr, "server": c.server,
                "has_pdf": False, "extracted_from_pdf": False, "extractor": "europepmc_preprint_fulltextxml",
                "source": "preprint",
                "fetched_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
     lit_util.atomic_write_json(path, ledger.redact_obj(sc))
-    return "OK"
+    return "ABSTRACT_ONLY" if _text.is_abstract_only(sc) else "OK"
 
 
 def process_row(ctx, raw, deadline_s):
@@ -1251,6 +1257,10 @@ def process_row(ctx, raw, deadline_s):
     if got.kind == "text":
         status = _write_text_sidecar(ctx, row, c, fn, got)
         rec.update(sidecar=True, sidecar_status=status)
+        if status == "ABSTRACT_ONLY":
+            return _finish(row, Kind.NOT_AVAILABLE, got.route, "NOT_AVAILABLE:abstract_only",
+                           f"abstract only: the Europe PMC preprint text ({c.ppr}) holds no article body; "
+                           "no PDF on a sanctioned route", got.outcome.status)
         return _finish(row, Kind.NOT_AVAILABLE, got.route, "NOT_AVAILABLE:text_only",
                        f"text only: Europe PMC preprint full text ({c.ppr}); no PDF on a sanctioned route",
                        got.outcome.status)

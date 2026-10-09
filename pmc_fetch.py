@@ -33,7 +33,10 @@ first pages; a FLAG leaves the file where it is and is recorded in the sidecar (
 Report (one row per input row; legacy columns kept): doi, filename, pmcid, downloaded, skipped,
 winning_source, attempts, error, sidecar, sidecar_status, plus first_status, route, outcome (a
 litpipe Kind: the FIRST root cause, not the last fallback, V1-N1), identity, release_date, license,
-pmc_class, figures. `error` stays a legacy string that litpipe.outcomes.from_legacy maps to the
+pmc_class, figures. `sidecar_status` is OK (written), EXISTS (already there), ABSTRACT_ONLY (no PDF, and
+the sidecar written or found holds an abstract but not the article body: litpipe.text.is_abstract_only;
+sweep routes the row as unfetched instead of a text-only holding), IDENTITY_ONLY, or the text step's
+failure kind. `error` stays a legacy string that litpipe.outcomes.from_legacy maps to the
 same Kind wherever a legacy token exists (EMBARGOED, DEFERRED and a not-sent refusal have none yet).
 
 Usage:
@@ -63,6 +66,7 @@ from unpaywall_fetch_v2 import existing_holds, is_known_boilerplate, resolve_des
 from litpipe import doi as _doi
 from litpipe import identity as _identity
 from litpipe import net
+from litpipe import text as _text
 from litpipe.ledger import redact
 from litpipe.outcomes import Kind, Outcome
 
@@ -92,6 +96,7 @@ LEGACY_FIELDS = ["doi", "filename", "pmcid", "downloaded", "skipped", "winning_s
                  "error", "sidecar", "sidecar_status"]
 REPORT_FIELDS = LEGACY_FIELDS + ["first_status", "route", "outcome", "identity", "release_date",
                                  "license", "pmc_class", "figures"]
+ABSTRACT_ONLY = "ABSTRACT_ONLY"   # sidecar_status: the text held is an abstract, not a text-only holding
 
 
 def safe_filename(name: str) -> str:
@@ -501,6 +506,16 @@ def _fetch_pdf(row, ctx, meta):
     return row.add(ROUTE_S3, dataclasses.replace(po, payload=None))
 
 
+def _read_sidecar(path):
+    """An existing sidecar's record, or {} when it cannot be read (then it is measured as empty)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            rec = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return rec if isinstance(rec, dict) else {}
+
+
 def _write_text(row, ctx, pmcid, klass, meta):
     """The sidecar step: write (or update) <stem>.fulltext.json; returns the sidecar path or None."""
     sidecar_path = os.path.join(ctx.lib_dir, row.fn[:-4] + ".fulltext.json")
@@ -509,6 +524,8 @@ def _write_text(row, ctx, pmcid, klass, meta):
         row.rec["sidecar"], row.rec["sidecar_status"] = True, "EXISTS"
         if row.pdf_written:
             _merge_into_sidecar(sidecar_path, {"has_pdf": True, **extra_identity})
+        elif _text.is_abstract_only(_read_sidecar(sidecar_path)):
+            row.rec["sidecar_status"] = ABSTRACT_ONLY     # held text that is only an abstract is no holding
         return sidecar_path
     if ctx.no_sidecar:
         if row.pdf_written and row.verdict is not None and not row.verdict.ok:
@@ -530,10 +547,12 @@ def _write_text(row, ctx, pmcid, klass, meta):
             row.rec["sidecar"] = True
             return sidecar_path
         return None
-    lit_util.atomic_write_json(sidecar_path, _sidecar_record(parsed, row=row, pmcid=pmcid, meta=meta,
-                                                             extractor=extractor, has_pdf=bool(row.pdf_written),
-                                                             verdict=row.verdict))
-    row.rec["sidecar"], row.rec["sidecar_status"] = True, "OK"
+    record = _sidecar_record(parsed, row=row, pmcid=pmcid, meta=meta, extractor=extractor,
+                             has_pdf=bool(row.pdf_written), verdict=row.verdict)
+    lit_util.atomic_write_json(sidecar_path, record)
+    # without a PDF the sidecar is the holding: an abstract and a supplement pointer is not one
+    abstract_only = not row.pdf_written and _text.is_abstract_only(record)
+    row.rec["sidecar"], row.rec["sidecar_status"] = True, (ABSTRACT_ONLY if abstract_only else "OK")
     return sidecar_path
 
 
@@ -700,7 +719,7 @@ def run(*, base_dir=None, report_in=None, lib_dir=None, report_out=None, dry_run
     classes = classify_pmcids(live, state=state, cfg=cfg) if (live and not dry_run) else {}
 
     counts = {"rows": len(rows), "skipped_existing": len(rows) - len(todo), "downloaded": 0, "identity_flag": 0,
-              "text_only": 0, "sidecar_new": 0, "sidecar_exists": 0, "no_pmcid": 0, "embargoed": 0,
+              "text_only": 0, "abstract_only": 0, "sidecar_new": 0, "sidecar_exists": 0, "no_pmcid": 0, "embargoed": 0,
               "lookup_failed": 0, "not_available": 0, "failed": 0}
     for row in todo:
         m = mapping[row.doi]
@@ -744,6 +763,9 @@ def run(*, base_dir=None, report_in=None, lib_dir=None, report_out=None, dry_run
         elif rec["sidecar"] and rec["sidecar_status"] == "OK":
             counts["text_only"] += 1
             print(f"  TEXT {hit.pmcid:<12} -> {row.fn[:-4][:55]}.fulltext.json ({rec['outcome']})")
+        elif rec["sidecar"] and rec["sidecar_status"] == ABSTRACT_ONLY:
+            counts["abstract_only"] += 1
+            print(f"  ABST {hit.pmcid:<12} -> {row.fn[:-4][:55]}.fulltext.json (abstract only: routed as unfetched)")
         else:
             counts["not_available" if rec["outcome"] == str(Kind.NOT_AVAILABLE) else "failed"] += 1
             print(f"  FAIL {hit.pmcid:<12} -> {row.fn[:55]} ({rec['error'][:70]})")

@@ -45,7 +45,7 @@ SURFACE = {
     "litpipe.doi": (["candidates", "iter_candidates", "normalise", "encode_path", "resolve_first",
                      "is_placeholder", "normalise_structured"], ["ResolverUnavailable", "PATH_SAFE"]),
     "litpipe.text": (["strip_tags", "unescape", "clean_field", "normalise_title", "comparison_fold",
-                      "filename_title"], []),
+                      "filename_title", "body_chars", "is_abstract_only"], ["TEXT_ONLY_MIN_BODY_CHARS"]),
     "litpipe.identity": (["check", "doc_kind", "suspect_file", "text_stats"],
                          ["Verdict", "SuspectCheck"]),
     "litpipe.holdings": (["build"], ["HoldMap", "Holding"]),

@@ -45,7 +45,8 @@ import unicodedata
 from pdf_text_clean import LIGATURES
 
 __all__ = ["strip_tags", "unescape", "clean_field", "display_field", "abstract_field", "normalise_title",
-           "comparison_fold", "filename_title", "ISOGRK1", "GREEK_NAMES"]
+           "comparison_fold", "filename_title", "body_chars", "is_abstract_only", "ISOGRK1", "GREEK_NAMES",
+           "TEXT_ONLY_MIN_BODY_CHARS"]
 
 # isogrk1 (W3C isogrk1.ent, 2007 entity set, current in the 2023 Recommendation).
 ISOGRK1 = {
@@ -233,3 +234,65 @@ def normalise_title(s):
     after opening brackets: the comparison form of a title (never a display form, never a filename:
     see filename_title)."""
     return filename_title(comparison_fold(s))
+
+
+# ---------------------------------------------------------------- body text of a text sidecar
+# A text-only holding has to carry the article's body, not only its abstract. An AHA statistics
+# report deposited as an author manuscript held 2,379 characters (the abstract and a pointer to the
+# supplementary material) and was counted as full text (VAP, 2026-10-09). Across the 2,111 text-only
+# sidecars in the libraries on 2026-10-09, every one with 1,144 body characters or fewer was an
+# abstract, a stub or a truncated text; the next held 3,438 (a short comment).
+TEXT_ONLY_MIN_BODY_CHARS = 1500
+_NON_BODY_SECTION = re.compile(r"supplement|reference|acknowledg|funding|conflicts? of interest|competing interest|"
+                               r"disclosure|author contribution|data availability|abbreviation", re.IGNORECASE)
+_FLOAT_LINE = re.compile(r"^\s*\[(?:Figure|Fig\.?|Table|Box|Scheme|Supplementary)\b[^\]]*\]", re.IGNORECASE)
+
+
+def _text_body(record, nonbody):
+    """`text` less its title, abstract, non-body sections and the figure, caption and table lines the
+    JATS and BioC parsers append ("[Figure 1.] caption", "[Table 1.] caption" then " | " rows)."""
+    text = record.get("text") if isinstance(record.get("text"), str) else ""
+    keep, in_table = [], False
+    for ln in text.split("\n"):
+        if _FLOAT_LINE.match(ln):
+            in_table = ln.lstrip().lower().startswith("[table")
+            continue
+        if in_table and " | " in ln:
+            continue
+        in_table = False
+        keep.append(ln)
+    out = len("\n".join(keep))
+    for field in ("abstract", "title"):
+        v = record.get(field)
+        out -= len(v) if isinstance(v, str) else 0
+    return max(0, out - nonbody)
+
+
+def body_chars(record):
+    """Characters of article body in a text sidecar record: the larger of two measures, so neither
+    a structured nor an unstructured full text is undercounted.
+    * Sections: the text of every section that is not body (supplementary material, references,
+      acknowledgements, funding, conflicts, disclosures, author contributions, data availability,
+      abbreviations) left out. JATS and BioC records keep their body here.
+    * Text: `text` less the title, the abstract, the non-body sections and the appended figure,
+      caption and table lines. A merged record (OCR or PDF text of the whole article beside the
+      sections of a JATS body that has no <sec>) keeps its body here."""
+    if not isinstance(record, dict):
+        return 0
+
+    def n(v):
+        return len(v) if isinstance(v, str) else 0
+    sections = [s for s in (record.get("sections") or []) if isinstance(s, dict)]
+    body = nonbody = 0
+    for s in sections:
+        if _NON_BODY_SECTION.search(s.get("title") or ""):
+            nonbody += n(s.get("title")) + n(s.get("text"))
+        else:
+            body += n(s.get("text"))
+    return max(body, _text_body(record, nonbody))
+
+
+def is_abstract_only(record):
+    """True when a text sidecar record holds less article body than TEXT_ONLY_MIN_BODY_CHARS: its
+    text is an abstract, a stub or a truncated text, not a text-only holding."""
+    return body_chars(record) < TEXT_ONLY_MIN_BODY_CHARS
