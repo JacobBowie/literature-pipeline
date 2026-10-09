@@ -593,12 +593,19 @@ def _template_sample():
     return {k: (1 if k in ints else "x") for k in NOTES_FIELDS}
 
 
+def _template_fields(fmt, tpl):
+    """Every replacement field of `tpl`, those nested in a format spec ({cited_by:>{n_seeds}}) too."""
+    for _, fname, spec, _ in fmt.parse(tpl):
+        if fname is not None:
+            yield fname
+        if spec:
+            yield from _template_fields(fmt, spec)
+
+
 def _check_template(tpl):
     fmt = string.Formatter()
     try:
-        for _, fname, _, _ in fmt.parse(tpl):
-            if fname is None:
-                continue
+        for fname in _template_fields(fmt, tpl):
             base = re.split(r"[.\[]", fname, maxsplit=1)[0]
             if base not in NOTES_FIELDS:
                 raise SpecError(f"output.notes_template uses {{{fname}}}; allowed: "

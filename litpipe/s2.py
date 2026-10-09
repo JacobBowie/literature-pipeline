@@ -62,6 +62,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import difflib
+import math
 import os
 import re
 import sys
@@ -153,7 +154,7 @@ class Settings:
 
 def _number(block, name, default, *, minimum):
     v = block.get(name, default)
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or v < minimum:
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v < minimum:
         raise config.ConfigError(f"s2.{name} must be a number >= {minimum}, got {v!r}")
     return float(v)
 

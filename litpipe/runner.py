@@ -3221,8 +3221,8 @@ def _timeouts(values):
             out[job] = float(secs)
         except ValueError:
             raise _Usage(f"--timeout {v!r}: SECONDS must be a number") from None
-        if out[job] <= 0:
-            raise _Usage(f"--timeout {v!r}: SECONDS must be more than 0")
+        if not math.isfinite(out[job]) or out[job] <= 0:
+            raise _Usage(f"--timeout {v!r}: SECONDS must be a finite number more than 0")
     return out
 
 

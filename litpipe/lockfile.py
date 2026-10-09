@@ -303,14 +303,43 @@ def _take_breaker(path) -> bool:
         try:
             _write_new(b, str(os.getpid()).encode("ascii"))
             return True
+        except PermissionError:
+            return False          # Windows: the name is delete-pending or held open: another process is at it
         except FileExistsError:
             try:
-                age = time.time() - os.stat(b).st_mtime
+                st = os.stat(b)
             except FileNotFoundError:
                 continue
-            if age < BREAK_STALE_S:
+            except PermissionError:
                 return False
-            _unlink(b)
+            if time.time() - st.st_mtime < BREAK_STALE_S:
+                return False
+            if not _reap_breaker(b, st):
+                return False      # it was not the file judged stale: a live breaker has it
+    return False
+
+
+def _reap_breaker(b, st) -> bool:
+    """Remove the crashed breaker's file that `st` describes, never a live breaker's file that
+    replaced it after the look (two processes can judge one old file stale at once, and an unlink by
+    name would remove the fresh file the first of them created): move whatever is at `b` to a unique
+    name, and put it back (a hard link, never over another) unless it is the file judged stale. True
+    when the stale file is gone and the create may be tried again."""
+    tomb = b.with_name(f"{b.name}.reap-{secrets.token_hex(6)}")
+    try:
+        _retry_fs(os.replace, str(b), str(tomb))
+    except FileNotFoundError:
+        return True                       # another process removed it: try the create
+    except PermissionError:
+        return False                      # Windows: still held open after the retries: another process is at it
+    try:
+        moved = os.stat(tomb)
+    except FileNotFoundError:
+        return False                      # a concurrent move of the same file won
+    if moved.st_mtime_ns == st.st_mtime_ns and moved.st_size == st.st_size:
+        _unlink(tomb)
+        return True
+    _restore(tomb, b)                     # a live breaker's file: put it back
     return False
 
 

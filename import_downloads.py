@@ -503,6 +503,17 @@ def _norm(p):
     return os.path.normcase(os.path.abspath(str(p)))
 
 
+def _same_path(a, b):
+    """True when `a` and `b` name one file: one spelling (case-folded), or one file reached two
+    ways (a junction, a symbolic link, a short name)."""
+    if _norm(a) == _norm(b):
+        return True
+    try:
+        return os.path.samefile(a, b)
+    except OSError:
+        return False
+
+
 def _registry_with_destination(cfg, lib):
     """The registry plus the destination library, so one holdings scan covers both. An unregistered
     --lib-dir enters as an absolute `parent` (lit_util.lib_rel joins it onto the root, and an
@@ -1013,7 +1024,8 @@ def _one(p, dest, execute, forced, seen, written, *, import_held_elsewhere=False
     else:
         taken = set(written)
         canon = Path(dest.lib) / new_name
-        if _norm(canon) == _norm(p) and _norm(canon) not in {_norm(w) for w in taken}:
+        in_place = _same_path(canon, p) and _norm(canon) not in {_norm(w) for w in taken}
+        if in_place:
             # already at its canonical name in the library (a Downloads folder that is the library):
             # filed in place. resolve_dest would read the file as another paper whenever its first
             # 5,000 characters print no DOI (an ILL cover, a title-identified paper) and suffix it.
@@ -1026,7 +1038,7 @@ def _one(p, dest, execute, forced, seen, written, *, import_held_elsewhere=False
                 taken.add(dest_s)             # never overwrite a PDF, whatever it holds
         dest_path = Path(dest_s)
         dup_match = ""
-        if dest_path.name != new_name:
+        if dest_path.name != new_name and not in_place:   # in place: its own name, never another's
             notes.append("name taken by another file: suffixed (check for a duplicate)")
     written.add(str(dest_path))
     seen[d] = p.name
