@@ -340,12 +340,27 @@ def parse_jats(xml_bytes: bytes) -> dict:
     body = root.find("body")
     sections = []
     if body is not None:
-        for sec in body.findall("sec"):
-            sec_title = sec.findtext("title", default="").strip()
+        # Paragraphs placed straight in <body> (a comment, a letter, an editorial, or an article's
+        # untitled opening) form an untitled section where they stand; reading only <sec> dropped
+        # every one of them. ElementTree has no parent links, so the container leaves <body> intact.
+        loose = ET.Element("sec")
+
+        def flush():
+            text = _section_text(loose)
+            if text:
+                sections.append({"title": "", "text": text})
+            loose.clear()
+        for child in body:
+            if child.tag != "sec":
+                loose.append(child)
+                continue
+            flush()
+            sec_title = child.findtext("title", default="").strip()
             if sec_title.lower() == "references":
                 continue
-            sec_text = _section_text(sec)
+            sec_text = _section_text(child)
             sections.append({"title": sec_title, "text": sec_text})
+        flush()
 
     scope = body if body is not None else root
     floats = _float_scopes(root)
