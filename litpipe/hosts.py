@@ -67,6 +67,9 @@ class RetryPolicy:
     max_wait_s: float = 120.0
     statuses: frozenset = frozenset({429, 500, 502, 503, 504})
     transport_retries: int = 2
+    # A 429 outside `statuses` is retried this many times, only when it names a Retry-After in
+    # (0, the host's inline cap]; a bare 429 stays final (BioC, 2026-10-21 ledger)
+    retry_429_with_retry_after: int = 0
 
     def backoff(self, n, rand=0.0):
         """Wait before retry n (1-based): first_wait_s * factor**(n-1) + rand*jitter_s, capped."""
@@ -139,6 +142,9 @@ class ProhibitedRule:
 # Retry without 429: on these hosts a 429 is final at once (and refuses the host), never retried
 # into a longer ban.
 _NO_429_RETRY = RetryPolicy(statuses=frozenset({500, 502, 503, 504}))
+# As above, but one wait for a 429 that says how long: BioC's 429s carried Retry-After 64-66 s on
+# 10-15, 10-16 and 10-18 (each the run's first BioC request), none on the 09-30 probe.
+_ONE_429_RETRY_AFTER = dataclasses.replace(_NO_429_RETRY, retry_429_with_retry_after=1)
 
 # Where doi.org content negotiation sends a request (V3 raw/s30*, s31*: Crossref, DataCite via
 # crosscite, mEDRA, KISTI, JaLC, OP). The ISTIC hop is plain http to a raw IP: not followed.
@@ -177,9 +183,11 @@ def _rows():
         HostPolicy("pmc-oa-opendata.s3.amazonaws.com", min_interval_s=0.25, identity="anonymous",
                    note="no stated limit; verify md5 against ?md5=, not the ETag"),
         HostPolicy("www.ncbi.nlm.nih.gov", min_interval_s=1.0, identity="ncbi", offpeak=NCBI_OFFPEAK,
-                   retry=_NO_429_RETRY,
+                   retry=_ONE_429_RETRY_AFTER, retry_after_cap_s=90.0,
                    note="BioC API; 'absent' is 200 text/html; /pmc/articles/ prohibited; BioC answered 429 "
-                        "(no Retry-After) at a 0.65 s gap on 2026-09-30 (W2-A2): 1 s spacing, a 429 is final"),
+                        "(no Retry-After) at a 0.65 s gap on 2026-09-30 (W2-A2): 1 s spacing. Since 2026-10 "
+                        "its 429s carry Retry-After ~65 s even on a run's first request: one wait (<= 90 s) "
+                        "and retry; a bare or second 429 is final"),
         HostPolicy("www.ebi.ac.uk", min_interval_s=1.0,
                    note="Europe PMC REST (/europepmc/webservices/rest/) only; fullTextXML 500 = not available; "
                         "30 s timeout; europepmc.org website pages prohibited"),

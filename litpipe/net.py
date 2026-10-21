@@ -614,6 +614,13 @@ def _decide(raw, pol, url, retries, transport_fails, st, cfg, max_bytes, validat
             act.wait = ra
         return act
 
+    # A row that keeps 429 final may still wait out one that names its delay (hosts.RetryPolicy
+    # retry_429_with_retry_after); `retries` counts every retry of the call, so a 429 after a 5xx
+    # retry is final. A bare, zero or over-cap Retry-After falls through to the final 429 below.
+    if (status == 429 and 429 not in rp.statuses and retries < rp.retry_429_with_retry_after
+            and ra and ra <= pol.retry_after_cap_s):
+        return _Act("retry", wait=ra, retry_after=ra, note="429 with Retry-After")
+
     if status in rp.statuses:
         if ra is not None and ra > pol.retry_after_cap_s:
             st.defer(pol.host, CLOCK.time() + ra)

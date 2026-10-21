@@ -681,8 +681,9 @@ def _is_bioc_absent(p) -> bool:
 def fetch_bioc_outcome(pmcid, encoding="unicode", timeout=30) -> Outcome:
     """GET the BioC JSON for a PMCID through litpipe.net. OK carries the parsed JSON as payload;
     the 200 text/html "[Error] : No result can be found." page is NOT_AVAILABLE (keyed on the
-    Content-Type and the body, never the status); a 429 is not retried (it refuses the host for the
-    run: this host answered 429 to a third request 0.65 s after the second on 2026-09-30)."""
+    Content-Type and the body, never the status); a 429 refuses the host for the run (this host
+    answered 429 to a third request 0.65 s after the second on 2026-09-30), except that the host
+    row waits out one 429 naming a Retry-After of at most 90 s (2026-10, ~65 s) and retries once."""
     url = BIOC_JSON.format(pmcid=pmcid, encoding=encoding)
     host = hosts.host_of(url)
     o = net.get(url, timeout=(10, timeout), purpose="bioc", retry_statuses=_retry_without(url, {429}))

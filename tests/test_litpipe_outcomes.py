@@ -160,9 +160,10 @@ def test_typed_tokens_written_by_rewired_stages_keep_their_kind(s, stage, kind):
     assert from_legacy(s, stage) is kind
 
 
-def test_bioc_host_row_paces_at_1s_and_never_retries_a_429():
+def test_bioc_host_row_paces_at_1s_and_retries_a_429_at_most_once():
     """W2-A2: BioC answered 429 (no Retry-After) at a 0.65 s gap; the row paced at 0.5 s and
-    retried 429 six times into it."""
+    retried 429 six times into it. Since 2026-10-21 one 429 that names a Retry-After is waited out."""
     from litpipe import hosts
     row = hosts.policy("https://www.ncbi.nlm.nih.gov/research/bionlp/RESTful/pmcoa.cgi/BioC_json/PMC1/unicode")
     assert row.min_interval_s >= 1.0 and 429 not in row.retry.statuses
+    assert row.retry.retry_429_with_retry_after == 1

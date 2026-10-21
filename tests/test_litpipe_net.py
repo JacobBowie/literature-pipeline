@@ -244,6 +244,66 @@ def test_pmc_ncbi_429_with_retry_after_still_refuses(net_env, mock_server):
     assert o.kind is Kind.REFUSED and A in net_env.state.refused and net_env.clock.sleeps == []
 
 
+# ================================================================ BioC 429 with Retry-After (2026-10-21)
+_BIOC_HTML = {"Content-Type": "text/html"}
+
+
+def test_bioc_waits_out_one_429_that_names_its_retry_after(net_env, mock_server):
+    """The 10-15/16/18 ledger: BioC's 429 on a run's first request carried Retry-After 64-66 s."""
+    row = hosts.policy("www.ncbi.nlm.nih.gov")
+    assert 429 not in row.retry.statuses and row.retry.retry_429_with_retry_after == 1
+    assert row.retry_after_cap_s == 90.0
+    clone("www.ncbi.nlm.nih.gov")
+    s = mock_server().script("/bioc", Reply(429, "<html></html>", headers={**_BIOC_HTML, "Retry-After": "65"}),
+                             Reply(200, '{"documents": []}', headers={"Content-Type": "application/json"}))
+    o = net.request("GET", s.url("/bioc"))
+    assert o.ok and o.status == 200 and o.attempts == 2
+    assert net_env.clock.sleeps == [65.0] and A not in net_env.state.refused
+
+
+@pytest.mark.parametrize("retry_after", [None, "", "0"])
+def test_bioc_429_without_a_usable_retry_after_is_still_final(net_env, mock_server, retry_after):
+    clone("www.ncbi.nlm.nih.gov")
+    h = dict(_BIOC_HTML) if retry_after is None else {**_BIOC_HTML, "Retry-After": retry_after}
+    s = mock_server().script("/bioc", Reply(429, "<html></html>", headers=h))
+    o = net.request("GET", s.url("/bioc"))
+    assert o.kind is Kind.REFUSED and o.attempts == 1 and net_env.clock.sleeps == []
+    assert net_env.state.refused[A][1] == "run"
+
+
+def test_bioc_second_429_is_final_and_refuses(net_env, mock_server):
+    clone("www.ncbi.nlm.nih.gov")
+    r = Reply(429, "<html></html>", headers={**_BIOC_HTML, "Retry-After": "65"})
+    s = mock_server().script("/bioc", r, r)
+    o = net.request("GET", s.url("/bioc"))
+    assert o.kind is Kind.REFUSED and o.attempts == 2 and net_env.clock.sleeps == [65.0]
+    assert A in net_env.state.refused and len(s.hits) == 2
+
+
+def test_bioc_429_over_the_inline_cap_is_not_slept(net_env, mock_server):
+    clone("www.ncbi.nlm.nih.gov")
+    s = mock_server().script("/bioc", Reply(429, "<html></html>", headers={**_BIOC_HTML, "Retry-After": "600"}))
+    o = net.request("GET", s.url("/bioc"))
+    assert o.kind is Kind.REFUSED and o.attempts == 1 and net_env.clock.sleeps == []
+
+
+def test_one_429_retry_survives_the_canary_retry_statuses_override(net_env, mock_server):
+    """canaries._retry_statuses gives () for BioC; the override replaces `statuses` only."""
+    from litpipe import canaries
+    assert canaries._retry_statuses("https://www.ncbi.nlm.nih.gov/research/bionlp/RESTful/x") == ()
+    clone("www.ncbi.nlm.nih.gov")
+    s = mock_server().script("/bioc", Reply(429, "<html></html>", headers={**_BIOC_HTML, "Retry-After": "64"}),
+                             Reply(200, '{"documents": []}', headers={"Content-Type": "application/json"}))
+    o = net.request("GET", s.url("/bioc"), retry_statuses=())
+    assert o.ok and net_env.clock.sleeps == [64.0]
+
+
+def test_only_bioc_takes_the_one_429_retry():
+    rows = [h for h, r in hosts.rows().items() if r.retry.retry_429_with_retry_after]
+    assert rows == ["www.ncbi.nlm.nih.gov"]
+    assert hosts.policy("pmc.ncbi.nlm.nih.gov").retry.retry_429_with_retry_after == 0
+
+
 def test_export_arxiv_refusal_is_manual(net_env, mock_server):
     clone("export.arxiv.org")
     s = mock_server().script("/api/query", Reply(429))

@@ -388,7 +388,8 @@ def _retry_statuses(url) -> tuple:
     """No 5xx retries (the canary re-checks a 5xx once after RECHECK_S), but a 429 keeps the origin
     host row's own handling: retried with its Retry-After where the row retries 429, the host
     deferred when Retry-After passes the inline cap, final where the row says so (pmc.ncbi.nlm.nih.gov,
-    BioC, arXiv). With retry_statuses=() the FIRST 429 was final, and litpipe.net refuses a host on
+    arXiv; BioC waits out one 429 that names a Retry-After, via the row's retry_429_with_retry_after,
+    which this override leaves in place). With retry_statuses=() the FIRST 429 was final, and litpipe.net refuses a host on
     a final 429: one rate-limit answer took the source (or a redirect target) off for the run."""
     return (429,) if 429 in hosts.policy(url).retry.statuses else ()
 
