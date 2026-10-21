@@ -375,14 +375,30 @@ _LEGACY_FITZ = __import__("re").compile(r"^\s*(?:import\s+fitz\b(?!\S)|from\s+fi
 _REPO = Path(__file__).resolve().parent.parent
 
 
+def _shipped_py():
+    """The repo's .py files that can ship (tracked, or new and not ignored), as relative posix paths.
+    Gitignored local scratch, such as the 2026-05-22 extractor evaluation, never ships, so it is not
+    scanned; rglob when git is absent."""
+    import subprocess
+    try:
+        r = subprocess.run(["git", "-C", str(_REPO), "ls-files", "-z", "--cached", "--others",
+                            "--exclude-standard", "--", "*.py"],
+                           capture_output=True, text=True, timeout=30, check=True)
+        return [s for s in r.stdout.split("\0") if s]
+    except (OSError, subprocess.SubprocessError):
+        return [p.relative_to(_REPO).as_posix() for p in _REPO.rglob("*.py")]
+
+
 def test_no_non_test_module_anywhere_in_the_repo_imports_fitz():
     """tests/test_w5c2_pymupdf.py pins a list of 21 modules (every PyMuPDF user today); this scans
-    every non-test module, so a module outside the list (preprint_fetch, lit_util, backfills/) that
-    starts using PyMuPDF under the legacy name is caught too."""
+    every tracked non-test module, so a module outside the list (preprint_fetch, lit_util, backfills/)
+    that starts using PyMuPDF under the legacy name is caught too."""
     hits = []
-    for p in _REPO.rglob("*.py"):
-        rel = p.relative_to(_REPO).as_posix()
+    for rel in _shipped_py():
+        p = _REPO / rel
         if rel.startswith(("tests/", ".venv/", "vendor/", ".claude/")) or "/site-packages/" in rel:
+            continue
+        if not p.is_file():     # tracked but deleted in the working tree
             continue
         if _LEGACY_FITZ.search(p.read_text(encoding="utf-8", errors="replace")):
             hits.append(rel)
