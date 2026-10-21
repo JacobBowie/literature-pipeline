@@ -145,7 +145,10 @@ _NO_429_RETRY = RetryPolicy(statuses=frozenset({500, 502, 503, 504}))
 _DOI_CN_TARGETS = ("api.crossref.org", "data.crossref.org", "data.crosscite.org", "api.datacite.org",
                    "data.datacite.org", "data.medra.org", "data.doi.or.kr", "japanlinkcenter.org",
                    "ra.publications.europa.eu")
-_OSF_HOPS = ("osf.io", ".osf.io", "storage.googleapis.com")   # V4: download = 1 API call + 3 hops
+# V4: download = 1 API call + 3 hops. The blob hop moved from storage.googleapis.com to OSF's Oracle
+# Object Storage (S3-compatible, presigned X-Amz-*) by 2026-10-18 (probed 10-21); GCS kept for older links.
+_OSF_ORACLE = "idvyorynw6xy.compat.objectstorage.us-ashburn-1.oraclecloud.com"
+_OSF_HOPS = ("osf.io", ".osf.io", "storage.googleapis.com", _OSF_ORACLE)
 
 
 def _rows():
@@ -191,7 +194,9 @@ def _rows():
                    note="100/h anonymous (paced to 1 per 36 s), 10k/day with a token; no rate headers"),
         HostPolicy("osf.io", min_interval_s=1.0, redirect_allow=_OSF_HOPS, note="download hop 1 of 3"),
         HostPolicy(".osf.io", min_interval_s=1.0, redirect_allow=_OSF_HOPS, note="files.*.osf.io download hop"),
-        HostPolicy("storage.googleapis.com", min_interval_s=1.0, identity="anonymous", note="OSF file blobs"),
+        HostPolicy("storage.googleapis.com", min_interval_s=1.0, identity="anonymous", note="OSF file blobs (before 2026-10)"),
+        HostPolicy(_OSF_ORACLE, min_interval_s=1.0, identity="anonymous",
+                   note="OSF file blobs since 2026-10 (Oracle Object Storage, S3-compatible presigned)"),
         HostPolicy("sportrxiv.org", min_interval_s=3.0,
                    note="PKP OPS OAI; at most 1 harvest/day; ToS bars bulk republication"),
         HostPolicy("api.biorxiv.org", min_interval_s=1.0, note="type from the body; /details empty 09-24 to 09-28"),

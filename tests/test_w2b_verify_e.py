@@ -16,6 +16,7 @@ import json
 import subprocess
 import sys
 import types
+from urllib.parse import urlsplit
 from pathlib import Path
 
 import pytest
@@ -31,7 +32,7 @@ from litpipe.outcomes import Kind
 # The W2-C stage harness (Web transport, StageEnv, canned routes) and the W1 verifier's sweep
 # harness (World, Stages); the fixtures are imported by name so pytest finds them here.
 from tests.test_preprint_stage import (BALLET, DOI_64898, EPMC, JSON, PAPER_64898, Web,  # noqa: F401
-                                       env, epmc_record, fx, make_pdf, ris_calls, route_epmc,
+                                       env, epmc_record, fx, make_pdf, preprint_pdf, ris_calls, route_epmc,
                                        route_osf_ballet, web)
 from tests.test_w1_verify_b import UNPW_FIELDS, Stages, World, read_csv, write_csv
 
@@ -441,9 +442,15 @@ SIGNED_GCS = ("https://storage.googleapis.com/cos-osf-prod-files-us-east1/blob?r
 SIGNED_V4 = ("https://storage.googleapis.com/cos-osf-prod-files-us-east1/blob?X-Goog-Algorithm=GOOG4-RSA-SHA256"
              "&X-Goog-Credential=SECRETCRED%2F20261005%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20261005T000000Z"
              "&X-Goog-Expires=60&X-Goog-SignedHeaders=host&X-Goog-Signature=SECRETSIG0123abcd")
+# OSF's blob hop since 2026-10: Oracle Object Storage, S3-compatible SigV4 (shape probed live 2026-10-21)
+SIGNED_ORACLE = ("https://idvyorynw6xy.compat.objectstorage.us-ashburn-1.oraclecloud.com/cos-prod-osf-1-files-ash/4e4b54b9?response-content-disposition="
+                 "attachment%3B+filename%3D%22x.pdf%22&X-Amz-Algorithm=AWS4-HMAC-SHA256"
+                 "&X-Amz-Credential=SECRETCRED%2F20261021%2Fus-ashburn-1%2Fs3%2Faws4_request&X-Amz-Date=20261021T185231Z"
+                 "&X-Amz-Expires=60&X-Amz-SignedHeaders=host&X-Amz-Signature=SECRETSIG4e4b")
 
 
-@pytest.mark.parametrize("signed", [SIGNED_GCS, SIGNED_V4], ids=["v2_signature", "v4_x_goog"])
+@pytest.mark.parametrize("signed", [SIGNED_GCS, SIGNED_V4, SIGNED_ORACLE],
+                         ids=["v2_signature", "v4_x_goog", "oracle_x_amz"])
 def test_the_osf_blob_hop_is_ledgered_without_its_signature(env, net_env, signed):
     """APPLY (litpipe/ledger.py redact, ~116): the OSF download's last hop is a signed, expiring
     storage.googleapis.com URL; net ledgers every hop's URL through redact(), which strips keys and
@@ -453,11 +460,16 @@ def test_the_osf_blob_hop_is_ledgered_without_its_signature(env, net_env, signed
     route_osf_ballet(env.web)
     env.web.add("https://files.osf.io/v1/resources/fkdby_v1/providers/osfstorage/61112f14",
                 (302, {"Location": signed}, b""))
+    blob = signed.split("?", 1)[0]
+    if not blob.startswith("https://storage.googleapis.com/"):     # route_osf_ballet serves GCS only
+        env.web.add(blob, (200, {"Content-Type": "application/octet-stream"},
+                           preprint_pdf(BALLET, "10.31236/osf.io/fkdby")))
     _, out = env.run([{"doi": "10.1123/w2bve.sig1", "title": BALLET, "year": "2021", "authors": "Shaw J"}])
     assert out[0]["downloaded"] == "True"
-    assert any(u.startswith("https://storage.googleapis.com/") for _, u, _ in env.web.sent)
+    blob_host = urlsplit(signed).hostname
+    assert any(urlsplit(u).hostname == blob_host for _, u, _ in env.web.sent)
     text = net_env.ledger_text()
-    assert "storage.googleapis.com" in text
+    assert blob_host in text
     assert "SECRETSIG" not in text and "SECRETCRED" not in text
     assert "SECRETSIG" not in env.report_path.read_text(encoding="utf-8")
     for p in env.lib.glob("*.identity.json"):
@@ -465,7 +477,7 @@ def test_the_osf_blob_hop_is_ledgered_without_its_signature(env, net_env, signed
 
 
 @pytest.mark.parametrize("url", [
-    SIGNED_GCS, SIGNED_V4,
+    SIGNED_GCS, SIGNED_V4, SIGNED_ORACLE,
     "https://b.s3.amazonaws.com/k.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=SECRETCRED%2F20261005"
     "&X-Amz-Security-Token=SECRETSIG-token&X-Amz-Signature=SECRETSIG99",
     "https://b.s3.amazonaws.com/k.pdf?AWSAccessKeyId=SECRETCRED&Expires=1&Signature=SECRETSIG%2F1%3D",

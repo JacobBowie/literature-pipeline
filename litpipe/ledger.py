@@ -62,7 +62,7 @@ EMAIL_TOKEN = "[EMAIL-REDACTED]"
 MAILTO_TOKEN = "[MAILTO-REDACTED]"
 _MAILTO_RE = re.compile(
     r"(?i)(mailto(?::|" + _ENC + r"3A)\s*)((?:(?!" + _ENC + r"26)[^\s)>\"'&,;])+)")
-# Signed, expiring download links (the OSF blob hop to storage.googleapis.com; S3 presigned
+# Signed, expiring download links (the OSF blob hop, Oracle S3-compatible since 2026-10; S3 presigned
 # URLs): the signature and credential values work as a bearer token until they expire. No
 # lookbehind, so `%26Signature%3D` (a link nested in a link) loses its value too.
 _SIGNED_RE = re.compile(

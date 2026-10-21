@@ -614,7 +614,7 @@ def test_host_table_rows():
         "api.crossref.org", "api.datacite.org", "doi.org", "api.unpaywall.org", "api.openalex.org",
         "pmc.ncbi.nlm.nih.gov", "eutils.ncbi.nlm.nih.gov", "pmc-oa-opendata.s3.amazonaws.com",
         "www.ncbi.nlm.nih.gov", "www.ebi.ac.uk", "export.arxiv.org", "api.osf.io", "osf.io", ".osf.io",
-        "storage.googleapis.com", "sportrxiv.org", "api.biorxiv.org", "api.semanticscholar.org"}
+        "storage.googleapis.com", hosts._OSF_ORACLE, "sportrxiv.org", "api.biorxiv.org", "api.semanticscholar.org"}
     assert p("api.semanticscholar.org").min_interval_s == 6.5
     assert p("api.semanticscholar.org").retry_after_cap_s == 600
     ax = p("https://export.arxiv.org/api/query")
@@ -626,6 +626,10 @@ def test_host_table_rows():
     assert p("files.de-1.osf.io").host == "files.de-1.osf.io" and p("files.de-1.osf.io").known
     assert p("api.osf.io").allows_redirect_to("files.de-1.osf.io")
     assert p("osf.io").allows_redirect_to("storage.googleapis.com")
+    # OSF's blob hop since 2026-10: files.osf.io -> Oracle Object Storage (anonymous, presigned)
+    assert p("files.osf.io").allows_redirect_to(hosts._OSF_ORACLE)
+    assert p(hosts._OSF_ORACLE).identity == "anonymous" and p(hosts._OSF_ORACLE).known
+    assert not p("files.osf.io").allows_redirect_to("other.compat.objectstorage.us-ashburn-1.oraclecloud.com")
     assert not p("api.crossref.org").allows_redirect_to("evil.example")
     assert p("doi.org").allows_redirect_to("data.crosscite.org")
     for h, row in hosts.rows().items():

@@ -81,7 +81,7 @@ Verdicts and refusals (dispatch amendment 3):
     section 4 names as the pass value (the Europe PMC author-manuscript 500) is a PASS;
   * a confirmed failure on the check's ORIGIN host calls
     state.refuse(origin, "canary <id>: <observed>", persistence="run"); a failure on a redirect
-    target (storage.googleapis.com, a content-negotiation target such as api.crossref.org or
+    target (OSF's blob host, a content-negotiation target such as api.crossref.org or
     data.crosscite.org) or on a second host of the check (the OSF download link) is ALARM only.
     litpipe.net itself still refuses a host that answers 403/406/final 429, as for every stage;
   * a wrong answer on a 2xx (drift), a SKIPPED check and an ERROR refuse nothing; refuse() never

@@ -407,6 +407,26 @@ def test_an_unregistered_project_or_a_bad_source_is_config(env):
 
 
 # ================================================================ OSF
+def test_osf_route_follows_the_oracle_blob_hop(env):
+    """OSF's blob hop moved from storage.googleapis.com to Oracle Object Storage (S3-compatible,
+    presigned X-Amz-*) by 2026-10-18; the canary alarmed "redirect not followed" until the host joined
+    _OSF_HOPS (live chain probed 2026-10-21)."""
+    env.sources("osf")
+    route_osf_ballet(env.web)
+    env.web.add("https://files.osf.io/v1/resources/fkdby_v1/providers/osfstorage/61112f14",
+                (302, {"Location": "https://idvyorynw6xy.compat.objectstorage.us-ashburn-1.oraclecloud.com/cos-prod-osf-1-files-ash/4e4b54b9?X-Amz-Algorithm=AWS4-HMAC-SHA256"
+                                    "&X-Amz-Credential=SECRETCRED%2F20261021&X-Amz-Signature=SECRETSIG1"}, b""))
+    env.web.add("https://idvyorynw6xy.compat.objectstorage.us-ashburn-1.oraclecloud.com/cos-prod-osf-1-files-ash/4e4b54b9",
+                (200, {"Content-Type": "application/octet-stream"}, preprint_pdf(BALLET, "10.31236/osf.io/fkdby")))
+    _, out = env.run([{"doi": "10.1123/ijspp.2021.1", "title": BALLET, "year": "2021", "authors": "Shaw J"}])
+    r = out[0]
+    assert r["downloaded"] == "True" and r["outcome"] == "OK" and r["route"] == "osf_download"
+    assert env.web.hosts() == ["api.osf.io", "api.osf.io", "osf.io", "files.osf.io",
+                               "idvyorynw6xy.compat.objectstorage.us-ashburn-1.oraclecloud.com"]
+    assert (env.lib / r["preprint_filename"]).read_bytes()[:4] == b"%PDF"
+    assert "SECRETSIG" not in env.report_path.read_text(encoding="utf-8")
+
+
 def test_osf_route_yields_pdf_through_the_redirect_hops(env):
     env.sources("osf")
     route_osf_ballet(env.web)

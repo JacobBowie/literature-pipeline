@@ -33,7 +33,8 @@ Routes, per server:
               (`?pdf=render`, fulltextRepo) is never contacted.
   OSF         api.osf.io/v2/preprints/?filter[title]=<title prefix> (a case-insensitive substring
               filter: trailing punctuation misses), then the file record files/{primary_file}/ and
-              its `data.links.download` (osf.io -> files.*.osf.io -> storage.googleapis.com). The
+              its `data.links.download` (osf.io -> files.*.osf.io -> OSF's
+              Oracle Object Storage blob host, storage.googleapis.com before 2026-10). The
               preprint's DOI is `links.preprint_doi`. 100 requests/hour anonymous: paced at 36 s,
               2,400 a day (the host row); a spent budget is DEFERRED. SportRxiv preprints posted
               before 2021-08-27 live here (provider `sportrxiv`).
