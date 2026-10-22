@@ -18,7 +18,7 @@ import pytest
 
 import lit_util
 import migrate_closed_to_md as mig
-from litpipe import config, holdings
+from litpipe import config, holdings, hosts
 
 FIX = Path(__file__).parent / "fixtures" / "W1-D2"
 TODAY = datetime.date(2026, 9, 30)
@@ -154,6 +154,20 @@ def test_acceptance_403_dns_and_500_with_a_sidecar(env):
     assert rl["10.1234/r403"]["residual_class"] == "OA_BLOCKED" and rl["10.1234/r403"]["not_before"] == "2026-10-03"
     assert rl["10.1234/rdns9"]["residual_class"] == "TRANSIENT" and rl["10.1234/rdns9"]["not_before"] == "2026-10-01"
     assert "TRANSPORT" in rl["10.1234/rdns9"]["reason"]
+
+
+def test_an_html_wall_download_is_oa_blocked_never_ill(env):
+    """The linkinghub.elsevier.com shape (FRED retry 2026-10-20 Unpaywall report): its HTML wall stays
+    REFUSED so the row goes to the browser worklist; the expected_wall host flag only quiets the
+    first_attempts ALARM and must not reroute it to the ILL list."""
+    wall = row("10.1016/j.wall.2026.1", u={"oa_status": "OA", "attempts": "publisher/publishedVersion/HTML",
+                                          "error": "HTML"})
+    chain(env.proj, RUN, [wall])
+    res = route(env)
+    assert res["counts"] == {"OA_BLOCKED": 1}
+    assert not (env.proj / mig.ILL_NAME).exists()
+    assert holdings.extract_dois(text(env.proj / mig.OA_BLOCKED_NAME)) == ["10.1016/j.wall.2026.1"]
+    assert hosts.policy("linkinghub.elsevier.com").expected_wall
 
 
 def test_acceptance_500_without_a_sidecar_is_terminal_closed(env):

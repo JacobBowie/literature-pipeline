@@ -106,6 +106,9 @@ class HostPolicy:
     retry_after_cap_s: float = 30.0     # a Retry-After above this defers the host instead of sleeping in the row
     status_kinds: dict = field(default_factory=dict)   # final-status overrides, e.g. Unpaywall 422 -> CONFIG
     https_only: bool = True             # a redirect hop may not downgrade https to http
+    # Every download here is expected to be an HTML wall: still REFUSED (the row routes OA_BLOCKED),
+    # but the canaries first_attempts check reports the host's share instead of raising an ALARM
+    expected_wall: bool = False
     known: bool = True
     note: str = ""
 
@@ -212,6 +215,12 @@ def _rows():
         HostPolicy("www.medrxiv.org", min_interval_s=5.0, note="bot-walled; only when hosts.biorxiv_pdf_allowed"),
         HostPolicy("api.semanticscholar.org", min_interval_s=6.5, retry_after_cap_s=600.0,
                    note="unkeyed 6.5 s (measured in a consumer project); litpipe.s2 registers 1.1 s when keyed; x-api-key"),
+        # The unknown-host default in every field but the wall flag (notes/2026-10-21.md section 2)
+        HostPolicy("linkinghub.elsevier.com", min_interval_s=2.0, identity="download", redirect_allow=(ANY_HOST,),
+                   expected_wall=True,
+                   note="Unpaywall's OA url for Elsevier papers; serves a ~2.7 KB JS interstitial "
+                        "(/retrieve/pii/, tdm-reservation), never a PDF: 104/104 REFUSED 10-09 to 10-20. "
+                        "Routes OA_BLOCKED (browser worklist); the ScienceDirect redirect is not followed"),
     ]
 
 

@@ -296,6 +296,32 @@ def test_refused_share_alarms_on_a_busy_host(tmp_path):
     assert "few.example" not in o.payload["observed"]["summary"]    # under 20 first attempts
 
 
+_LINKINGHUB = {"host": "linkinghub.elsevier.com", "attempt": 1, "decision": "final", "kind": "REFUSED",
+               "status": 200, "purpose": "unpaywall: download"}
+
+
+def test_an_expected_wall_host_is_reported_not_alarmed(tmp_path):
+    """notes/2026-10-21.md section 2: linkinghub answered 104/104 first attempts with an HTML
+    interstitial; the ALARM fired on every night with 20+ of them."""
+    pr = Proj(tmp_path)
+    _ledger(pr, [_LINKINGHUB] * 27 + [{**_LINKINGHUB, "host": "api.crossref.org", "kind": "OK"}] * 5)
+    o = one(pr.run(), "first_attempts")
+    assert o.payload["status"] == canaries.PASS, o.payload
+    obs = o.payload["observed"]
+    assert "linkinghub.elsevier.com REFUSED 27/27 (expected wall)" in obs["summary"]
+    assert obs["hosts"]["linkinghub.elsevier.com"]["expected_wall"] is True
+    assert obs["hosts"]["linkinghub.elsevier.com"]["refused_share"] == 1.0
+
+
+def test_the_wall_exemption_is_per_host(tmp_path):
+    pr = Proj(tmp_path)
+    _ledger(pr, [_LINKINGHUB] * 27 + [{**_LINKINGHUB, "host": "www.sciencedirect.com"}] * 25)
+    o = one(pr.run(), "first_attempts")
+    assert o.payload["status"] == canaries.ALARM
+    assert "www.sciencedirect.com REFUSED 25/25" in o.payload["observed"]["summary"]
+    assert "linkinghub.elsevier.com REFUSED 27/27 (expected wall)" in o.payload["observed"]["summary"]
+
+
 def test_a_blocked_redirect_is_not_a_refusal(tmp_path):
     pr = Proj(tmp_path)
     recs = [{"host": "doi.org", "attempt": 1, "decision": "redirect_blocked", "kind": "REFUSED", "status": 302}] * 25

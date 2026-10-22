@@ -905,12 +905,18 @@ def _l_first_attempts(chk, lc):
         # litpipe.net retried and then served is not REFUSED; one whose retries ran out is
         if kind == "REFUSED" and rec.get("decision") == "final":
             by_host.setdefault(h, {"n": 0, "statuses": Counter(), "kinds": Counter(), "refused": 0})["refused"] += 1
-    alarms, hosts_out = [], {}
+    alarms, walls, hosts_out = [], [], {}
     for h, e in sorted(by_host.items()):
         share = e["refused"] / e["n"] if e["n"] else 0.0
         hosts_out[h] = {"n": e["n"], "statuses": dict(e["statuses"]),
                         "kinds": {k: round(v / e["n"], 3) for k, v in e["kinds"].items()},
                         "refused_share": round(share, 3)}
+        if hosts.policy(h).expected_wall:
+            # a host row that only ever serves an HTML wall (linkinghub): reported, never an ALARM
+            hosts_out[h]["expected_wall"] = True
+            if e["refused"]:
+                walls.append(f"{h} REFUSED {e['refused']}/{e['n']} (expected wall)")
+            continue
         if e["n"] >= REFUSED_MIN_ATTEMPTS and share >= REFUSED_ALARM_SHARE:
             alarms.append(f"{h} REFUSED {e['refused']}/{e['n']} ({share:.0%})")
         if h == EPMC_HOST and e["statuses"].get("403"):
@@ -918,6 +924,8 @@ def _l_first_attempts(chk, lc):
     n = sum(e["n"] for e in by_host.values())
     summ = ("; ".join(alarms) if alarms else
             f"{n} first attempts on {len(by_host)} hosts; no host at REFUSED >= 5 % of 20+")
+    if walls:
+        summ += "; " + "; ".join(walls)
     return [_mk(chk, ALARM if alarms else PASS, host="ledger", target=lc.ledger_target(),
                 observed={"summary": summ, "hosts": hosts_out})]
 
