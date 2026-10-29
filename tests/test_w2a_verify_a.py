@@ -153,15 +153,15 @@ def test_seam_am_row_bioc_fallback_through_real_parse_bioc(real, tmp_path):
     assert "s3/NO_MATCH" in r["attempts"] and r["attempts"].endswith("bioc/OK")
 
 
-def test_seam_am_bioc_429_is_sent_once_and_typed(real, tmp_path):
+def test_seam_am_bioc_bare_429_is_sent_twice_and_typed(real, tmp_path):
     """pmc_fetch has its own BioC GET (bioc_json), not jats_to_text.fetch_bioc: the host row's
-    no-429-retry policy must hold for it too."""
+    429 policy (one fixed wait on a bare 429, then final; 2026-10-29) must hold for it too."""
     del real.meta["PMC7983342.1"]["xml_url"]
     real.override[("www.ncbi.nlm.nih.gov", r".*/BioC_json/.*")] = [
         (429, fx("bioc_absent.html"), {"Content-Type": "text/html"})]
     _, rows, _ = run_stage(tmp_path, [AM_DOI])
     r = rows[AM_DOI]
-    assert len(real.hits_for("BioC_json")) == 1
+    assert len(real.hits_for("BioC_json")) == 2
     assert r["sidecar_status"] == "REFUSED" and "bioc/REFUSED" in r["attempts"]
     assert real.env.state.is_refused("www.ncbi.nlm.nih.gov")
 
@@ -439,10 +439,10 @@ def test_europe_pmc_search_500_is_still_retried(net_env, monkeypatch):
     assert sum("webservices/rest/search" in u for u in sent) == 7      # 1 + 6 retries
 
 
-def test_bioc_429_is_not_retried_through_jats_to_text(net_env, monkeypatch):
+def test_bioc_bare_429_is_retried_once_through_jats_to_text(net_env, monkeypatch):
     sent = _chain_world(monkeypatch, {"www.ncbi.nlm.nih.gov": [(429, "<html></html>", {"Content-Type": "text/html"})]})
     data, st = jats_to_text.fetch_bioc("PMC1")
-    assert data is None and st == "HTTP_429" and len(sent) == 1
+    assert data is None and st == "HTTP_429" and len(sent) == 2 and net_env.clock.sleeps.count(65.0) == 1
 
 
 # lock for APPLY V-A5 (fixed in the dispatcher commit that follows 0730c49)

@@ -620,6 +620,11 @@ def _decide(raw, pol, url, retries, transport_fails, st, cfg, max_bytes, validat
     if (status == 429 and 429 not in rp.statuses and retries < rp.retry_429_with_retry_after
             and ra and ra <= pol.retry_after_cap_s):
         return _Act("retry", wait=ra, retry_after=ra, note="429 with Retry-After")
+    # The same one retry when the 429 names no usable delay (absent or empty) and the row sets a
+    # fixed wait for that case (hosts.RetryPolicy.bare_429_wait_s).
+    if (status == 429 and 429 not in rp.statuses and retries < rp.retry_429_with_retry_after
+            and ra is None and rp.bare_429_wait_s > 0):
+        return _Act("retry", wait=rp.bare_429_wait_s, note="429 without Retry-After: fixed wait")
 
     if status in rp.statuses:
         if ra is not None and ra > pol.retry_after_cap_s:

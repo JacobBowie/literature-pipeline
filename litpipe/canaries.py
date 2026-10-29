@@ -188,6 +188,7 @@ ACTION_NONE = "none"
 _REFUSING_ACTIONS = (ACTION_REFUSED, ACTION_REFUSED_MANUAL)
 
 RECHECK_S = 60.0                 # wait before the one re-check of a 5xx, empty 2xx or transport failure
+BIOC_GAP_S = 5.0                 # pause before the BioC check, after efetch's NCBI request (_c_bioc)
 MAX_ROUNDS = 2                   # the check and its re-check
 TRANSPORT_RETRIES = hosts.RetryPolicy().transport_retries   # litpipe.net's, not overridable per call
 SUMMARY_LINES = 10
@@ -576,6 +577,9 @@ def _c_s3(p, rctx):
 
 def _c_bioc(p, rctx):
     import jats_to_text as J
+    # BioC follows canary:efetch (eutils.ncbi) by ~1.2 s on 429 and 200 nights alike; whether NCBI
+    # shares one limit across hosts is unproven, so a fixed gap removes that confound (2026-10-29).
+    _clock().sleep(BIOC_GAP_S)
     o = p.get(J.BIOC_JSON.format(pmcid=BIOC_AM, encoding="unicode"))
     v = _failed(o, "BioC")
     if v:

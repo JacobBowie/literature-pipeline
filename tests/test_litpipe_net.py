@@ -261,14 +261,40 @@ def test_bioc_waits_out_one_429_that_names_its_retry_after(net_env, mock_server)
     assert net_env.clock.sleeps == [65.0] and A not in net_env.state.refused
 
 
-@pytest.mark.parametrize("retry_after", [None, "", "0"])
-def test_bioc_429_without_a_usable_retry_after_is_still_final(net_env, mock_server, retry_after):
+def test_bioc_429_with_retry_after_zero_is_still_final(net_env, mock_server):
     clone("www.ncbi.nlm.nih.gov")
-    h = dict(_BIOC_HTML) if retry_after is None else {**_BIOC_HTML, "Retry-After": retry_after}
-    s = mock_server().script("/bioc", Reply(429, "<html></html>", headers=h))
+    s = mock_server().script("/bioc", Reply(429, "<html></html>", headers={**_BIOC_HTML, "Retry-After": "0"}))
     o = net.request("GET", s.url("/bioc"))
     assert o.kind is Kind.REFUSED and o.attempts == 1 and net_env.clock.sleeps == []
     assert net_env.state.refused[A][1] == "run"
+
+
+@pytest.mark.parametrize("retry_after", [None, ""])
+def test_bioc_bare_429_waits_a_fixed_65_s_once_then_succeeds(net_env, mock_server, retry_after):
+    """10-20 and 10-29: BioC's 429 carried an EMPTY Retry-After (the run's only www.ncbi request)."""
+    assert hosts.policy("www.ncbi.nlm.nih.gov").retry.bare_429_wait_s == 65.0
+    clone("www.ncbi.nlm.nih.gov")
+    h = dict(_BIOC_HTML) if retry_after is None else {**_BIOC_HTML, "Retry-After": retry_after}
+    s = mock_server().script("/bioc", Reply(429, "<html></html>", headers=h),
+                             Reply(200, '{"documents": []}', headers={"Content-Type": "application/json"}))
+    o = net.request("GET", s.url("/bioc"))
+    assert o.ok and o.status == 200 and o.attempts == 2
+    assert net_env.clock.sleeps == [65.0] and A not in net_env.state.refused
+
+
+@pytest.mark.parametrize("retry_after", [None, ""])
+def test_bioc_bare_429_then_a_second_429_is_final_and_refuses(net_env, mock_server, retry_after):
+    clone("www.ncbi.nlm.nih.gov")
+    h = dict(_BIOC_HTML) if retry_after is None else {**_BIOC_HTML, "Retry-After": retry_after}
+    r = Reply(429, "<html></html>", headers=h)
+    s = mock_server().script("/bioc", r, r)
+    o = net.request("GET", s.url("/bioc"))
+    assert o.kind is Kind.REFUSED and o.attempts == 2 and net_env.clock.sleeps == [65.0]
+    assert net_env.state.refused[A][1] == "run" and len(s.hits) == 2
+
+
+def test_only_bioc_takes_a_fixed_wait_on_a_bare_429():
+    assert [h for h, r in hosts.rows().items() if r.retry.bare_429_wait_s] == ["www.ncbi.nlm.nih.gov"]
 
 
 def test_bioc_second_429_is_final_and_refuses(net_env, mock_server):

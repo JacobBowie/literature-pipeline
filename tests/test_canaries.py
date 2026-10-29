@@ -242,6 +242,32 @@ def test_bioc_absent_inside_a_200_is_drift(env):
     assert env.state.refused == {}
 
 
+def _bioc_row_on_loopback():
+    import dataclasses
+    from litpipe import hosts
+    hosts.register(dataclasses.replace(hosts.policy("www.ncbi.nlm.nih.gov"), host="127.0.0.1", min_interval_s=0.0))
+
+
+def test_bioc_waits_its_gap_then_a_bare_429_retries_once_and_passes(env):
+    """10-29: BioC 429 with an empty Retry-After. The canary pauses BIOC_GAP_S after efetch, then the
+    www.ncbi row waits a fixed 65 s once and the retry passes."""
+    _bioc_row_on_loopback()
+    env.srv.script(P["bioc"], Reply(429, b"<html></html>", {"Content-Type": "text/html", "Retry-After": ""}),
+                   Reply(200, fx("bioc_am_PMC7983342.json"), JSON))
+    o = env.one("bioc")
+    assert status(o) == canaries.PASS and o.attempts == 2
+    assert env.clock.sleeps[:2] == [canaries.BIOC_GAP_S, 65.0] and env.state.refused == {}
+
+
+def test_bioc_bare_429_then_a_second_429_is_still_an_alarm(env):
+    _bioc_row_on_loopback()
+    r = Reply(429, b"<html></html>", {"Content-Type": "text/html", "Retry-After": ""})
+    env.srv.script(P["bioc"], r, r)
+    o = env.one("bioc")
+    assert status(o) == canaries.ALARM and o.payload["action"] == canaries.ACTION_REFUSED
+    assert len(env.hits(P["bioc"])) == 2 and "127.0.0.1" in env.state.refused
+
+
 def test_biorxiv_empty_200_twice_refuses_the_host(env):
     env.srv.script(P["details"], Reply(200, b"", JSON))     # the 09-24 outage: 200, Content-Length 0
     o = env.one("biorxiv")
