@@ -160,6 +160,37 @@ def test_unpaywall_403_share(tmp_path, n403, nok, refused, alarm):
     assert o.payload["status"] == (canaries.ALARM if alarm else canaries.PASS), o.payload
 
 
+_QUEUE_FIELDS = ["doi", "residual_class", "reason", "attempts"]
+
+
+def test_unpaywall_403_skips_known_oa_blocked_retry_rows(tmp_path):
+    """2026-10-26/29: the same 8 retry_later OA_BLOCKED rows re-hit their 403s every retry night
+    (11/22). Rows the input queue already classed OA_BLOCKED do not count; fresh rows still do."""
+    pr = Proj(tmp_path)
+    rows = _upw_rows(12, 13)
+    pr.report("unpaywall", upw_fields(), rows, tag="retry")
+    blocked = [{"doi": r["doi"], "residual_class": "OA_BLOCKED", "reason": "unpaywall: HTTP_403", "attempts": 6}
+               for r in rows if r["attempts"].endswith("HTTP_403")]
+    pr.report("processed", _QUEUE_FIELDS, blocked, tag="retry")
+    o = one(pr.run(), "unpaywall_403")
+    assert o.payload["status"] == canaries.PASS, o.payload
+    assert "12 known OA_BLOCKED retry rows not counted" in o.payload["observed"]
+
+
+def test_unpaywall_403_fresh_block_still_alarms_beside_known_rows(tmp_path):
+    """Control: known OA_BLOCKED rows are dropped, but a real block on fresh rows still alarms."""
+    pr = Proj(tmp_path)
+    rows = _upw_rows(12, 13)
+    known = [{"doi": f"10.1000/k{i}", "oa_status": "OA", "attempts": "publisher/publishedVersion/HTTP_403",
+              "downloaded": False} for i in range(30)]
+    pr.report("unpaywall", upw_fields(), rows + known, tag="retry")
+    pr.report("processed", _QUEUE_FIELDS,
+              [{"doi": r["doi"], "residual_class": "OA_BLOCKED"} for r in known]
+              + [{"doi": r["doi"], "residual_class": "TRANSIENT"} for r in rows], tag="retry")
+    o = one(pr.run(), "unpaywall_403")
+    assert o.payload["status"] == canaries.ALARM and "12/25" in o.payload["observed"], o.payload
+
+
 @pytest.mark.parametrize("n,dl,alarm", [(10, 5, True), (10, 6, False), (9, 0, False)])
 def test_mdpi_bmc_share(tmp_path, n, dl, alarm):
     pr = Proj(tmp_path)

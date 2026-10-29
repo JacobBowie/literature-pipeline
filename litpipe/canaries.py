@@ -125,7 +125,8 @@ Local checks (0 requests, read only; never a library, queue or portfolio.duckdb 
   unpaywall_403    HTTP_403 share of the OA download attempts sent (the report's `attempts` tokens;
                    HOST_REFUSED, PROHIBITED and DEFERRED were not sent): ALARM above 0.45 with at
                    least UNPAYWALL_MIN_ATTEMPTS (20) attempts (the plan sets no minimum; 20 matches
-                   the PMC and per-host rules).
+                   the PMC and per-host rules). Rows the run's processed queue already classed
+                   OA_BLOCKED (retry_later re-sweeps) are not counted; the observed text says how many.
   yield_mdpi_bmc   downloaded share of the OA rows under 10.3390/ (MDPI) and 10.1186/ (BMC): ALARM
                    below 0.60 with at least MDPI_BMC_MIN_ROWS (10) rows (the minimum chosen here:
                    both publishers are fully OA, so 10 rows already make a share below 0.60 a
@@ -1004,6 +1005,17 @@ def _yield_checks(lc):
                                    observed="no Unpaywall report for this run"))
             else:
                 rows = urows
+                # Rows the run's input queue already classed OA_BLOCKED (retry_later re-sweeps) are
+                # known walls: re-hitting them each retry night is not a new Unpaywall block. Fresh rows
+                # still count, so a real block still alarms. No processed queue -> nothing is excluded.
+                try:
+                    prior = {str(r.get("doi") or "").strip().lower()
+                             for r in _read_rows(reports.get("processed", []))
+                             if str(r.get("residual_class") or "").strip().upper() == "OA_BLOCKED"}
+                except _Unreadable:
+                    prior = set()
+                known = sum(1 for r in rows if str(r.get("doi") or "").strip().lower() in prior)
+                rows = [r for r in rows if str(r.get("doi") or "").strip().lower() not in prior]
                 sent = n403 = 0
                 for r in rows:
                     for tok in str(r.get("attempts") or "").split(" | "):
@@ -1021,7 +1033,8 @@ def _yield_checks(lc):
                                target=pr.target(),
                                observed=f"Unpaywall HTTP_403 {n403}/{sent} OA download attempts ({share:.2f})"
                                         + ("" if sent >= UNPAYWALL_MIN_ATTEMPTS
-                                           else f"; under {UNPAYWALL_MIN_ATTEMPTS} attempts, no ceiling")))
+                                           else f"; under {UNPAYWALL_MIN_ATTEMPTS} attempts, no ceiling")
+                                        + (f"; {known} known OA_BLOCKED retry rows not counted" if known else "")))
                 mb = [r for r in rows if str(r.get("doi") or "").strip().lower().startswith(MDPI_BMC_PREFIXES)
                       and str(r.get("oa_status") or "").strip().upper() == "OA"]
                 dl = sum(1 for r in mb if _truthy(r.get("downloaded")))
