@@ -258,8 +258,7 @@ def normalize_queue_for_pipeline(queue_csv, out_csv):
     """The unpaywall_fetch_v2 script expects a `citation_count` column.
     Rewrite the queue to add it (defaulting to 0) and pass through the rest."""
     fields, rows = read_queue(queue_csv)
-    if "citation_count" not in fields:
-        fields.append("citation_count")
+    fields = _union(fields, QUEUE_COLUMNS, ["citation_count"])   # a missing column is a blank one
     for r in rows:
         if not (r.get("citation_count") or "").strip():
             r["citation_count"] = "0"
@@ -539,8 +538,10 @@ def prepare_rows(norm_csv, lib_dir, holdings=None):
     then NO_METADATA; decided where attempts are known), apart from a genuine not-found ("metadata
     not found", NO_METADATA at once). Returns (fields, to_fetch, settled, meta_counts)."""
     fields, rows = read_queue(norm_csv)
-    if "citation_count" not in fields:
-        fields.append("citation_count")
+    # A queue with only doi,destination (README "The queue") gets the same fill as a blank title:
+    # without the columns in the header, the filled title/authors/year were dropped on this rewrite,
+    # and every stage named the file Unknown_..._Untitled (2026-10-30).
+    fields = _union(fields, QUEUE_COLUMNS, ["citation_count"])
     meta = Counter()
     slots = []      # [row, ("fetch",) | ("settled", class, reason, held) | ("retry",)] in queue order
     for r in rows:
