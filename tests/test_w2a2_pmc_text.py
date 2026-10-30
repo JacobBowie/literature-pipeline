@@ -195,13 +195,14 @@ def test_bioc_absent_is_a_200_html_page(env, monkeypatch):
     assert J.fetch_bioc_outcome("PMC8029826").kind is Kind.NOT_AVAILABLE
 
 
-def test_bioc_429_is_not_retried_and_refuses_the_host(env, monkeypatch):
-    """Probe 2026-09-30: a third request 0.65 s after the second got 429 (HTML, empty Retry-After)."""
+def test_bioc_bare_429_waits_once_then_a_second_429_refuses_the_host(env, monkeypatch):
+    """Probe 2026-09-30: a third request 0.65 s after the second got 429 (HTML, empty Retry-After).
+    Since 2026-10-29 an empty Retry-After gets one fixed 65 s wait; a second 429 is final."""
     sent = stub(monkeypatch, (429, (FIX / "bioc_429.html").read_bytes(), {"Content-Type": "text/html", "Retry-After": ""}))
     data, status = J.fetch_bioc("PMC11592912")
-    assert data is None and status == "HTTP_429" and len(sent) == 1
+    assert data is None and status == "HTTP_429" and len(sent) == 2
     assert env.state.is_refused("www.ncbi.nlm.nih.gov")
-    assert J.fetch_bioc("PMC1")[1].startswith("REFUSED") and len(sent) == 1   # nothing more sent
+    assert J.fetch_bioc("PMC1")[1].startswith("REFUSED") and len(sent) == 2   # nothing more sent
     assert 429 not in hosts.policy("www.ncbi.nlm.nih.gov").retry.statuses    # the row itself never retries a 429 (W2a integration)
 
 
