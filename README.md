@@ -13,7 +13,7 @@ prohibits. Every request identifies itself with your contact address, is paced p
 logged.
 
 Contents: [What it does](#what-it-does) | [Install](#install) | [Environment](#environment) |
-[Quickstart](#quickstart) | [The registry](#the-registry-projectsjson) | [Sweep](#sweep-the-fetch-run) |
+[Quickstart](#quickstart) | [Single project, no runner](#single-project-no-runner) | [The registry](#the-registry-projectsjson) | [Sweep](#sweep-the-fetch-run) |
 [Library files](#what-lands-in-a-library) | [Walks and the index](#walks-and-the-index) |
 [The runner](#the-runner) | [Worklists, pools and the gate](#worklists-pools-and-the-gate) |
 [Manual acquisition](#manual-acquisition-tools) | [Text, OCR, tables, figures](#text-ocr-tables-and-figures) |
@@ -145,6 +145,50 @@ The PDF lands in `~/litpipe-projects/my-review/literature/` as `<year>_<Lastname
 with a `.fulltext.json` sidecar and a `.ris` beside it. The queue is renamed to
 `lit_pull_queue.<run_id>.processed.csv`, and the run's report and residual CSVs sit next to it in
 the project root.
+
+## Single project, no runner
+
+This is the smallest useful setup: one folder of papers, a list of DOIs, no schedule. Most of
+this README is about the portfolio (many projects, an index, a nightly runner); none of it is
+needed to fetch the open-access PDFs for a DOI list.
+
+You need four things: `uv sync`, `LITPIPE_EMAIL`, a `projects.json` with one project, and a
+`lit_pull_queue.csv` in that project's folder. The [Quickstart](#quickstart) shows each file in
+full. Here `root` is the folder that holds your project, so `"root": "~/papers"` and the key
+`thesis` mean the project lives at `~/papers/thesis`:
+
+```json
+{"root": "~/papers", "projects": {"thesis": {"lib_dir": "literature"}}}
+```
+
+Create `~/papers/thesis/literature/` and put the queue at `~/papers/thesis/lit_pull_queue.csv`.
+Keep the full header and leave title, authors and year blank; sweep fills them from Crossref and
+names the file from them. Then run one command:
+
+```csv
+doi,title,authors,year,destination,notes
+10.1371/journal.pmed.1003845,,,,literature/,
+```
+
+```bash
+uv run python sweep.py --project thesis
+```
+
+PDFs, `.fulltext.json` sidecars and `.ris` files land in `~/papers/thesis/literature/`. The
+`lit_pull_queue.<run_id>.residual.csv` beside the queue lists every DOI that was not fetched and
+why (see [residual classes](#residual-classes-and-routing)). To fetch more, write a new
+`lit_pull_queue.csv` and run the same command; DOIs already in the library are skipped.
+
+What you can ignore:
+
+* [The runner](#the-runner): only for unattended, scheduled runs.
+* [Walks and the index](#walks-and-the-index): `index_portfolio.py`, `portfolio.duckdb`, forward and backward walks and `snowball.py` suggest papers; you already have your list.
+* [Worklists and pools](#worklists-pools-and-the-gate): `--migrate` and the route step turn residual rows into retry and to-do lists. The residual CSV is enough to read by hand.
+* [The gate](#the-gate): it reviews runner-drafted queues; you write yours.
+* [Manual acquisition](#manual-acquisition-tools), EZproxy and ILL: only for institutional library access (see [Platforms and scope](#platforms-and-scope)).
+
+Move to the full setup when you have several projects that should share one index, when you want
+the pipeline to suggest candidates from the citation graph, or when you want it to run unattended.
 
 ## The registry (`projects.json`)
 
