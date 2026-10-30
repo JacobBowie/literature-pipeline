@@ -957,11 +957,15 @@ def _not_before(r, today):
     return max([nb, *given]).isoformat()
 
 
-def upsert_retry_later(project_root, rows, today, dry_run=False):
+def upsert_retry_later(project_root, rows, today, dry_run=False, drop=()):
     """Append new DOIs and update existing ones in place (dedup by normalised DOI). Rows already in
     the file for other DOIs are kept unchanged and in order, with any extra columns. Carries
-    `attempts` and `not_before`. Returns {"appended": n, "updated": m}."""
+    `attempts` and `not_before`. `drop`: rows whose DOIs leave the file (the OA_BLOCKED retry cap).
+    Returns {"appended": n, "updated": m, "dropped": k}."""
     fields, existing = read_retry_later(project_root)
+    gone = {r["doi_norm"] for r in drop}
+    kept = [e for e in existing if _key(e.get("doi")) not in gone]
+    dropped, existing = len(existing) - len(kept), kept
     fields = RETRY_FIELDS + [f for f in fields if f not in RETRY_FIELDS]
     index = {}
     for i, e in enumerate(existing):
@@ -990,11 +994,11 @@ def upsert_retry_later(project_root, rows, today, dry_run=False):
             for k in ("title", "authors", "year", "destination", "notes"):
                 rec[k] = rec[k] or old.get(k, "")
             existing[i] = {**old, **rec}
-    if not dry_run and rows:
+    if not dry_run and (rows or dropped):
         lit_util.atomic_write_csv(str(Path(project_root) / RETRY_LATER_NAME),
                                   [{k: redact(v) for k, v in e.items() if k in fields} for e in existing],
                                   fields)
-    return {"appended": appended, "updated": len(rows) - appended}
+    return {"appended": appended, "updated": len(rows) - appended, "dropped": dropped}
 
 
 def _prior_attempts(retry_rows):
@@ -1059,6 +1063,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
             art_dir = Path(config.artifact_dir(project, cfg=cfg))
         else:
             art_dir = project_root                         # unset: the project root, exactly as before
+        cap = config.oa_blocked_max_attempts(project, cfg=cfg)
     except config.ConfigError as e:
         print(f"[ERR] {project}: {e}", file=sys.stderr)
         return {**res, "status": "config", "error": str(e)}
@@ -1180,10 +1185,19 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
         if _append_md(md_path, project, blocks, dry_run):
             written[name] = n
 
-    retry = [r for r in rows if r["residual_class"] in (TRANSIENT, OA_BLOCKED)]
-    if retry:
-        up = upsert_retry_later(project_root, retry, today, dry_run=dry_run)
-        written[RETRY_LATER_NAME] = f"{up['appended']} appended, {up['updated']} updated"
+    # An OA_BLOCKED row stops retrying after oa_blocked_max_attempts sweeps (the same 8 FRED rows
+    # re-ran every third night from 10-23 on): it stays on the browser worklist, leaves retry_later.
+    for r in rows:
+        if r["residual_class"] == OA_BLOCKED and lit_util.coerce_int(r.get("attempts")) >= cap:
+            r["retry_capped"] = True
+            r["reason"] = f"{r.get('reason', '')}; retry cap {cap} reached, browser worklist only".lstrip("; ")
+    res["oa_blocked_capped"] = sum(1 for r in rows if r.get("retry_capped"))
+    retry = [r for r in rows if r["residual_class"] in (TRANSIENT, OA_BLOCKED) and not r.get("retry_capped")]
+    drop = [r for r in rows if r.get("retry_capped")]
+    if retry or drop:
+        up = upsert_retry_later(project_root, retry, today, dry_run=dry_run, drop=drop)
+        written[RETRY_LATER_NAME] = (f"{up['appended']} appended, {up['updated']} updated"
+                                     + (f", {up['dropped']} dropped at the retry cap" if up["dropped"] else ""))
 
     for tag, rs in by_chain.items():
         if not rs:
@@ -1192,7 +1206,9 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
         path = artifact_path(art_dir, run_id, "routing", tag)
         out = [{
             "doi": r["doi"], "title": r.get("title", ""), "year": r.get("year", ""),
-            "residual_class": r["residual_class"], "route": ROUTE_OF.get(r["residual_class"], "none (unknown class)"),
+            "residual_class": r["residual_class"],
+            "route": "oa_blocked (retry cap)" if r.get("retry_capped")
+                     else ROUTE_OF.get(r["residual_class"], "none (unknown class)"),
             "reason": r.get("reason", ""), "held_paths": " | ".join(r.get("held_paths") or ()),
             "not_before": r.get("not_before", ""), "attempts": r.get("attempts", ""),
             "stage_unpaywall": r.get("stage_unpaywall", ""), "stage_pmc": r.get("stage_pmc", ""),
