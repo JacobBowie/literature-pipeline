@@ -357,3 +357,24 @@ def test_an_explicit_db_is_the_only_db_opened(tmp_path, monkeypatch):
     monkeypatch.setattr(ea, "crossref_abstract", fake({"10.1/x": ""}))
     ea.run(db=db)
     assert opened == [db]
+
+
+def test_time_budget_stops_cleanly_and_reports_what_is_left(tmp_path, monkeypatch):
+    """2026-10-23: a 213k backlog ran into the runner's 3 h timeout and was killed (exit 2). A spent
+    budget now ends the run between DOIs, commits, and says how many DOIs remain."""
+    db = make_db(tmp_path, [(f"10.1/{i}", None) for i in range(5)])
+    monkeypatch.setattr(ea, "crossref_abstract", fake({f"10.1/{i}": f"text {i}" for i in range(5)}))
+    clock = iter([0.0, 0.0, 1.0, 2.0, 99.0, 99.0, 99.0])     # t0, then one reading per DOI
+    monkeypatch.setattr(ea.time, "monotonic", lambda: next(clock))
+    res = ea.run(db=db, max_seconds=50)
+    assert res["budget_reached"] and not res["stopped_early"]
+    assert (res["attempted"], res["remaining"]) == (3, 2)
+    got = dict(read(db, "SELECT doi, abstract FROM paper_metadata"))
+    assert [got[f"10.1/{i}"] for i in range(5)] == ["text 0", "text 1", "text 2", None, None]
+
+
+def test_no_budget_runs_the_whole_list(tmp_path, monkeypatch):
+    db = make_db(tmp_path, [(f"10.1/{i}", None) for i in range(3)])
+    monkeypatch.setattr(ea, "crossref_abstract", fake({f"10.1/{i}": f"text {i}" for i in range(3)}))
+    res = ea.run(db=db)
+    assert not res["budget_reached"] and res["remaining"] == 0 and res["attempted"] == 3

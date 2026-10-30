@@ -371,6 +371,18 @@ def test_db_jobs_are_skipped_by_default_with_their_commands(w):
     assert s["canaries"]["checks"][0]["status"] == "ALARM"          # the canary report itself unchanged
 
 
+def test_abstracts_gets_a_time_budget_inside_its_timeout_and_a_limit(w):
+    """2026-10-23: a 3 h timeout killed a backlog run (exit 2). The runner hands enrich_abstracts a
+    budget that ends before the timeout, plus a target cap as a backstop."""
+    w.register("research_a")
+    runner.main(["run", "--profile", "weekly", "--db-writes", "--timeout", "abstracts=3600"])
+    (call,) = w.calls("abstracts")
+    assert call["limit"] == runner.ABSTRACTS_LIMIT
+    assert call["max_seconds"] == 3600 - 360                      # min(600 s, a tenth of the timeout)
+    j = [x for x in summary(w)["jobs"] if x["job"] == "abstracts"][0]
+    assert j["status"] == runner.OK
+
+
 def test_any_other_alarm_makes_exit_2(w):
     w.register("research_a")
     w.local_outs = [alarm("index_freshness", "research_a"), alarm("markup", "research_a", "1 file")]

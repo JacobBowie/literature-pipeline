@@ -3,7 +3,7 @@ import w4a_fake_common as common
 
 
 def run(db=None, **kw):
-    common.log("abstracts", db=db)
+    common.log("abstracts", db=db, **kw)
     s = common.spec("abstracts")
     common.behave(s)
     res = {"db": db, "targets": 3, "attempted": 3, "hits": 2, "misses": 1, "errors_permanent": 0,

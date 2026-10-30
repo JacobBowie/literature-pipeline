@@ -239,9 +239,11 @@ class _Writer:
 
 # ------------------------------------------------------------------------------ the stage
 def run(*, db=None, limit=0, sleep=0.0, only_papers=False, retry_after_days=30,
-        commit_every=COMMIT_EVERY) -> dict:
+        commit_every=COMMIT_EVERY, max_seconds=0.0) -> dict:
     """Fetch abstracts for the DOIs missing one. Returns the counts; `interrupted` and
-    `stopped_early` say whether the target list was finished."""
+    `stopped_early` say whether the target list was finished. `max_seconds` (0 = none) is a time
+    budget: once spent, the run stops between DOIs with `budget_reached` and `remaining` set, so a
+    backlog larger than one run ends cleanly instead of being killed by the runner's timeout."""
     db = db or default_db()
     con = lit_util.connect_db(db, on_fail="exit", tries=5, delays=(3,))  # c9: shared RC10 open
     # Self-healing migration: the attempt-state column and table may not exist on an older DB.
@@ -277,10 +279,16 @@ def run(*, db=None, limit=0, sleep=0.0, only_papers=False, retry_after_days=30,
     w = _Writer(con, commit_every)
     n_hit = n_miss = n_perm = n_trans = 0
     done = 0
-    interrupted = stopped = False
+    interrupted = stopped = budget_reached = False
     stop_reason = ""
+    t0 = time.monotonic()
     try:
         for i, doi in enumerate(targets, 1):
+            if max_seconds and time.monotonic() - t0 >= max_seconds:
+                budget_reached = True
+                print(f"  [budget] {max_seconds:.0f} s spent; {len(targets) - done} DOIs left for the next run",
+                      file=sys.stderr)
+                break
             try:
                 abs_text = crossref_abstract(doi)
             except CrossRefError as e:
@@ -337,12 +345,15 @@ def run(*, db=None, limit=0, sleep=0.0, only_papers=False, retry_after_days=30,
     print(f"  commits:    {w.commits} (rows written {w.written}, failed {len(w.failed)})")
     if stopped:
         print(f"  STOPPED EARLY: {stop_reason}")
+    if budget_reached:
+        print(f"  TIME BUDGET REACHED: {len(targets) - done} DOIs left for the next run")
     if interrupted:
         print("  INTERRUPTED: buffered rows were committed")
     return {"db": db, "targets": len(targets), "attempted": done, "hits": n_hit, "misses": n_miss,
             "errors_permanent": n_perm, "errors_transient": n_trans, "commits": w.commits,
             "rows_written": w.written, "write_failures": list(w.failed), "interrupted": interrupted,
-            "stopped_early": stopped, "stop_reason": stop_reason}
+            "stopped_early": stopped, "stop_reason": stop_reason,
+            "budget_reached": budget_reached, "remaining": len(targets) - done}
 
 
 def main(argv=None) -> int:
@@ -363,9 +374,13 @@ def main(argv=None) -> int:
     ap.add_argument("--commit-every", type=int, default=COMMIT_EVERY,
                     help=f"Rows per DB transaction (default {COMMIT_EVERY}); buffered rows are also "
                          "committed at the end and on Ctrl-C.")
+    ap.add_argument("--max-seconds", type=float, default=0.0,
+                    help="Time budget: stop cleanly between DOIs once spent, leaving the rest for the "
+                         "next run (0 = none).")
     args = ap.parse_args(argv)
     res = run(db=args.db, limit=args.limit, sleep=args.sleep, only_papers=args.only_papers,
-              retry_after_days=args.retry_after_days, commit_every=args.commit_every)
+              retry_after_days=args.retry_after_days, commit_every=args.commit_every,
+              max_seconds=args.max_seconds)
     if res["interrupted"]:
         return 130
     return 1 if res["stopped_early"] or res["write_failures"] else 0

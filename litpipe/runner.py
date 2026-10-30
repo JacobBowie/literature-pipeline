@@ -158,7 +158,9 @@ SKIPPED, ABORTED (and DEFERRED, set by the runner before a walk).
   reverse   reverse_citations               exit convention (as walk)                          network_walks, ...
   index     index_portfolio                 exit convention (0 OK, 1 FAILED, 2 DEGRADED)        indexed, skipped
   abstracts enrich_abstracts                interrupted ABORTED; write_failures FAILED;        targets, attempted,
-                                            stopped_early DEGRADED (stop_reason); else OK      hits, misses
+                                            stopped_early DEGRADED (stop_reason); time budget  hits, misses,
+                                            reached OK with counts, FAILED if none attempted;  remaining
+                                            else OK
   recommendations enrich_recommendations    status off / no_key SKIPPED; else the exit         asked, ok, failed
                                             convention (130 ABORTED)
   audit     audit_portfolio                 exit_code 0 OK; 1 DEGRADED "FAIL items";           summary
@@ -296,6 +298,12 @@ ORPHAN_CHECK = os.name != "nt"  # POSIX: a SIGKILLed runner can leave a stage's 
 TIMEOUTS = {"sweep": 4 * 3600, "walk": 6 * 3600, "reverse": 6 * 3600, "index": 3600,
             "abstracts": 3 * 3600, "recommendations": 3 * 3600}
 DEFAULT_TIMEOUT_S = 1800
+# enrich_abstracts stops itself on a time budget inside its timeout, so a backlog larger than one run
+# (2026-10-23: 213,609 DOIs, ~24.6k per 3 h) ends with its counts instead of a timeout kill and exit 2.
+# The budget leaves min(10 min, a tenth of the timeout) for the final commit; ABSTRACTS_LIMIT caps the
+# targets as a backstop should the budget misfire. Later runs resume (attempt-state stamping).
+ABSTRACTS_BUDGET_MARGIN_S = 600
+ABSTRACTS_LIMIT = 25000
 DB_JOBS = frozenset({"index", "abstracts", "recommendations"})
 
 # Test seams: a fake clock for the scheduling logic (escalation, walk cadence, stamps) and a hook
@@ -577,6 +585,12 @@ def _c_abstracts(res, _project=None):
         return FAILED, f"{len(wf)} write failure(s)", 1
     if res.get("stopped_early"):
         return DEGRADED, f"stopped early: {res.get('stop_reason') or 'host out for the run'}", 1
+    if res.get("budget_reached"):
+        done = int(res.get("attempted") or 0)
+        if not done:
+            return FAILED, "time budget reached with no DOI attempted", 1
+        return OK, (f"time budget reached: {done} of {res.get('targets')} attempted, "
+                    f"{res.get('remaining')} left for the next run"), 0
     return OK, "", 0
 
 
@@ -645,7 +659,7 @@ KEPT = {
                 "published"),
     "index": ("indexed", "skipped", "unreadable", "transport_failures"),
     "abstracts": ("targets", "attempted", "hits", "misses", "errors_permanent", "errors_transient",
-                  "rows_written", "stop_reason"),
+                  "rows_written", "stop_reason", "budget_reached", "remaining"),
     "recommendations": ("status", "asked", "ok", "not_found", "failed", "transport_failures", "feed_rows"),
     "audit": ("summary",),
     "extract": ("counts",),
@@ -2309,7 +2323,9 @@ class _ScheduledRun(_Run):
             self.skipped_db.append({"project": None, "job": "abstracts", "command": cmd})
             self._job(None, "abstracts", SKIPPED, "DB writes off", command_=cmd, counts_for_exit=False)
         else:
-            self._launch("abstracts", None, {"db": str(self.db_path)})
+            t = float(self.timeouts.get("abstracts", DEFAULT_TIMEOUT_S))
+            self._launch("abstracts", None, {"db": str(self.db_path), "limit": ABSTRACTS_LIMIT,
+                                             "max_seconds": t - min(ABSTRACTS_BUDGET_MARGIN_S, t / 10)})
         cmd = command("enrich_recommendations.py", "--recent-feed", "--db", self.db_path)
         if not monthly:
             self._job(None, "recommendations", SKIPPED, f"monthly job (profile {self.effective})", counts_for_exit=False)

@@ -84,6 +84,13 @@ SWEEP_RES = lambda code, retired=(True,), refused=(): {  # noqa: E731
     ("abstracts", {"interrupted": False, "stopped_early": False, "write_failures": ["10.1/x"]}, (runner.FAILED, 1)),
     ("abstracts", {"interrupted": False, "stopped_early": True, "write_failures": ["10.1/x"]}, (runner.FAILED, 1)),
     ("abstracts", {"interrupted": False, "stopped_early": False, "write_failures": []}, (runner.OK, 0)),
+    # a spent time budget with progress is a clean partial run; with none attempted it is a failure
+    ("abstracts", {"interrupted": False, "stopped_early": False, "write_failures": [], "budget_reached": True,
+                   "attempted": 24650, "targets": 25000, "remaining": 350}, (runner.OK, 0)),
+    ("abstracts", {"interrupted": False, "stopped_early": False, "write_failures": [], "budget_reached": True,
+                   "attempted": 0, "targets": 25000, "remaining": 25000}, (runner.FAILED, 1)),
+    ("abstracts", {"interrupted": False, "stopped_early": True, "write_failures": [], "stop_reason": "403",
+                   "budget_reached": False, "attempted": 5}, (runner.DEGRADED, 1)),
     ("extract", {"exit": 0}, (runner.OK, 0)),
     ("extract", {"exit": 1}, (runner.FAILED, 1)),
     ("extract", {"exit": 2, "reasons": ["OCR failed on 1 PDF(s)"]}, (runner.DEGRADED, 2)),
