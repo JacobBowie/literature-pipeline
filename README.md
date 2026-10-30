@@ -162,12 +162,12 @@ full. Here `root` is the folder that holds your project, so `"root": "~/papers"`
 ```
 
 Create `~/papers/thesis/literature/` and put the queue at `~/papers/thesis/lit_pull_queue.csv`.
-Keep the full header and leave title, authors and year blank; sweep fills them from Crossref and
-names the file from them. Then run one command:
+Only `doi` and `destination` are needed; sweep fills title, authors and year from Crossref (or
+DataCite) and names the file from them. Then run one command:
 
 ```csv
-doi,title,authors,year,destination,notes
-10.1371/journal.pmed.1003845,,,,literature/,
+doi,destination
+10.1371/journal.pmed.1003845,literature/
 ```
 
 ```bash
@@ -250,7 +250,7 @@ library (`--allow-destination` overrides), and `--dry-run` prints the resolved f
 The queue's columns are `doi,title,authors,year,destination,notes`. `doi` and `destination` are
 required; `destination` is the library folder relative to the project folder and must be the
 registry library; title, authors and year name the file (`<year>_<Lastname>_<TitleWords>.pdf`) and
-are filled from Crossref or DataCite when blank. Lines starting with `#` are ignored.
+are filled from Crossref or DataCite when blank or absent. Lines starting with `#` are ignored.
 `lit_pull_queue.template.csv` is an example.
 
 ### The stages and `sources`
