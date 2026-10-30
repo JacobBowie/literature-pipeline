@@ -130,6 +130,20 @@ def walk_cadence_days(project_key, cfg=None) -> int | None:
     return v
 
 
+OA_BLOCKED_MAX_ATTEMPTS = 3
+
+
+def oa_blocked_max_attempts(project_key, cfg=None) -> int:
+    """Sweeps after which an OA_BLOCKED row stops being retried automatically (route leaves it on
+    the browser worklist only). Per project, else top-level `oa_blocked_max_attempts`, else 3."""
+    entry = _project(project_key, cfg)
+    v = entry["oa_blocked_max_attempts"] if "oa_blocked_max_attempts" in entry \
+        else load(cfg).get("oa_blocked_max_attempts", OA_BLOCKED_MAX_ATTEMPTS)
+    if isinstance(v, bool) or not isinstance(v, int) or v <= 0:
+        raise ConfigError(f"oa_blocked_max_attempts ({project_key!r}) must be a positive integer, got {v!r}")
+    return v
+
+
 def _artifact_raw(value, where):
     if value is not None and (not isinstance(value, str) or not value.strip()):
         raise ConfigError(f"{where} must be a non-empty path string, got {value!r}")

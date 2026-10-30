@@ -182,6 +182,7 @@ Per-project keys (under `"projects": {"my-review": {...}}`):
 | `walk_cadence_days` | none | Walk forward citations unattended every N days (runner, daily profile and up). |
 | `ris_threshold` | 90 | `pipeline_check.py`'s minimum `.ris` coverage, in percent. |
 | `artifact_dir` | the global value | This project's artifact folder (absolute values are used as given). |
+| `oa_blocked_max_attempts` | the global value, else 3 | Sweeps after which an OA-blocked paper stops being retried automatically; it stays on the browser worklist. |
 | `parent` | none | Subprojects only: the containing project's key. |
 
 **Subprojects.** A key `parent/sub` with `"parent": "parent"` lives at `<root>/parent/sub`. Its
