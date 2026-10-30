@@ -100,3 +100,24 @@ def test_a_bad_cap_is_a_config_error(tmp_path, monkeypatch, bad):
 def test_default_cap_is_three(tmp_path, monkeypatch):
     cfg, _ = _world(tmp_path, monkeypatch)
     assert config.oa_blocked_max_attempts("P", cfg=cfg) == 3
+
+
+def test_rerouting_an_old_run_keeps_the_higher_retry_later_count_and_caps(tmp_path, monkeypatch):
+    """VAP 10-09 re-route (2026-10-30): the old residual says attempts 1, retry_later has since
+    reached 6. The re-route must not reset it to 1 (which also undid the cap)."""
+    cfg, proj = _world(tmp_path, monkeypatch)
+    with open(proj / mig.RETRY_LATER_NAME, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=mig.RETRY_FIELDS)
+        w.writeheader()
+        w.writerow({"doi": "10.1000/mayo", "residual_class": "OA_BLOCKED", "attempts": "6",
+                    "not_before": "2026-10-31", "last_run": "2026-10-28:retry"})
+        w.writerow({"doi": "10.1000/t", "residual_class": "TRANSIENT", "attempts": "2",
+                    "not_before": "2026-10-31", "last_run": "2026-10-28:retry"})
+    _residual(proj, [("10.1000/mayo", mig.OA_BLOCKED, 1), ("10.1000/t", mig.TRANSIENT, 1),
+                     ("10.1000/new", mig.OA_BLOCKED, 1)])
+    res = _route(cfg)
+    assert res["oa_blocked_capped"] == 1
+    rows = {r["doi"]: r for r in csv.DictReader(open(proj / mig.RETRY_LATER_NAME, encoding="utf-8"))}
+    assert "10.1000/mayo" not in rows                         # 6 >= 3: capped, dropped
+    assert rows["10.1000/t"]["attempts"] == "2"               # never lowered
+    assert rows["10.1000/new"]["attempts"] == "1"             # no history: sweep's count stands

@@ -1124,6 +1124,15 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
     # A typed chain keeps sweep's class, but holdings move between the sweep and the routing: an old
     # run routed later (VAP 10-09, routed 10-26: 14 ILL + 5 browser rows already held) re-checks here.
     res["held_at_routing"] = sum(recheck_held(r, holdmap) for r in rows if r.get("tag") in typed_chains)
+    # A typed row's attempts are sweep's count at sweep time. Routing an old run later must not lower
+    # the count retry_later has since reached (VAP 10-09 re-route: 1 would overwrite 6 and undo the
+    # OA_BLOCKED retry cap), so the higher one wins. A current run's due rows already left retry_later.
+    history = _prior_attempts(read_retry_later(project_root)[1])
+    for r in rows:
+        if r.get("tag") in typed_chains:
+            n = max(lit_util.coerce_int(r.get("attempts")), history.get(r["doi_norm"], (0, ""))[0])
+            if n:
+                r["attempts"] = n
 
     legacy = [r for r in rows if r.get("tag") not in typed_chains]
     if legacy:
