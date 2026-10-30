@@ -606,6 +606,22 @@ def _reason(signals, limit=240):
     return "; ".join(bits)
 
 
+def recheck_held(row, holdmap) -> bool:
+    """classify_row's first rule on a typed row at routing time: a DOI held with a PDF now is
+    HELD_ELSEWHERE whatever class sweep gave it, so it never reaches the ILL list, the browser
+    worklist or retry_later. True when the row was relabelled."""
+    if holdmap is None or row.get("residual_class") == HELD_ELSEWHERE:
+        return False
+    pdfs = [h for h in holdmap.content(row["doi"]) if h.has_pdf]
+    if not pdfs:
+        return False
+    swept = row.get("residual_class") or "?"
+    row["held_paths"] = [str(h.path) for h in pdfs]
+    row["residual_class"] = HELD_ELSEWHERE
+    row["reason"] = f"held with a PDF: {pdfs[0].path} (at routing; swept as {swept})"
+    return True
+
+
 def classify_row(row, *, holdmap=None, own_libs=None, default_lib=None, sources=None, attempts=1):
     """Set row['residual_class'], ['reason'], ['held_paths'], ['attempts'] by the 0.5 table, first
     match wins, in sweep's order (W1-D1 `classify`). `own_libs`: normcased library paths that count
@@ -1093,6 +1109,17 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
             r.setdefault("run_id", run_id)
             r.setdefault("doi_norm", _key(r.get("doi")))
 
+    if holdmap is None and use_holdings:
+        try:
+            holdmap = holdings.build(registry=cfg, write_cache=not dry_run)
+        except Exception as e:  # noqa: BLE001 -- routing still works without the map; say so
+            print(f"[WARN] holdings map unavailable ({type(e).__name__}: {redact(e)}); "
+                  f"held papers may be routed as residuals", file=sys.stderr)
+            holdmap = None
+    # A typed chain keeps sweep's class, but holdings move between the sweep and the routing: an old
+    # run routed later (VAP 10-09, routed 10-26: 14 ILL + 5 browser rows already held) re-checks here.
+    res["held_at_routing"] = sum(recheck_held(r, holdmap) for r in rows if r.get("tag") in typed_chains)
+
     legacy = [r for r in rows if r.get("tag") not in typed_chains]
     if legacy:
         try:
@@ -1104,13 +1131,6 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
             sources -= PREPRINT_SOURCES
         default_lib = lit_util.lib_paths(project, pcfg)[1] if pcfg.get("lib_dir") else None
         own_libs = {_norm_lib(default_lib)} if default_lib is not None else set()
-        if holdmap is None and use_holdings:
-            try:
-                holdmap = holdings.build(registry=cfg, write_cache=not dry_run)
-            except Exception as e:  # noqa: BLE001 -- routing still works without the map; say so
-                print(f"[WARN] holdings map unavailable ({type(e).__name__}: {redact(e)}); "
-                      f"held papers may be routed as residuals", file=sys.stderr)
-                holdmap = None
         prior = _prior_attempts(read_retry_later(project_root)[1])
         for r in legacy:
             n_old, last_run = prior.get(r["doi_norm"], (0, ""))
