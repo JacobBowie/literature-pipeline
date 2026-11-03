@@ -224,8 +224,9 @@ def is_abstract_only_sidecar(d):
 
 def text_damage(s):
     """The damage kinds a string shows: a ligature (pdf_text_clean.LIGATURES), U+00A0, a character
-    reference (litpipe.text.unescape changes it) or a markup tag (litpipe.text.strip_tags changes
-    it). The `&` and `<` guards only skip strings the two functions would return unchanged."""
+    reference (litpipe.text.unescape changes it) or a markup tag (litpipe.text.has_markup: JATS,
+    HTML, MathML or SVG, not tag-shaped content such as <think> or <NA>). The `&` and `<` guards only
+    skip strings the two functions would pass."""
     if not s:
         return []
     out = []
@@ -235,7 +236,7 @@ def text_damage(s):
         out.append("nbsp")
     if "&" in s and _text.unescape(s) != s:
         out.append("entity")
-    if "<" in s and _text.strip_tags(s) != s:
+    if "<" in s and _text.has_markup(s):
         out.append("tag")
     return out
 

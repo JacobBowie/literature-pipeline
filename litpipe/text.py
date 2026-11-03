@@ -73,6 +73,17 @@ _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _BLOCK = frozenset({"p", "sec", "title", "list", "list-item", "li", "br", "div", "abstract",
                     "para", "td", "tr", "th", "table", "label", "caption", "disp-formula",
                     "fig", "table-wrap", "def-list", "boxed-text", "hr"})
+# Markup our sources really emit (JATS, HTML, MathML, SVG), for has_markup. A tag-shaped token outside
+# it is content: an LLM prompt token (<think>, <tool_call>, <API>) or an R value (<NA>, <Rle>).
+# 304 of 356 sidecar "tag damage" WARNs on 2026-10-21 were such tokens in FRED's LLM papers.
+_MARKUP = _BLOCK | frozenset({
+    "i", "b", "em", "strong", "u", "sub", "sup", "sc", "scp", "italic", "bold", "underline", "monospace",
+    "span", "a", "font", "small", "big", "tt", "code", "strike", "del", "ins", "img", "ul", "ol", "dl",
+    "dt", "dd", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "break", "inline-formula",
+    "ext-link", "xref", "uri", "email", "named-content", "styled-content", "overline", "roman", "sans-serif",
+    "svg", "g", "path", "math", "mi", "mo", "mn", "ms", "mtext", "mrow", "msub", "msup", "msubsup",
+    "mfrac", "msqrt", "mover", "munder", "mstyle", "mspace", "mtable", "mtr", "mtd"})
+_MARKUP_NS = frozenset({"jats", "mml", "xlink", "xhtml", "svg"})
 _REF = re.compile(r"&(#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);")
 _INVISIBLE = dict.fromkeys(map(ord, "­​⁠﻿"))  # soft hyphen, zero-width, BOM
 _SPACE_BEFORE = re.compile(r"\s+([,.;:!?)\]}])")
@@ -89,6 +100,25 @@ def strip_tags(s):
         local = m.group(2).rsplit(":", 1)[-1].lower()
         return " " if local in _BLOCK else ""
     return _TAG.sub(repl, s)
+
+
+def has_markup(s) -> bool:
+    """Does `s` carry real markup: a comment, a tag named in _MARKUP, or one in a markup namespace
+    (jats:, mml:, ...)? Narrower than `strip_tags(s) != s`, which also fires on tag-shaped content
+    such as <think> or <NA>; the damage checks (audit_portfolio.text_damage, the markup canary) use this."""
+    if not s:
+        return False
+    s = str(s)
+    if _COMMENT.search(s):
+        return True
+    for m in _TAG.finditer(s):
+        name = m.group(2).lower()
+        if ":" in name:
+            if name.split(":", 1)[0] in _MARKUP_NS:
+                return True
+        elif name in _MARKUP:
+            return True
+    return False
 
 
 def _ref(m):

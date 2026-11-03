@@ -1084,7 +1084,7 @@ _SIDECAR_FIELDS = ("title", "subtitle", "journal", "abstract", "authors")
 def _dirty(s) -> bool:
     from litpipe import text as _text
     s = str(s or "")
-    return bool(s) and (_text.strip_tags(s) != s or _text.unescape(s) != s)
+    return bool(s) and (_text.has_markup(s) or _text.unescape(s) != s)    # <think>, <NA>: content
 
 
 def _file_has_markup(p: Path) -> bool:
