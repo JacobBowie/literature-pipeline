@@ -239,7 +239,7 @@ def test_default_flags_make_zero_recommendation_calls(monkeypatch):
     run = Runner(monkeypatch, {"teaching_a": [100, 120]})
     snowball.run(project="teaching_a", step_runner=run)
     assert "enrich_recommendations" not in run.tools()
-    assert run.tools() == ["forward_citations", "reverse_citations", "index_portfolio", "enrich_abstracts"]
+    assert run.tools() == ["forward_citations", "reverse_citations", "index_portfolio"]
 
 
 def test_main_with_default_flags_makes_zero_recommendation_calls(monkeypatch):
@@ -260,7 +260,7 @@ def test_run_daily_flags_make_zero_recommendation_or_abstract_calls(monkeypatch)
 def test_with_recs_runs_once_after_every_project(monkeypatch):
     run = Runner(monkeypatch, {"teaching_a": [100, 120], "teaching_b": [50, 60]})
     monkeypatch.setattr(snowball, "run_step", run)
-    assert snowball.main(["--all", "--with-recs"]) == 0
+    assert snowball.main(["--all", "--with-recs", "--with-abstracts"]) == 0
     tools = run.tools()
     assert tools.count("enrich_recommendations") == 1 and tools.count("enrich_abstracts") == 1
     assert tools[-2:] == ["enrich_recommendations", "enrich_abstracts"]       # after both loops
@@ -277,13 +277,54 @@ def test_db_writers_get_the_db_path(monkeypatch):
     """Every DB step gets the run's DB (resolved once: a DB_PATH set by the caller, as here, wins over
     db_dir; tests/test_w5c2_snowball.py locks the db_dir and --db branches)."""
     run = Runner(monkeypatch, {"teaching_a": [100, 120]})
-    res = snowball.run(project="teaching_a", with_recs=True, step_runner=run)
+    res = snowball.run(project="teaching_a", with_recs=True, with_abstracts=True, step_runner=run)
     assert res["db"] == str(snowball.DB_PATH)
     writers = [cmd for _label, cmd in run.calls
                if Path(cmd[1]).stem in ("index_portfolio", "enrich_recommendations", "enrich_abstracts")]
     assert len(writers) == 3
     for cmd in writers:
         assert cmd[cmd.index("--db") + 1] == res["db"]
+
+
+# 2026-11-05: `snowball.py --project Tonal` ran an unbounded, portfolio-wide enrich_abstracts
+# (226,078 DOIs, ETA ~21 h) that held the DB write lock and broke the 11-06 nightly.
+def test_abstracts_are_off_by_default(monkeypatch):
+    run = Runner(monkeypatch, {"teaching_a": [100, 120]})
+    monkeypatch.setattr(snowball, "run_step", run)
+    assert snowball.main(["--project", "teaching_a"]) == 0
+    assert "enrich_abstracts" not in run.tools()
+
+
+def _abstracts_cmd(run):
+    [cmd] = [cmd for _label, cmd in run.calls if Path(cmd[1]).stem == "enrich_abstracts"]
+    return cmd
+
+
+def test_with_abstracts_gets_the_runners_limit_and_budget(monkeypatch):
+    from litpipe import runner
+    run = Runner(monkeypatch, {"teaching_a": [100, 120]})
+    monkeypatch.setattr(snowball, "run_step", run)
+    assert snowball.main(["--project", "teaching_a", "--with-abstracts"]) == 0
+    cmd = _abstracts_cmd(run)
+    t = runner.TIMEOUTS["abstracts"]
+    assert int(cmd[cmd.index("--limit") + 1]) == runner.ABSTRACTS_LIMIT
+    assert float(cmd[cmd.index("--max-seconds") + 1]) == t - min(runner.ABSTRACTS_BUDGET_MARGIN_S, t / 10)
+
+
+def test_with_abstracts_is_scoped_to_the_runs_projects(monkeypatch):
+    run = Runner(monkeypatch, {"teaching_a": [100, 120], "teaching_b": [50, 60]})
+    monkeypatch.setattr(snowball, "run_step", run)
+    assert snowball.main(["--all", "--with-abstracts"]) == 0
+    cmd = _abstracts_cmd(run)
+    scoped = [cmd[i + 1] for i, c in enumerate(cmd) if c == "--project"]
+    assert scoped == ["teaching_a", "teaching_b"]                         # research_off is inactive
+
+
+def test_skip_abstracts_wins_over_with_abstracts(monkeypatch):
+    run = Runner(monkeypatch, {"teaching_a": [100, 120]})
+    monkeypatch.setattr(snowball, "run_step", run)
+    assert snowball.main(["--project", "teaching_a", "--with-abstracts", "--skip-abstracts"]) == 0
+    assert "enrich_abstracts" not in run.tools()
 
 
 def test_main_without_a_project_or_a_registry_is_exit_1(monkeypatch, tmp_path):

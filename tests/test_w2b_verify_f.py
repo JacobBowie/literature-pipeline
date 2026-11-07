@@ -369,7 +369,7 @@ def test_snowball_reads_the_real_walkers_summary_and_logs_degraded(snow, capsys)
     rows = snowball.read_log()
     assert len(rows) == 1 and rows[0]["reason"].startswith("DEGRADED: forward_citations exit 3 (aborted: ")
     assert not any("enrich_recommendations" in " ".join(c) for c in cmds)   # 0 recommendation calls
-    assert sum("enrich_abstracts" in " ".join(c) for c in cmds) == 1        # once, after the loop
+    assert not any("enrich_abstracts" in " ".join(c) for c in cmds)       # off by default (11-05)
 
 
 def test_snowball_degrades_on_one_transport_failure_under_the_threshold(snow):
