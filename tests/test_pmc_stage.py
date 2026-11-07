@@ -689,3 +689,30 @@ def test_recovery_help_runs():
     r = subprocess.run([sys.executable, str(REPO / "backfills" / "pmc_recovery.py"), "--help"],
                        capture_output=True, text=True, timeout=120)
     assert r.returncode == 0 and "--stage" in r.stdout and "--sample-input" in r.stdout
+
+
+def test_a_pdf_that_replaces_a_flagged_file_replaces_its_identity_verdict(world, tmp_path):
+    """Cohen 2023 and Seron 2021 (11-04): Unpaywall's wrong file got a FLAG .identity.json, then
+    PMC wrote the right PDF over it and left the FLAG, so audit and pipeline_check counted a right
+    paper as flagged. The verdict on the artifact must describe the file that is there now."""
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    stem = "Author_0_2020_paper0"
+    (lib / f"{stem}.pdf").write_bytes(make_pdf("Terms of use of an unrelated repository"))
+    (lib / f"{stem}.identity.json").write_text(json.dumps(
+        {"queue_doi": OA_DOI, "pdf": f"{stem}.pdf", "source": "unpaywall", "identity": "FLAG",
+         "checked_at": "2026-11-04T13:45:00+00:00"}), encoding="utf-8")
+    _, rows, _ = run_stage(tmp_path, [OA_DOI], titles={OA_DOI: OA_TITLE})
+    r = rows[OA_DOI]
+    assert r["downloaded"] == "True" and r["filename"] == f"{stem}.pdf"
+    ids = json.loads((lib / f"{stem}.identity.json").read_text(encoding="utf-8"))
+    assert ids["identity"] == "OK" and ids["source"] == "pmc" and ids["queue_doi"] == OA_DOI
+    assert ids["replaces"]["source"] == "unpaywall" and ids["replaces"]["identity"] == "FLAG"
+    import audit_portfolio as AP
+    assert AP.scan_library(lib)["flags"] == []
+
+
+def test_a_new_pmc_pdf_writes_no_identity_sidecar(world, tmp_path):
+    """Only a stale one is replaced: PMC records its verdict in the text sidecar, as before."""
+    _, rows, lib = run_stage(tmp_path, [OA_DOI], titles={OA_DOI: OA_TITLE})
+    assert not (lib / (rows[OA_DOI]["filename"][:-4] + ".identity.json")).exists()

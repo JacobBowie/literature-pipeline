@@ -7,7 +7,13 @@ For every active project in projects.json it reports, per library (top level onl
     no `extracted_from_pdf: true`). A `.ris` whose stem has such a sidecar belongs to it.
   - identity flags, review items that are neither holdings nor orphans: `<stem>.identity.json`
     with identity FLAG or doc_kind SUPPLEMENT (unpaywall, preprint), and a `<stem>.fulltext.json`
-    with identity FLAG (pmc)
+    with identity FLAG (pmc); a flag is stale (WARN, still a review item) when its PDF is newer
+    than the `.identity.json` verdict or the text sidecar carries a passing verdict
+  - wrong content (WARN): a PDF that is a known non-article document (litpipe.boilerplate: its
+    bytes, or the opening of its sidecar text), and, across the audited libraries, identical PDF
+    bytes held under two or more different DOIs (one file holds another paper, a preprint filed
+    under the journal DOI, or a document served for many DOIs); only PDFs that share a size are
+    hashed
   - PDF integrity (every PDF: %PDF magic, under 10 KB) and sidecar integrity (parse, content)
   - sidecars waiting for OCR (`needs_ocr: true`, written empty by extract_pdf_fulltext's text
     validity gate): their own INFO line, the count and the first stems; not "empty" sidecars
@@ -55,6 +61,7 @@ from pathlib import Path
 
 import lit_util
 from lit_util import companion_path  # dot-safe sidecar naming
+from litpipe import boilerplate as _bp
 from litpipe import config as litconfig
 from litpipe import doi as _doi
 from litpipe import text as _text
@@ -73,6 +80,7 @@ TINY_PDF_BYTES = 10_000
 STALE_RUN_S = 6 * 3600         # T2 step 5: a live run older than this is named in a WARN
 INDEX_SLACK_S = 120            # a file this much newer than the index stamp makes the index stale
 TITLE_MIN_SIMILARITY = 0.6     # T2 step 6 (I28): fetched queue title against its .ris title
+STALE_FLAG_SLACK_S = 60        # item 3: a PDF this much newer than its FLAG verdict was replaced
 LIBRARY_SUFFIXES = (".pdf", ".ris", SIDECAR, IDENTITY)
 
 # T2 step 2: the lastname capture stops at the first "_" (it was `[\w\-]*`, and `\w` matches "_",
@@ -300,13 +308,13 @@ def scan_library(lib) -> dict:
         "n_pdfs": 0, "n_sidecars": 0, "n_ris": 0, "n_identity": 0,
         "pdf_names": [], "pdf_holdings": 0, "text_only": [], "text_only_with_ris": 0, "abstract_only": [],
         "flags": [], "fake_pdfs": [], "tiny_pdfs": [], "bad_sidecars": [], "empty_sidecars": [],
-        "needs_ocr": [],
+        "needs_ocr": [], "boilerplate": [], "stale_flags": [],
         "bad_identity": [], "orphan_sidecars": [], "orphan_ris": [], "orphan_identity": [],
         "pdfs_no_sidecar": [], "pdfs_no_ris": [],
         "damage": {"sidecar": {k: [] for k in DAMAGE_KINDS}, "ris": {k: [] for k in DAMAGE_KINDS}},
         "mismatch": {"dir": str(lib / "_mismatch"), "files": [], "pdfs": 0},
         "al_antipattern": [], "unknown_year": [], "upper_lastname_sample": [],
-        "newest_mtime": None, "_records": {},
+        "newest_mtime": None, "_records": {}, "_pdf_index": [],
     }
     try:
         entries = list(os.scandir(lib))
@@ -355,6 +363,8 @@ def scan_library(lib) -> dict:
             r = rec(stem)
             r["flag"] = r["flag"] or reason
             r["flag_sources"].append(f"{name} ({d.get('source') or 'identity'})")
+            r["id_flag_at"] = _verdict_time(d, lib / name)
+            r["id_doi"] = str(d.get("queue_doi") or "").strip().lower()
         elif stem not in pdfs:
             out["orphan_identity"].append(name)
 
@@ -368,6 +378,8 @@ def scan_library(lib) -> dict:
             continue
         txt = sum(len(d[k]) for k in ("text", "body", "abstract") if isinstance(d.get(k), str))
         r["sc"] = {"doi": str(d.get("doi") or "").strip().lower(), "len": txt}
+        r["sc_bp"] = _bp.of_text(d.get("text") or d.get("body") or "")
+        r["sc_identity"] = str(d.get("identity") or "").strip().upper()
         reason = identity_flag(d)
         if reason:
             r["flag"] = r["flag"] or reason
@@ -421,6 +433,8 @@ def scan_library(lib) -> dict:
                 out["tiny_pdfs"].append((name, size))
         except OSError as e:
             out["fake_pdfs"].append(f"{name} ({e})")
+            size = None
+        _wrong_content(out, r, p, name, size)
         if r["flag"]:
             continue
         out["pdf_holdings"] += 1
@@ -449,6 +463,86 @@ def scan_library(lib) -> dict:
         out["mismatch"]["files"] = sorted(files)
         out["mismatch"]["pdfs"] = sum(1 for f in files if f.lower().endswith(".pdf"))
     return out
+
+
+def _verdict_time(d, path):
+    """When a verdict was made: its checked_at (ISO), else the file's mtime; epoch seconds or None."""
+    raw = str(d.get("checked_at") or "").strip()
+    if raw:
+        try:
+            t = _dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            return (t if t.tzinfo else t.astimezone()).timestamp()
+        except ValueError:
+            pass
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
+
+
+def _md5(path):
+    import hashlib
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _wrong_content(out, r, path, name, size):
+    """Item 3 checks for one PDF: known boilerplate (its bytes, when its size is one of
+    litpipe.boilerplate.SIZES, or its sidecar's text), a stale identity flag (the PDF is newer than
+    its FLAG verdict, or its text sidecar carries a later passing verdict), and the index the
+    portfolio's identical-bytes check reads."""
+    tag = None
+    if size in _bp.SIZES:
+        try:
+            tag = _bp.MD5.get(_md5(path))
+        except OSError:
+            pass
+    tag = tag or r.get("sc_bp")
+    if tag:
+        out["boilerplate"].append({"file": name, "tag": tag, "flagged": bool(r["flag"])})
+    flagged_at = r.get("id_flag_at")
+    if flagged_at is not None:
+        why = ""
+        try:
+            if path.stat().st_mtime > flagged_at + STALE_FLAG_SLACK_S:
+                why = "PDF newer than its FLAG verdict"
+        except OSError:
+            pass
+        if not why and r.get("sc_identity") in ("OK", "TITLE_MATCH"):
+            why = f"text sidecar says {r['sc_identity']}"
+        if why:
+            out["stale_flags"].append({"file": name, "why": why})
+    if size is not None:
+        doi = ((r.get("sc") or {}).get("doi") or (r.get("ris") or {}).get("doi") or r.get("id_doi") or "")
+        out["_pdf_index"].append((name, size, _doi.normalise(doi) or doi))
+
+
+def content_dupes(audits):
+    """Identical PDF bytes held under two or more different DOIs (week-1 health F1): a byte-for-byte
+    copy of another paper, or one document served for many DOIs. The same paper filed in two
+    projects under one DOI is not a finding. Only PDFs that share a size are hashed. Returns
+    [{"md5", "bytes", "tag", "files": [{"project", "file", "doi"}]}], largest group first."""
+    by_size = {}
+    for a in audits:
+        for name, size, doi in a.get("_pdf_index", []):
+            by_size.setdefault(size, []).append((a.get("project"), Path(a["lib"]) / name, name, doi))
+    groups = []
+    for size, items in by_size.items():
+        if len(items) < 2:
+            continue
+        by_md5 = {}
+        for project, path, name, doi in items:
+            try:
+                by_md5.setdefault(_md5(path), []).append({"project": project, "file": name, "doi": doi})
+            except OSError:
+                continue
+        for md5, files in by_md5.items():
+            if len(files) > 1 and len({f["doi"] for f in files if f["doi"]}) > 1:
+                groups.append({"md5": md5, "bytes": size, "tag": _bp.MD5.get(md5), "files": files})
+    return sorted(groups, key=lambda g: (-len(g["files"]), g["md5"]))
 
 
 def audit_lib(name: str, lib: Path) -> dict:
@@ -992,6 +1086,15 @@ def _fmt_flag(f):
     return f"{f['file']} [{f['reason']}] {', '.join(f['sources'])}"
 
 
+def _fmt_bp(b):
+    return f"{b['file']} [{b['tag']}]" + (" (identity-flagged)" if b.get("flagged") else "")
+
+
+def _fmt_dupe(g):
+    head = f"{g['md5'][:12]} {g['bytes']}B" + (f" [{g['tag']}]" if g.get("tag") else "")
+    return head + ": " + "; ".join(f"[{f['project']}] {f['file']} ({f['doi'] or 'no DOI'})" for f in g["files"])
+
+
 def fmt_report(audit: dict, queue: dict, index=None, full=False) -> str:
     lines = []
     name = audit["project"]
@@ -1029,9 +1132,15 @@ def fmt_report(audit: dict, queue: dict, index=None, full=False) -> str:
     if audit.get("abstract_only"):
         emit(lines, "INFO", "ABSTRACT_ONLY sidecars (an abstract, no article body: not holdings; ILL or "
              "browser candidates)", audit["abstract_only"], full)
+    if audit.get("boilerplate"):
+        emit(lines, "WARN", "known wrong-content documents (boilerplate)", audit["boilerplate"], full,
+             fmt=_fmt_bp)
     if audit["flags"]:
         emit(lines, "WARN", "identity flags (review; not holdings)", audit["flags"], full,
              fmt=_fmt_flag)
+    if audit.get("stale_flags"):
+        emit(lines, "WARN", "stale identity flags (the PDF was replaced after its FLAG; re-check)",
+             audit["stale_flags"], full, fmt=lambda f: f"{f['file']}: {f['why']}")
     if audit["bad_identity"]:
         emit(lines, "WARN", "unparseable .identity.json", audit["bad_identity"], full,
              fmt=lambda t: f"{t[0]}: {t[1]}")
@@ -1181,12 +1290,13 @@ def run(project=None, json_path=None, full=False, artifact_dir=None, db=None, ho
             hold = portfolio_holdings(cfg, {name for name, *_ in libs})
         except Exception as e:      # the summary must still print
             hold = {"error": f"{type(e).__name__}: {str(e)[:160]}"}
-    summary = _print_summary(entries, missing, portfolio_doi, idx, live, hold, full)
+    dupes = content_dupes([e["audit"] for e in entries])
+    summary = _print_summary(entries, missing, portfolio_doi, idx, live, hold, full, dupes)
     exit_code = 1 if summary["fail"] else 0
     result = {"exit_code": exit_code, "config": str(CONFIG_PATH),
               "projects": [_strip_private(e) for e in entries], "missing": missing,
               "index": {k: v for k, v in idx.items() if k != "projects"}, "live_runs": live,
-              "holdings": hold, "summary": summary}
+              "holdings": hold, "content_dupes": dupes, "summary": summary}
     if json_path:
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, default=str, ensure_ascii=False)
@@ -1195,7 +1305,7 @@ def run(project=None, json_path=None, full=False, artifact_dir=None, db=None, ho
     return result
 
 
-def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full):
+def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full, dupes=()):
     lines = [f"\n{'=' * 72}\n  PORTFOLIO SUMMARY\n{'=' * 72}"]
     audits = [e["audit"] for e in entries]
     total_pdfs = sum(a["n_pdfs"] for a in audits)
@@ -1226,7 +1336,7 @@ def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full):
             flags.append(f"BREAK: {a['project']}")
             fail_names.append(a["project"])
         elif (a["empty_sidecars"] or a["orphan_sidecars"] or a["tiny_pdfs"]
-              or a["al_antipattern"] or a["unknown_year"]):
+              or a["al_antipattern"] or a["unknown_year"] or a.get("boilerplate")):
             flags.append(f"WARN:  {a['project']}")
     if flags:
         lines.append("  flagged projects:")
@@ -1236,6 +1346,14 @@ def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full):
     all_flags = [(a["project"], f) for a in audits for f in a["flags"]]
     emit(lines, "WARN" if all_flags else "INFO", "identity flags (review items)", all_flags, full,
          fmt=lambda t: f"[{t[0]}] {_fmt_flag(t[1])}")
+    stale_flags = [(a["project"], f) for a in audits for f in a.get("stale_flags", [])]
+    emit(lines, "WARN" if stale_flags else "INFO", "stale identity flags (PDF replaced after its FLAG; "
+         "re-check)", stale_flags, full, fmt=lambda t: f"[{t[0]}] {t[1]['file']}: {t[1]['why']}")
+    bps = [(a["project"], b) for a in audits for b in a.get("boilerplate", [])]
+    emit(lines, "WARN" if bps else "INFO", "known wrong-content documents in libraries (boilerplate; "
+         "litpipe.boilerplate)", bps, full, fmt=lambda t: f"[{t[0]}] {_fmt_bp(t[1])}")
+    emit(lines, "WARN" if dupes else "INFO", "identical PDFs under different DOIs (one file holds "
+         "another paper, or a document served for many DOIs)", dupes, full, fmt=_fmt_dupe)
     for kind_of_file in ("sidecar", "ris"):
         for k in DAMAGE_KINDS:
             hits = [(a["project"], n) for a in audits for n in a["damage"][kind_of_file][k]]
@@ -1312,7 +1430,8 @@ def _print_summary(entries, missing, portfolio_doi, idx, live, hold, full):
     return {"fail": sorted(set(fail_names)), "missing": [m["project"] for m in missing],
             "break": [f[7:] for f in flags if f.startswith("BREAK")],
             "holdings_files": {"pdf": n_hold_pdf, "text_only": n_text}, "needs_ocr": len(ocr),
-            "identity_flags": len(all_flags), "mismatch_files": len(mm),
+            "identity_flags": len(all_flags), "stale_identity_flags": len(stale_flags),
+            "boilerplate": len(bps), "content_dupes": len(dupes), "mismatch_files": len(mm),
             "damage": {kf: {k: sum(len(a["damage"][kf][k]) for a in audits) for k in DAMAGE_KINDS}
                        for kf in ("sidecar", "ris")},
             "fn_misalign": len(misalign), "cross_project_overlap": len(overlaps),

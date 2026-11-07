@@ -21,7 +21,11 @@ Unpaywall `email=` identity is added by net itself). Per row, in order:
      candidates on a refused host are not sent. A bot interstitial (Access Denied, Client
      Challenge, Just a moment...), or an identical-size non-PDF body from one host for two DOIs,
      refuses the host for the run too. An ordinary HTML landing page is followed through its
-     citation_pdf_url / PDF links (at most 3).
+     citation_pdf_url / PDF links (at most 3). A PDF that is known boilerplate
+     (litpipe.boilerplate) fails the candidate as BOILERPLATE, and one whose bytes are the file
+     this library already keeps flagged for the DOI (known_wrong_bytes) as SAME_AS_FLAGGED; the
+     next candidate is tried. A row left with only the flagged bytes stays an identity review
+     item on that file (identity FLAG, its filename); nothing is rewritten.
   6. Identity (replaces the DOI-mismatch quarantine): litpipe.identity.check and doc_kind on the
      PDF's first pages. The verdict is written to `<final stem>.identity.json`; a FLAG (or a
      supplement) keeps the file where it is, writes no `.ris`, and reports DOI_MISMATCH. No file
@@ -52,6 +56,7 @@ from urllib.parse import urljoin, urlsplit
 
 import lit_net  # MAX_PDF_BYTES (c7: the one download cap)
 import lit_util
+from litpipe import boilerplate as _boilerplate
 from litpipe import doi as _doi
 from litpipe import identity as _identity
 from litpipe import ledger, net, preflight
@@ -496,24 +501,12 @@ def candidate_urls(upw, order="repository"):
 # across every DOI from that publisher. Listed by md5 + a fallback text snippet
 # (md5 catches the exact byte file; text snippet catches re-spun versions).
 #
-# Add new entries when the LWW-style trap is observed for other publishers.
+# Add new entries in litpipe/boilerplate.py when the trap is observed for another document.
 # The original 2026-05-22 batch: Currier 2026, Lim 2022, Agostinho 2015.
-KNOWN_BOILERPLATE_MD5 = {
-    "518fe51393a7ba381f861b58f296832e": "lww_author_permission_guidelines_v1",
-    # 2026-05-22 audit additions (Agent C cross-project sweep):
-    "9aeef9e74d08bbd6b39996fb963fd8cb": "plos_manuscript_body_formatting_template",
-    "b9d50b11d4901b8fb7d5eaab473193dc": "jmlr_scikit_learn_misfetch_for_jmir_dois",
-}
-KNOWN_BOILERPLATE_TEXT = (
-    # All matched against the first ~3000 chars of pdftotext output, lowercased
-    ("lippincott journal portfolio",      "lww_author_permission_guidelines"),
-    ("author permission guidelines",      "lww_author_permission_guidelines"),
-    # 2026-05-22 audit additions:
-    ("manuscript body formatting guidelines", "plos_template"),
-    ("cite figures as \"fig 1\"",             "plos_template"),
-    ("scikit-learn: machine learning in python", "jmlr_misfetch"),
-    ("portal de periódicos da capes",    "capes_redirect_page"),
-)
+# The tables live in litpipe.boilerplate (one list for the fetchers and the audit); these names are
+# the same objects, kept for the callers and tests that use them.
+KNOWN_BOILERPLATE_MD5 = _boilerplate.MD5
+KNOWN_BOILERPLATE_TEXT = _boilerplate.TEXT
 
 
 def is_known_boilerplate(pdf_path):
@@ -523,12 +516,11 @@ def is_known_boilerplate(pdf_path):
     Cheap path first (md5), then a 2-page pdftotext probe. (pmc_fetch, preprint_fetch and
     paywall_pull call it on a file; this stage checks the bytes in memory: boilerplate_of.)
     """
-    import hashlib as _h
     try:
         with open(pdf_path, "rb") as f:
-            h = _h.md5(f.read()).hexdigest()
-        if h in KNOWN_BOILERPLATE_MD5:
-            return True, KNOWN_BOILERPLATE_MD5[h]
+            tag = _boilerplate.of_bytes(f.read())
+        if tag:
+            return True, tag
     except Exception:
         return False, None
 
@@ -541,22 +533,15 @@ def is_known_boilerplate(pdf_path):
                            capture_output=True, timeout=20)
         if r.returncode != 0:
             return False, None
-        snippet = r.stdout.decode("utf-8", "replace")[:3000].lower()
+        tag = _boilerplate.of_text(r.stdout.decode("utf-8", "replace"))
     except Exception:
         return False, None
-    for needle, tag in KNOWN_BOILERPLATE_TEXT:
-        if needle in snippet:
-            return True, tag
-    return False, None
+    return (True, tag) if tag else (False, None)
 
 
 def boilerplate_of(content, first_text):
-    """The boilerplate tag for PDF bytes (md5) or their first-pages text (snippet), else None."""
-    tag = KNOWN_BOILERPLATE_MD5.get(hashlib.md5(content).hexdigest())
-    if tag:
-        return tag
-    snippet = (first_text or "")[:3000].lower()
-    return next((t for needle, t in KNOWN_BOILERPLATE_TEXT if needle in snippet), None)
+    """The boilerplate tag for PDF bytes (md5) or their first-pages text (phrase), else None."""
+    return _boilerplate.of(content, first_text)
 
 
 def extract_pdf_links_from_html(html_bytes, base_url):
@@ -678,6 +663,7 @@ class Stage:
         self.nonpdf_sizes = {}           # host -> {size: doi}
         self.landing = {}                # doi.org url -> landing url or None
         self.refused_by_signature = {}   # host -> reason
+        self.known_wrong = {}            # doi -> {md5: file}: bytes already flagged for that DOI
 
     def _refuse(self, host, reason):
         if host and host not in self.refused_by_signature:
@@ -839,6 +825,52 @@ def _flagged(verdict, kind):
     return (not verdict.ok) or kind == _identity.DocKind.SUPPLEMENT
 
 
+KNOWN_WRONG_SLACK_S = 60   # a PDF this much newer than its FLAG verdict was replaced after it
+
+
+def known_wrong_bytes(lib_dir):
+    """{doi: {md5: file name}}: the PDFs this library keeps flagged for a DOI (identity FLAG or a
+    supplement, per `.identity.json`). A flagged file is not a holding, so a re-queued row fetches
+    again, and the same host serves the same wrong bytes (Ashton 2020, 2026-11-04); the stage skips
+    them and tries the row's next location. A flagged stem whose PDF was replaced after its verdict
+    (newer than the verdict, or its text sidecar passes) holds other bytes now and is left out."""
+    out = {}
+    try:
+        names = os.listdir(lib_dir)
+    except OSError:
+        return out
+    for name in names:
+        if not name.endswith(".identity.json"):
+            continue
+        ids_path = os.path.join(lib_dir, name)
+        rec = _read_json(ids_path)
+        if not rec or not (rec.get("identity") == "FLAG" or rec.get("doc_kind") == "SUPPLEMENT"):
+            continue
+        pdf = os.path.join(lib_dir, name[:-len(".identity.json")] + ".pdf")
+        sc = _read_json(lit_util.companion_path(pdf, ".fulltext.json")) or {}
+        if str(sc.get("identity") or "").upper() in ("OK", "TITLE_MATCH"):
+            continue
+        try:
+            if os.path.getmtime(pdf) > os.path.getmtime(ids_path) + KNOWN_WRONG_SLACK_S:
+                continue
+            with open(pdf, "rb") as f:
+                md5 = hashlib.md5(f.read()).hexdigest()
+        except OSError:
+            continue
+        doi = _doi.normalise(rec.get("queue_doi") or "") or str(rec.get("queue_doi") or "")
+        out.setdefault(doi, {})[md5] = os.path.basename(pdf)
+    return out
+
+
+def _read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return d if isinstance(d, dict) else None
+
+
 def write_identity_sidecar(pdf_path, doi, verdict, kind, n_pages, attempt, source="unpaywall"):
     """`<final stem>.identity.json`: the decision and its evidence on the artifact (never moved)."""
     rec = {"queue_doi": _doi.normalise(doi) or doi, "pdf": os.path.basename(pdf_path),
@@ -928,6 +960,7 @@ def download_row(stage, cands, doi, title):
     the identity verdict does not stop the loop's success: a FLAGged PDF is still the result,
     and the caller keeps it where it writes it."""
     attempts = []
+    known = getattr(stage, "known_wrong", {}).get(_doi.normalise(doi) or doi, {})
 
     def consider(f):
         a = f.attempt
@@ -940,6 +973,11 @@ def download_row(stage, cands, doi, title):
         tag = boilerplate_of(f.content, text)
         if tag:
             a.status, a.kind, a.detail = "BOILERPLATE", Kind.ERROR, f"{tag}:{len(f.content)}B"
+            return None
+        prior = known.get(hashlib.md5(f.content).hexdigest())
+        if prior:
+            a.status, a.kind, a.detail = ("SAME_AS_FLAGGED", Kind.ERROR,
+                                          f"same bytes as {prior}, flagged and awaiting review")
             return None
         verdict = _identity.check(text, doi, queue_title=title)
         kind = _identity.doc_kind(first, n)
@@ -1019,6 +1057,7 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
     held = library_index(lib_dir)
     written_this_run = set()   # RC2: dest paths written in this run; never clobber them
     stage = Stage(state)
+    stage.known_wrong = known_wrong_bytes(lib_dir)
     results = []
     counts = dict(oa=0, dl=0, skip=0, closed=0, oa_no_url=0, fail=0, flag=0, not_at_ra=0, no_match=0)
     aborted = None
@@ -1159,6 +1198,11 @@ def run(*, top_n=100, dry_run=False, min_cites=0, base_dir=None, triage=None, li
             if decisive and decisive.status == "HOST_REFUSED" and decisive.host:
                 error = f"HOST_REFUSED:{decisive.host}"        # preprint_fetch's legacy form; names the host
             detail = f"{decisive.host}: {decisive.status} {decisive.detail}".strip() if decisive else ""
+            if any(a.status == "SAME_AS_FLAGGED" for a in attempts):
+                # the row still rests on the flagged file it already has: keep it a review item
+                # (sweep reads identity FLAG + filename as IDENTITY_FLAG, flagged_path that file)
+                prior = sorted(stage.known_wrong.get(_doi.normalise(doi) or doi, {}).values())
+                out.update(identity="FLAG", filename=prior[0] if prior else out["filename"])
             done(kind, decisive.host_type if decisive else "none", error, detail)
             print(f"  [{i:>3}] {fn[:65]:<65} FAIL ({len(attempts)} tries: {error}; {kind})")
             continue

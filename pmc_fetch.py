@@ -28,7 +28,8 @@ Per row (rows come from the Unpaywall report: downloaded=False and not SKIP_EXIS
 Retired (prohibited routes): Europe PMC `?pdf=render`, the NCBI article page and its
 `citation_pdf_url`. The DOI-mismatch quarantine is gone too: litpipe.identity.check reads the PDF's
 first pages; a FLAG leaves the file where it is and is recorded in the sidecar (and the report's
-`identity` column), never moved.
+`identity` column), never moved. A PDF written over a stem another stage flagged for this DOI
+replaces that stem's `.identity.json` with this file's verdict (the old one kept under `replaces`).
 
 Report (one row per input row; legacy columns kept): doi, filename, pmcid, downloaded, skipped,
 winning_source, attempts, error, sidecar, sidecar_status, plus first_status, route, outcome (a
@@ -65,7 +66,7 @@ import ris_emit as _R
 from unpaywall_fetch_v2 import existing_holds, is_known_boilerplate, resolve_dest
 from litpipe import doi as _doi
 from litpipe import identity as _identity
-from litpipe import net
+from litpipe import ledger, net
 from litpipe import text as _text
 from litpipe.ledger import redact
 from litpipe.outcomes import Kind, Outcome
@@ -503,7 +504,31 @@ def _fetch_pdf(row, ctx, meta):
     row.verdict = _identity.check(first_pages_text(dest), row.doi, queue_title=row.title or None,
                                   ris_title=(meta.get("title") or None))
     row.rec["identity"] = str(row.verdict.decision)
+    _replace_stale_identity(dest, row, meta, po)
     return row.add(ROUTE_S3, dataclasses.replace(po, payload=None))
+
+
+def _replace_stale_identity(dest, row, meta, po):
+    """A `.identity.json` beside `dest` (another stage's verdict on the file this one just
+    replaced: resolve_dest reuses a stem flagged for this DOI) now describes bytes that are gone,
+    so it takes this file's verdict, keeping the old one under `replaces`. Without this a right
+    PDF stays flagged (Cohen 2023, Seron 2021, 2026-11-04). PMC records its own verdict in the
+    text sidecar, so no `.identity.json` is written where there was none."""
+    path = lit_util.companion_path(dest, ".identity.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            old = json.load(f)
+    except (OSError, ValueError):
+        if not os.path.exists(path):
+            return
+        old = {}
+    old = old if isinstance(old, dict) else {}
+    rec = {"queue_doi": _doi.normalise(row.doi) or row.doi, "pdf": os.path.basename(dest),
+           "source": "pmc", "source_url": ledger.redact(meta.get("pdf_url") or ""), "host": po.host,
+           "checked_at": ledger.now_iso(),
+           "replaces": {k: old.get(k) for k in ("source", "identity", "doc_kind", "checked_at", "source_url")}}
+    rec.update(row.verdict.as_dict())
+    lit_util.atomic_write_json(str(path), ledger.redact_obj(rec))
 
 
 def _read_sidecar(path):

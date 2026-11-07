@@ -781,3 +781,63 @@ def test_try_download_legacy_adapter(web, tmp_path):
     assert st == "OK" and dest.exists() and int(msg) == dest.stat().st_size
     assert U.try_download("https://w.example.org/landing", str(tmp_path / "b.pdf")) == ("HTML", b"<html>landing</html>")
     assert U.try_download("https://w.example.org/gone.pdf", str(tmp_path / "c.pdf")) == ("HTTP_404", "")
+
+
+# ------------------------------------------------------------------ item 3: known wrong bytes
+WRONG = "Resistance training to failure in overweight men"
+
+
+def _wrong_pdf():
+    return article_pdf("10.1016/j.other.2023.1", WRONG)
+
+
+def test_a_refetch_of_the_flagged_bytes_is_skipped_for_the_next_location(web, tmp_path):
+    """Ashton 2020 (11-04): a flagged file is not a holding, so a re-queued row fetched the same
+    wrong file again (byte-identical) and stopped there. The flagged bytes are now skipped, so the
+    next location gets its turn."""
+    d = "10.1152/m.1"
+    wrong_url = "https://ir.example.edu/m1.pdf"
+    add_upw(web, d, upw_record(d, [loc(wrong_url, host_type="repository")]))
+    web.add(wrong_url, (200, PDF, _wrong_pdf()))
+    _, rep, lib = run_stage(tmp_path, [{"doi": d}])
+    assert rep[d]["identity"] == "FLAG"
+    add_upw(web, d, upw_record(d, [loc(wrong_url, host_type="repository"),
+                                   loc("https://pub.example.org/m1.pdf")]))
+    web.add("https://pub.example.org/m1.pdf", (200, PDF, article_pdf(d)))
+    _, rep, lib = run_stage(tmp_path, [{"doi": d}])
+    row = rep[d]
+    assert row["downloaded"] == "True" and row["identity"] == "OK"
+    assert "repository/publishedVersion/SAME_AS_FLAGGED" in row["attempts"]
+    ids = json.loads((lib / (row["filename"][:-4] + ".identity.json")).read_text(encoding="utf-8"))
+    assert ids["identity"] == "OK"                               # the verdict follows the new file
+
+
+def test_only_the_flagged_bytes_on_offer_writes_nothing(web, tmp_path):
+    d = "10.1152/m.2"
+    wrong_url = "https://ir.example.edu/m2.pdf"
+    add_upw(web, d, upw_record(d, [loc(wrong_url, host_type="repository")]))
+    web.add(wrong_url, (200, PDF, _wrong_pdf()))
+    _, rep, lib = run_stage(tmp_path, [{"doi": d}])
+    before = _snapshot(lib)
+    _, rep, lib = run_stage(tmp_path, [{"doi": d}])
+    row = rep[d]
+    assert row["error"] == "SAME_AS_FLAGGED" and row["downloaded"] == "False"
+    assert _snapshot(lib) == before                              # the flagged file and verdict untouched
+    import sweep
+    v = sweep.unpaywall_verdict(row)                             # still a review item, on that file
+    assert sweep.classify([v])[0] == "IDENTITY_FLAG" and v.flagged_file == row["filename"]
+    assert (lib / row["filename"]).exists()
+
+
+def test_known_wrong_bytes_skips_a_stale_flag(tmp_path):
+    """A flagged stem whose PDF was replaced later (Cohen, Seron) holds the right bytes now."""
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    for stem, sc in (("2020_Ashton_X", None), ("2023_Cohen_X", {"identity": "OK"})):
+        (lib / f"{stem}.pdf").write_bytes(article_pdf(stem))
+        (lib / f"{stem}.identity.json").write_text(json.dumps(
+            {"queue_doi": f"10.1/{stem.lower()}", "identity": "FLAG"}), encoding="utf-8")
+        if sc:
+            (lib / f"{stem}.fulltext.json").write_text(json.dumps(sc), encoding="utf-8")
+    got = U.known_wrong_bytes(str(lib))
+    assert set(got) == {"10.1/2020_ashton_x"}
