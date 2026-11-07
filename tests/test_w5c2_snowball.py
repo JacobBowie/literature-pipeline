@@ -49,7 +49,8 @@ def _make_db(path, n):
 
 def test_db_dir_drives_every_step_the_count_and_the_log(world):
     _make_db(world["dbdir"] / "portfolio.duckdb", 4)
-    res = snowball.run(project="teaching_a", with_recs=True, step_runner=world["runner"])
+    res = snowball.run(project="teaching_a", with_recs=True, with_abstracts=True,
+                       step_runner=world["runner"])
     want = str(world["dbdir"] / "portfolio.duckdb")
     assert res["exit_code"] == 0 and res["db"] == want
     writers = [c for c in world["calls"] if Path(c[1]).stem in DB_TOOLS]

@@ -42,6 +42,7 @@ Usage:
   python enrich_abstracts.py                        # all DOIs missing abstract
   python enrich_abstracts.py --limit 100            # first 100 only (testing)
   python enrich_abstracts.py --only-papers          # restrict to PDFs we have, not candidates
+  python enrich_abstracts.py --project KEY          # one project's candidates and holdings (repeatable)
   python enrich_abstracts.py --db <temp.duckdb>     # another DB (default: <db_dir>/portfolio.duckdb)
 """
 import argparse
@@ -239,11 +240,12 @@ class _Writer:
 
 # ------------------------------------------------------------------------------ the stage
 def run(*, db=None, limit=0, sleep=0.0, only_papers=False, retry_after_days=30,
-        commit_every=COMMIT_EVERY, max_seconds=0.0) -> dict:
+        commit_every=COMMIT_EVERY, max_seconds=0.0, projects=()) -> dict:
     """Fetch abstracts for the DOIs missing one. Returns the counts; `interrupted` and
     `stopped_early` say whether the target list was finished. `max_seconds` (0 = none) is a time
     budget: once spent, the run stops between DOIs with `budget_reached` and `remaining` set, so a
-    backlog larger than one run ends cleanly instead of being killed by the runner's timeout."""
+    backlog larger than one run ends cleanly instead of being killed by the runner's timeout.
+    `projects` (empty = every DOI) limits the targets to those projects' candidates and holdings."""
     db = db or default_db()
     con = lit_util.connect_db(db, on_fail="exit", tries=5, delays=(3,))  # c9: shared RC10 open
     # Self-healing migration: the attempt-state column and table may not exist on an older DB.
@@ -254,6 +256,14 @@ def run(*, db=None, limit=0, sleep=0.0, only_papers=False, retry_after_days=30,
     where_extra = ""
     if only_papers:
         where_extra = " AND EXISTS (SELECT 1 FROM paper_locations l WHERE l.doi = m.doi)"
+    params = []
+    if projects:
+        marks = ", ".join("?" for _ in projects)
+        where_extra += (f" AND (EXISTS (SELECT 1 FROM candidates c WHERE c.doi = m.doi"
+                        f" AND c.source_project IN ({marks}))"
+                        f" OR EXISTS (SELECT 1 FROM paper_locations l WHERE l.doi = m.doi"
+                        f" AND l.project IN ({marks})))")
+        params = [*projects, *projects]
     # Attempt-state: skip DOIs we already tried recently (permanent Crossref misses -- closed
     # publishers, arXiv/DataCite -- otherwise re-queried every run indefinitely).
     where_attempt = ""
@@ -267,11 +277,12 @@ def run(*, db=None, limit=0, sleep=0.0, only_papers=False, retry_after_days=30,
     """
     if limit:
         q += f" LIMIT {int(limit)}"
-    targets = [r[0] for r in con.execute(q).fetchall()]
+    targets = [r[0] for r in con.execute(q, params).fetchall()]
 
     pace = max(float(sleep or 0), hosts.policy(CROSSREF).min_interval_s)
     print(f"DB: {db}")
-    print(f"Targets: {len(targets)} DOIs missing abstract")
+    print(f"Targets: {len(targets)} DOIs missing abstract"
+          + (f" (projects: {', '.join(projects)})" if projects else ""))
     print(f"Pacing:  litpipe.net {hosts.policy(CROSSREF).min_interval_s:.2f} s per Crossref request"
           + (f", plus --sleep {sleep} s" if sleep else ""))
     print(f"ETA:     ~{(len(targets) * pace) / 60:.1f} min\n")
@@ -377,10 +388,13 @@ def main(argv=None) -> int:
     ap.add_argument("--max-seconds", type=float, default=0.0,
                     help="Time budget: stop cleanly between DOIs once spent, leaving the rest for the "
                          "next run (0 = none).")
+    ap.add_argument("--project", action="append", default=[], metavar="KEY",
+                    help="Only DOIs that are this project's candidates or holdings (repeatable; "
+                         "default: every DOI missing an abstract).")
     args = ap.parse_args(argv)
     res = run(db=args.db, limit=args.limit, sleep=args.sleep, only_papers=args.only_papers,
               retry_after_days=args.retry_after_days, commit_every=args.commit_every,
-              max_seconds=args.max_seconds)
+              max_seconds=args.max_seconds, projects=args.project)
     if res["interrupted"]:
         return 130
     return 1 if res["stopped_early"] or res["write_failures"] else 0

@@ -355,7 +355,7 @@ runner's daily `ris` job).
 uv run python forward_citations.py --project my-review     # who cites the library
 uv run python reverse_citations.py --project my-review     # what the library cites
 uv run python index_portfolio.py                           # load every library and walk into the DB
-uv run python snowball.py --project my-review              # forward + backward + index (+ abstracts)
+uv run python snowball.py --project my-review              # forward + backward + index
 ```
 
 * **Forward walk** (`forward_citations.py`): one metadata pass, then only the seeds that are new,
@@ -367,7 +367,9 @@ uv run python snowball.py --project my-review              # forward + backward 
 * **Backward walk** (`reverse_citations.py`): Semantic Scholar, OpenAlex, Crossref and the local
   parse (`--sources` picks the legs) into `_reverse_citations_parsed.csv`.
 * **Snowball** (`snowball.py`): one iteration per project of forward walk, backward walk and index,
-  then an incremental abstracts pass. `--until-convergence --max-iter N` repeats while the library
+  then, only with `--with-abstracts`, one abstracts pass over the run's projects' candidates and
+  holdings, under the runner's limit and time budget (up to about 2.8 h holding the DB write lock;
+  the runner's weekly job covers the rest). `--until-convergence --max-iter N` repeats while the library
   changed and candidates grew by 1 % or more; a degraded walk is never read as convergence. Every
   iteration appends a row to `<db_dir>/convergence_log.csv`. Exit 0 ok, 2 a project degraded, 1 a
   step failed. Snowball never fetches anything.

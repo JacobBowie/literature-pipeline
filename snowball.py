@@ -12,7 +12,9 @@ After the loop, once per invocation (both tools are portfolio-wide; D8):
   4. enrich_recommendations.py --recent-feed   only with --with-recs (and it sends nothing
      without S2_API_KEY). S2's recommendations are a last-60-days feed, so they are no longer
      part of the loop or of the count.
-  5. enrich_abstracts.py         incremental (only missing); --skip-abstracts skips it.
+  5. enrich_abstracts.py         only with --with-abstracts: the run's projects' candidates and
+     holdings, under the nightly runner's limit and time budget. It holds the portfolio DB's
+     write lock while it runs; the runner's weekly job covers the portfolio-wide backlog.
 
 Iterations: one by default. With --until-convergence, iteration N+1 runs only when the
 library changed during iteration N (its PDF set or the DOIs in its .ris files differ) and
@@ -103,6 +105,7 @@ class Options:
     skip_reverse: bool = False
     with_recs: bool = False
     skip_abstracts: bool = False
+    with_abstracts: bool = False
     projects: list = field(default_factory=list)
 
 
@@ -439,6 +442,16 @@ def snowball_project(project: str, opts: Options, step_runner=None) -> dict:
     return {"project": project, "status": status, "iterations": iters}
 
 
+def abstracts_bounds() -> list:
+    """The nightly runner's bounds on enrich_abstracts (--limit, --max-seconds), so a hand run
+    cannot hold the DB write lock longer than the runner's own job would (2026-11-05: an unbounded
+    pass took 226,078 DOIs, ~21 h, and broke the next nightly)."""
+    from litpipe import runner
+    t = float(runner.TIMEOUTS["abstracts"])
+    return ["--limit", str(runner.ABSTRACTS_LIMIT),
+            "--max-seconds", str(t - min(runner.ABSTRACTS_BUDGET_MARGIN_S, t / 10))]
+
+
 def post_loop(opts: Options, step_runner=None) -> list:
     """The portfolio-wide tools, once per invocation, after every project's loop (D8)."""
     runner = step_runner or run_step
@@ -447,15 +460,16 @@ def post_loop(opts: Options, step_runner=None) -> list:
         steps.append(runner([py(), str(HERE / "enrich_recommendations.py"), "--db", str(db_path()),
                              "--recent-feed"],
                             "enrich_recommendations (portfolio-wide, once, --with-recs)"))
-    if not opts.skip_abstracts:
-        steps.append(runner([py(), str(HERE / "enrich_abstracts.py"), "--db", str(db_path())],
-                            "enrich_abstracts (portfolio-wide, once, only missing)"))
+    if opts.with_abstracts and not opts.skip_abstracts:
+        steps.append(runner([py(), str(HERE / "enrich_abstracts.py"), "--db", str(db_path()),
+                             *abstracts_bounds(), *[a for p in opts.projects for a in ("--project", p)]],
+                            "enrich_abstracts (this run's projects, once, bounded, --with-abstracts)"))
     return steps
 
 
 def run(*, project=None, all_projects=False, until_convergence=False, max_iter=3, skip_forward=False,
         skip_reverse=False, skip_recs=False, with_recs=False, skip_abstracts=False,
-        step_runner=None, db=None) -> dict:
+        with_abstracts=False, step_runner=None, db=None) -> dict:
     """The snowball for one project or every active one. Returns {"exit_code", "projects",
     "post_steps", "db", "log"}; `step_runner(cmd, label) -> StepResult` replaces the child processes
     in tests. The DB (`db`, else db_path()) is resolved once, here, and every step of the run uses
@@ -471,7 +485,8 @@ def run(*, project=None, all_projects=False, until_convergence=False, max_iter=3
     try:
         res = _run(project=project, all_projects=all_projects, until_convergence=until_convergence,
                    max_iter=max_iter, skip_forward=skip_forward, skip_reverse=skip_reverse, skip_recs=skip_recs,
-                   with_recs=with_recs, skip_abstracts=skip_abstracts, step_runner=step_runner)
+                   with_recs=with_recs, skip_abstracts=skip_abstracts, with_abstracts=with_abstracts,
+                   step_runner=step_runner)
         res.setdefault("db", str(resolved))
         res.setdefault("log", str(log_path()))
         return res
@@ -480,7 +495,7 @@ def run(*, project=None, all_projects=False, until_convergence=False, max_iter=3
 
 
 def _run(*, project, all_projects, until_convergence, max_iter, skip_forward, skip_reverse, skip_recs,
-         with_recs, skip_abstracts, step_runner) -> dict:
+         with_recs, skip_abstracts, with_abstracts, step_runner) -> dict:
     if all_projects:
         cfg = load_registry().get("projects", {})
         if not cfg:
@@ -494,7 +509,7 @@ def _run(*, project, all_projects, until_convergence, max_iter, skip_forward, sk
         return {"exit_code": EXIT_FAILED, "projects": [], "post_steps": [], "error": "no project"}
     opts = Options(until_convergence=until_convergence, max_iter=max_iter, skip_forward=skip_forward,
                    skip_reverse=skip_reverse, with_recs=with_recs and not skip_recs,
-                   skip_abstracts=skip_abstracts, projects=projects)
+                   skip_abstracts=skip_abstracts, with_abstracts=with_abstracts, projects=projects)
     results = [snowball_project(p, opts, step_runner) for p in projects]
     post = post_loop(opts, step_runner)
     def crashed(rc, summary):
@@ -530,8 +545,12 @@ def main(argv=None) -> int:
                          "--recent-feed; sends nothing without S2_API_KEY), once, after the loop")
     ap.add_argument("--skip-recs",      action="store_true",
                     help="Accepted for compatibility: recommendations are off unless --with-recs")
+    ap.add_argument("--with-abstracts", action="store_true",
+                    help="Also fetch missing abstracts for this run's projects, once, after the loop, "
+                         "under the nightly runner's limit and time budget (up to ~2.8 h holding the "
+                         "DB write lock)")
     ap.add_argument("--skip-abstracts", action="store_true",
-                    help="Skip the once-per-run incremental abstracts pass after the loop")
+                    help="Accepted for compatibility: abstracts are off unless --with-abstracts")
     ap.add_argument("--db", default=None,
                     help="Portfolio DuckDB to count from and pass to the index, recommendations and "
                          "abstracts steps (default <db_dir>/portfolio.duckdb from projects.json, "
@@ -544,7 +563,7 @@ def main(argv=None) -> int:
     res = run(project=args.project, all_projects=args.all, until_convergence=args.until_convergence,
               max_iter=args.max_iter, skip_forward=args.skip_forward, skip_reverse=args.skip_reverse,
               skip_recs=args.skip_recs, with_recs=args.with_recs, skip_abstracts=args.skip_abstracts,
-              db=args.db)
+              with_abstracts=args.with_abstracts, db=args.db)
     return res["exit_code"]
 
 
