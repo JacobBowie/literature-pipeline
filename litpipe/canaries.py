@@ -154,6 +154,12 @@ Local checks (0 requests, read only; never a library, queue or portfolio.duckdb 
                    be listed is ERROR for its project (never "no PDF").
   lost_artifacts   every stage in `stages` has lit_pull_queue[.<tag>].<sweep_run_id>.<stage>.csv in
                    artifact_dir or the project root: ALARM on a missing one.
+  standing_refusals  the refusals in force (litpipe.state.status(); the state file is never
+                   created): ALARM on a manual refusal older than STALE_MANUAL_REFUSAL_S (24 h);
+                   it lasts until `python -m litpipe.state --clear-refusal HOST`, so an old one is
+                   usually forgotten (export.arxiv.org, 2026-10-13, after one 429). A run refusal
+                   ends with its run and is never an alarm by age. Every refusal in force is listed
+                   either way, and summary() adds a "standing refusals:" line on a PASS.
 
 State: resolved once per run(): an explicit `state=`, else net.STATE, else litpipe.state, and
 passed to every net.request. "manual" versus "run" is read from litpipe.state.status() when the
@@ -193,6 +199,7 @@ BIOC_GAP_S = 5.0                 # pause before the BioC check, after efetch's N
 MAX_ROUNDS = 2                   # the check and its re-check
 TRANSPORT_RETRIES = hosts.RetryPolicy().transport_retries   # litpipe.net's, not overridable per call
 SUMMARY_LINES = 10
+STALE_MANUAL_REFUSAL_S = 24 * 3600   # a manual refusal older than this is a HEALTH ALARM (handoff D(a))
 CLOCK = None                     # tests may set a FakeClock; default net.CLOCK at call time
 
 REFUSED_ALARM_SHARE = 0.05       # first-attempt REFUSED share per host (refactor scope section 4)
@@ -1299,6 +1306,57 @@ def _l_lost(chk, lc):
     return out
 
 
+def _standing_refusals(st, now) -> list:
+    """[(host, persistence, age in seconds or None, reason)] of the refusals in force. The real
+    state is read through status() (which knows a dead run's refusal is over) and its file is
+    never created; a stand-in state's `refused` {host: (reason, persistence)} has no ages."""
+    out = []
+    if _is_real_state(st):
+        try:
+            if not st.db_path(create=False).exists():
+                return out
+            rows = st.status().get("hosts", [])
+        except Exception:      # noqa: BLE001 - an unreadable state lists nothing
+            return out
+        for h in rows:
+            if not h.get("refused"):
+                continue
+            at = _parse_iso(h.get("refused_at"))
+            age = (now - at).total_seconds() if at is not None else None
+            out.append((h["host"], str(h["refused"]), age, str(h.get("refused_reason") or "")))
+        return out
+    rec = getattr(st, "refused", None)
+    if isinstance(rec, dict):
+        for host, val in sorted(rec.items()):
+            reason, persistence = (val + ("", ""))[:2] if isinstance(val, tuple) else (str(val), "refused")
+            out.append((host, str(persistence or "refused"), None, str(reason or "")))
+    return out
+
+
+def _age_text(age) -> str:
+    if age is None:
+        return "age unknown"
+    return f"{age / 86400:.1f} d" if age >= 86400 else f"{age / 3600:.1f} h"
+
+
+def _l_refusals(chk, lc):
+    """standing_refusals: ALARM when a manual refusal is older than STALE_MANUAL_REFUSAL_S (it
+    lasts until cleared by hand, so an old one is usually forgotten); every refusal in force is
+    listed either way. A run refusal ends with its run and is never an alarm by age."""
+    standing = _standing_refusals(lc.state, lc.now)
+    if not standing:
+        return [_mk(chk, PASS, host="state", observed="none")]
+    stale = [r for r in standing if r[1] == "manual" and r[2] is not None and r[2] > STALE_MANUAL_REFUSAL_S]
+    listed = "; ".join(f"{h} ({kind}, {_age_text(age)}: {_short(reason, 80)})"
+                       for h, kind, age, reason in sorted(standing, key=lambda r: (r[1] != "manual", r[0])))
+    if stale:
+        observed = (f"{len(stale)} manual refusal(s) older than {STALE_MANUAL_REFUSAL_S // 3600} h "
+                    f"(clear with python -m litpipe.state --clear-refusal HOST once the host answers): "
+                    + listed)
+        return [_mk(chk, ALARM, host="state", observed=observed, kind=Kind.REFUSED)]
+    return [_mk(chk, PASS, host="state", observed=f"{len(standing)} standing: {listed}")]
+
+
 # ------------------------------------------------------------------------------ the table
 def _net_check(id, cadence, requests, target, expected, fn, origin, skip=None):
     return Check(id, cadence, "network", requests, target, expected, fn, origin, skip)
@@ -1369,6 +1427,8 @@ CHECKS = (
                  _l_index),
     _local_check("lost_artifacts", "lit_pull_queue[.<tag>].<run_id>.<stage>.csv",
                  "every stage run has its artifact", _l_lost),
+    _local_check("standing_refusals", "litpipe.state refusals in force",
+                 f"no manual refusal older than {STALE_MANUAL_REFUSAL_S // 3600} h", _l_refusals),
 )
 CHECKS_BY_ID = {c.id: c for c in CHECKS}
 
@@ -1498,6 +1558,7 @@ class _RunCtx:
 class _LocalCtx:
     def __init__(self, rctx: _RunCtx):
         ctx = rctx.context
+        self.state = rctx.state
         self.cfg = rctx.cfg
         self.now = rctx.now
         self.run_id = ctx.get("run_id")
@@ -1749,6 +1810,10 @@ def summary(rep) -> str:
         lines.append(f"+{len(bad) - len(shown)} more ALARM")
     elif len(lines) < SUMMARY_LINES and rep.get("refused_hosts"):
         lines.append("refused by a canary: " + ", ".join(rep["refused_hosts"]))
+    standing = [c for c in cs if c.get("id") == "standing_refusals" and c.get("status") == PASS
+                and _observed_text(c) not in ("", "none")]
+    if standing and len(lines) < SUMMARY_LINES:     # an ALARM already shows them in its line
+        lines.append(_short(f"standing refusals: {_observed_text(standing[0])}", 200))
     return "\n".join(lines[:SUMMARY_LINES])
 
 
