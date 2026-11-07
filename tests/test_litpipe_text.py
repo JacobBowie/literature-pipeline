@@ -76,3 +76,41 @@ def test_ris_writer_abstract_uses_abstract_field():
     meta = ris_emit.crossref_meta(msg)
     assert meta["abstract"] == "Purpose: To test."
     assert "AB  - Purpose: To test." in ris_emit.build_ris(meta)
+
+
+# ---------------------------------------------------------------- s0+: tag-shaped content survives
+@pytest.mark.parametrize("s", [
+    "Values were <NA> in R.",
+    "Models emit <think> then <answer> tags.",
+    "The <API> returned </think> and <tool_call>.",
+    "An S4 <Rle> object, with <lower=0> in Stan.",
+    "A <tool:call> token.",
+])
+def test_cleaners_keep_tag_shaped_content(s):
+    assert text.strip_tags(s) == s
+    assert not text.has_markup(s)
+    assert text.clean_field(s) == s
+    assert text.display_field(s) == s
+    assert text.abstract_field(s) == s
+    assert text.abstract_field(text.abstract_field(s)) == s             # idempotent
+
+
+@pytest.mark.parametrize("raw,want", [
+    ("H<sub>2</sub>O and <i>in vivo</i> at V<sup>2</sup>", "H2O and in vivo at V2"),
+    ("<jats:p>Aim <jats:italic>x</jats:italic></jats:p>", "Aim x"),
+    ("<p>Aim</p><sec><title>Methods</title>Done</sec>", "Aim Methods Done"),
+    ("<mml:math><mml:mi>x</mml:mi></mml:math> high", "x high"),
+    ('<a href="https://x.org">link</a> and <span class="c">y</span>', "link and y"),
+    ("<scp>DNA</scp> <!-- note -->copy", "DNA copy"),
+    ("<tex-math>x</tex-math> <inline-graphic/>z", "x z"),
+    ("<P>Upper</P> <I>case</I>", "Upper case"),
+    ("&lt;b&gt;Purpose:&lt;/b&gt; <NA> kept", "Purpose: <NA> kept"),
+])
+def test_cleaners_still_strip_real_markup(raw, want):
+    assert text.abstract_field(raw) == want
+    assert text.has_markup(text.unescape(raw))
+
+
+def test_strip_tags_and_has_markup_agree_on_the_same_list():
+    for s in ("<i>a</i>", "<jats:p>a</jats:p>", "<think>a", "<NA>", "<tool:call>", "<mml:mi>a</mml:mi>", "<!-- c -->a"):
+        assert (text.strip_tags(s) != s) == text.has_markup(s), s

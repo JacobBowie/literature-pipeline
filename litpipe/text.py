@@ -73,22 +73,58 @@ _COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 _BLOCK = frozenset({"p", "sec", "title", "list", "list-item", "li", "br", "div", "abstract",
                     "para", "td", "tr", "th", "table", "label", "caption", "disp-formula",
                     "fig", "table-wrap", "def-list", "boxed-text", "hr"})
+# Markup our sources really emit (JATS, HTML, MathML, SVG), for strip_tags and has_markup. A tag-shaped token outside
+# it is content: an LLM prompt token (<think>, <tool_call>, <API>) or an R value (<NA>, <Rle>).
+# 304 of 356 sidecar "tag damage" WARNs on 2026-10-21 were such tokens in FRED's LLM papers.
+_MARKUP = _BLOCK | frozenset({
+    "i", "b", "em", "strong", "u", "sub", "sup", "sc", "scp", "italic", "bold", "underline", "monospace",
+    "span", "a", "font", "small", "big", "tt", "code", "strike", "del", "ins", "img", "ul", "ol", "dl",
+    "dt", "dd", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "break", "inline-formula",
+    "ext-link", "xref", "uri", "email", "named-content", "styled-content", "overline", "roman", "sans-serif",
+    "svg", "g", "path", "math", "mi", "mo", "mn", "ms", "mtext", "mrow", "msub", "msup", "msubsup",
+    "mfrac", "msqrt", "mover", "munder", "mstyle", "mspace", "mtable", "mtr", "mtd", "munderover", "mroot",
+    "tex-math", "alternatives", "inline-graphic", "graphic", "article-title", "body", "html"})
+_MARKUP_NS = frozenset({"jats", "mml", "xlink", "xhtml", "svg", "oasis", "ali", "tei"})
 _REF = re.compile(r"&(#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);")
 _INVISIBLE = dict.fromkeys(map(ord, "­​⁠﻿"))  # soft hyphen, zero-width, BOM
 _SPACE_BEFORE = re.compile(r"\s+([,.;:!?)\]}])")
 _SPACE_AFTER = re.compile(r"([(\[{])\s+")
 
 
+def _is_markup(name):
+    """Is this tag name real markup: named in _MARKUP, or prefixed by a markup namespace? The one
+    test behind strip_tags and has_markup, so the cleaner and the damage checks cannot disagree."""
+    name = name.lower()
+    if ":" in name:
+        return name.split(":", 1)[0] in _MARKUP_NS
+    return name in _MARKUP
+
+
 def strip_tags(s):
-    """Remove markup tags (and comments), keeping their text; block tags leave a space."""
+    """Remove markup tags (and comments), keeping their text; block tags leave a space. A tag-shaped
+    token that is not markup (<think>, <NA>, <API>) is content and stays."""
     if not s:
         return ""
     s = _COMMENT.sub(" ", str(s))
 
     def repl(m):
+        if not _is_markup(m.group(2)):
+            return m.group(0)
         local = m.group(2).rsplit(":", 1)[-1].lower()
         return " " if local in _BLOCK else ""
     return _TAG.sub(repl, s)
+
+
+def has_markup(s) -> bool:
+    """Does `s` carry real markup: a comment, a tag named in _MARKUP, or one in a markup namespace
+    (jats:, mml:, ...)? Tag-shaped content such as <think> or <NA> is not markup;
+    the same test as strip_tags; the damage checks (audit_portfolio.text_damage, the markup canary) use this."""
+    if not s:
+        return False
+    s = str(s)
+    if _COMMENT.search(s):
+        return True
+    return any(_is_markup(m.group(2)) for m in _TAG.finditer(s))
 
 
 def _ref(m):
