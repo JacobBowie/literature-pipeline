@@ -227,6 +227,7 @@ Per-project keys (under `"projects": {"my-review": {...}}`):
 | `ris_threshold` | 90 | `pipeline_check.py`'s minimum `.ris` coverage, in percent. |
 | `artifact_dir` | the global value | This project's artifact folder (absolute values are used as given). |
 | `oa_blocked_max_attempts` | the global value, else 3 | Sweeps after which an OA-blocked paper stops being retried automatically; it stays on the browser worklist. |
+| `transient_max_attempts` | the global value, else 10 | Sweeps after which a paper that keeps failing on an outage or transport error stops being retried; it closes onto the ILL list. Embargoed papers are exempt. |
 | `parent` | none | Subprojects only: the containing project's key. |
 
 **Subprojects.** A key `parent/sub` with `"parent": "parent"` lives at `<root>/parent/sub`. Its
@@ -298,7 +299,7 @@ Every row that was not fetched gets one class in the residual CSV, and the route
 |---|---|---|
 | `HELD_ELSEWHERE` | another registered library already holds the DOI as a PDF | nothing queued; the path is reported |
 | `TEXT_ONLY` | full text was saved, no PDF exists on the allowed routes | nothing queued (a text-only holding) |
-| `TRANSIENT` | an embargo, a host refused or deferred for the run, an outage, a transport error | `lit_pull_queue.retry_later.csv` with a `not_before` date (1 day; an embargo's release date) |
+| `TRANSIENT` | an embargo, a host refused or deferred for the run, an outage, a transport error | `lit_pull_queue.retry_later.csv` with a `not_before` date (1 day; an embargo's release date); after `transient_max_attempts` sweeps (10) it closes onto the ILL list instead |
 | `OA_BLOCKED` | an open-access copy exists but its host refused a script, or a preprint needs a click | `lit_pull_queue.oa_blocked.md` (a browser worklist linking the preprint's page or the open-access URL Unpaywall reported) and a retry in 3 days |
 | `IDENTITY_FLAG` | the served file failed the identity check (another paper, or a supplement) | `lit_pull_queue.review.md` with the file's path and evidence; the file stays where it is |
 | `TERMINAL_CLOSED` | every enabled stage said there is no open copy (or an error repeated three runs) | the ILL list `lit_pull_queue.md` |

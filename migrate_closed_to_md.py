@@ -14,7 +14,8 @@ wins) and routed:
                    error, or an unclassified ERROR (on the row's third sweep, `attempts` >= 3, it
                    becomes TERMINAL_CLOSED with its reason) -> lit_pull_queue.retry_later.csv with
                    not_before (1 day; an embargo's release date, 7 days when the date is unknown)
-                   and attempts
+                   and attempts. At transient_max_attempts sweeps (default 10) a non-embargo
+                   TRANSIENT row closes as TERMINAL_CLOSED and leaves retry_later.
   OA_BLOCKED       a download host refused us (403, an HTML wall, a final 429), or a preprint needs a
                    manual click -> lit_pull_queue.oa_blocked.md (browser worklist; a manual preprint
                    links its landing page) and retry_later (3 days)
@@ -1064,6 +1065,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
         else:
             art_dir = project_root                         # unset: the project root, exactly as before
         cap = config.oa_blocked_max_attempts(project, cfg=cfg)
+        t_cap = config.transient_max_attempts(project, cfg=cfg)
     except config.ConfigError as e:
         print(f"[ERR] {project}: {e}", file=sys.stderr)
         return {**res, "status": "config", "error": str(e)}
@@ -1175,6 +1177,17 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
               f"nothing is routed. Fix the configuration and re-run.", file=sys.stderr)
         return {**res, "status": "config", "counts": _counts(rows)}
 
+    # A TRANSIENT row closes after transient_max_attempts sweeps (FRED's Shang 2022 answered HTTP 500
+    # on 27 nights from 10-15 on): it goes to the ILL list as TERMINAL_CLOSED and leaves retry_later.
+    # An embargo is exempt: it waits for a date, not on a failing host.
+    for r in rows:
+        n = lit_util.coerce_int(r.get("attempts"))
+        if r["residual_class"] == TRANSIENT and n >= t_cap and not _is_embargo(r):
+            r["residual_class"], r["transient_capped"] = TERMINAL_CLOSED, True
+            r["reason"] = (f"{r.get('reason') or _reason(r.get('signals') or ())}; "
+                           f"transient in {n} runs, retry cap {t_cap} reached").lstrip("; ")
+    res["transient_capped"] = sum(1 for r in rows if r.get("transient_capped"))
+
     res["counts"] = _counts(rows)
     written = res["written"]
 
@@ -1202,7 +1215,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
             r["reason"] = f"{r.get('reason', '')}; retry cap {cap} reached, browser worklist only".lstrip("; ")
     res["oa_blocked_capped"] = sum(1 for r in rows if r.get("retry_capped"))
     retry = [r for r in rows if r["residual_class"] in (TRANSIENT, OA_BLOCKED) and not r.get("retry_capped")]
-    drop = [r for r in rows if r.get("retry_capped")]
+    drop = [r for r in rows if r.get("retry_capped") or r.get("transient_capped")]
     if retry or drop:
         up = upsert_retry_later(project_root, retry, today, dry_run=dry_run, drop=drop)
         written[RETRY_LATER_NAME] = (f"{up['appended']} appended, {up['updated']} updated"
@@ -1217,6 +1230,7 @@ def run(project, run_id=None, tags=None, dry_run=False, skip_preprint=False, use
             "doi": r["doi"], "title": r.get("title", ""), "year": r.get("year", ""),
             "residual_class": r["residual_class"],
             "route": "oa_blocked (retry cap)" if r.get("retry_capped")
+                     else "ill (retry cap)" if r.get("transient_capped")
                      else ROUTE_OF.get(r["residual_class"], "none (unknown class)"),
             "reason": r.get("reason", ""), "held_paths": " | ".join(r.get("held_paths") or ()),
             "not_before": r.get("not_before", ""), "attempts": r.get("attempts", ""),

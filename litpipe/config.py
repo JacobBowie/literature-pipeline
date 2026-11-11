@@ -144,6 +144,22 @@ def oa_blocked_max_attempts(project_key, cfg=None) -> int:
     return v
 
 
+TRANSIENT_MAX_ATTEMPTS = 10
+
+
+def transient_max_attempts(project_key, cfg=None) -> int:
+    """Sweeps after which a TRANSIENT row (an outage, a transport error, a host refused for the run)
+    stops being retried: route closes it as TERMINAL_CLOSED onto the ILL list. An embargoed row is
+    exempt (it waits for its release date). Per project, else top-level `transient_max_attempts`,
+    else 10."""
+    entry = _project(project_key, cfg)
+    v = entry["transient_max_attempts"] if "transient_max_attempts" in entry \
+        else load(cfg).get("transient_max_attempts", TRANSIENT_MAX_ATTEMPTS)
+    if isinstance(v, bool) or not isinstance(v, int) or v <= 0:
+        raise ConfigError(f"transient_max_attempts ({project_key!r}) must be a positive integer, got {v!r}")
+    return v
+
+
 def _artifact_raw(value, where):
     if value is not None and (not isinstance(value, str) or not value.strip()):
         raise ConfigError(f"{where} must be a non-empty path string, got {value!r}")
