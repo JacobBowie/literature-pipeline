@@ -88,6 +88,7 @@ lit_util.utf8_stdout()
 
 from litpipe.outcomes import Kind, from_legacy  # noqa: E402
 from litpipe import lockfile as _lockfile  # noqa: E402
+from litpipe import text as _text  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 CONFIG_PATH = HERE / "projects.json"
@@ -472,7 +473,7 @@ def _fill(row, doi):
     meta = meta or {}
     changed = False
     if not (row.get("title") or "").strip() and (meta.get("title") or "").strip():
-        row["title"] = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", meta["title"])).strip()
+        row["title"] = _text.display_field(meta["title"])   # real markup only; <NA>-style words stay
         changed = True
     if not (row.get("authors") or "").strip():
         a = _format_authors(meta.get("authors"))

@@ -146,7 +146,7 @@ REPORT_FIELDS = LEGACY_FIELDS + TYPED_FIELDS + ["doc_kind", "sidecar", "sidecar_
 # ---------------------------------------------------------------- titles and names
 def norm_title(t):
     t = _text.comparison_fold(t or "")      # Greek letters, quotes and dashes compare alike (W5 item 25)
-    t = re.sub(r"<[^>]+>", "", t)
+    t = _text.strip_tags(t)
     t = re.sub(r"[^a-zA-Z0-9 ]+", " ", t).lower()
     return re.sub(r"\s+", " ", t).strip()
 
@@ -183,7 +183,7 @@ def _keywordize(title):
 
 def _title_prefix(title, max_chars=60):
     """A title prefix for OSF's substring filter: whole words, no trailing punctuation (V4-O3)."""
-    t = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", title or "")).strip()
+    t = re.sub(r"\s+", " ", _text.strip_tags(title or "")).strip()
     if len(t) > max_chars:
         cut = t[:max_chars]
         t = cut[:cut.rfind(" ")] if " " in cut else cut
@@ -192,7 +192,7 @@ def _title_prefix(title, max_chars=60):
 
 def _arxiv_phrase(title, max_chars=200):
     """A title for `ti:"..."`: no embedded quotes or parentheses, cut at a word boundary (N-D5)."""
-    t = re.sub(r"[\"()]", " ", re.sub(r"<[^>]+>", "", title or ""))
+    t = re.sub(r"[\"()]", " ", _text.strip_tags(title or ""))
     t = re.sub(r"\s+", " ", t).strip()
     if len(t) > max_chars:
         cut = t[:max_chars]

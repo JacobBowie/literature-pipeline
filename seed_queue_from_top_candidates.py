@@ -27,6 +27,12 @@ and counted; --include-undated keeps it. --recent-first sorts by year, newest fi
 last), then by the rank: an open copy exists more often for recent papers, but the effect is
 topic-dependent, so it is opt-in. The draft header names the order used.
 
+Titles: a row whose stored title is not a real title (litpipe.titles.clean_title: empty, a
+parsed-reference fragment, a URL, an author list) is dropped and counted; a real one is written in
+its display form (markup stripped). --lookup-titles instead looks such rows up (Crossref; arXiv for
+10.48550 DOIs) before writing, keeps those it finds, and also considers candidates with no stored
+title. Off by default (it sends requests); a failed lookup drops the row and makes the exit 2.
+
 --pmc-check looks every draft DOI up once through lit_net.doi_to_pmcid (idconv unless its host is
 refused, then Europe PMC, then E-utilities) and adds two columns at the end: `pmcid`, and
 `pmc_status` (`OK`, or lit_net.lookup_status: NO_PMCID only when a service answered). Off by
@@ -56,7 +62,7 @@ import sys
 from pathlib import Path, PurePath
 
 import lit_util  # RC4: atomic_write_text for crash-safe draft writes
-from litpipe import config, ledger
+from litpipe import config, ledger, titles as _titles
 
 lit_util.utf8_stdout()
 
@@ -143,9 +149,10 @@ _SOURCE = {
 # title filter (the title starts with a letter of any script: RE2's \p{L}, so "Étude", "β-alanine"
 # and "Ölçek" pass and "1." or "[Not available]" do not), the seed and citation floors. The year
 # clause is added per query.
+_TITLE_FILTER = "AND s.title IS NOT NULL AND substr(s.title, 1, 1) ~ '\\p{L}'"
 _FILTERS = """
     NOT EXISTS (SELECT 1 FROM paper_locations l WHERE l.doi = s.doi)
-    AND s.title IS NOT NULL AND substr(s.title, 1, 1) ~ '\\p{L}'
+    {title_filter}
     AND s.rank_n >= $min_seeds
     AND COALESCE(s.cites, 0) >= $min_cites"""
 UNDATED = "COALESCE(s.year, 0) <= 0"
@@ -268,11 +275,13 @@ def _with(mode) -> str:
 
 
 def select_rows(con, *, key, mode, scope, year_min, min_seeds, min_cites, limit, recent_first,
-                include_undated):
-    """(rows, total matching, undated count). Each row is a dict."""
+                include_undated, any_title=False):
+    """(rows, total matching, undated count). Each row is a dict. any_title drops the SQL title
+    filter (--lookup-titles: a missing title can still be looked up)."""
     values = {"key": key, "scope": scope, "needle": f"%,{key},%", "year_min": year_min,
               "min_seeds": min_seeds, "min_cites": min_cites, "limit": limit}
-    src = _with(mode) + f"SELECT * FROM ({_SOURCE[mode]}) s WHERE {_FILTERS}"
+    filters = _FILTERS.format(title_filter="" if any_title else _TITLE_FILTER)
+    src = _with(mode) + f"SELECT * FROM ({_SOURCE[mode]}) s WHERE {filters}"
     order = (RECENT_SQL if recent_first else "") + _ORDER_SQL[mode]
     sql = f"{src} AND {_YEAR[include_undated]} ORDER BY {order} LIMIT $limit"
     cols = ["doi", "title", "authors", "year", "n_own", "n_port", "cites", "sources", "rank_n", "n_extra"]
@@ -288,6 +297,37 @@ def scope_known(con, key) -> list:
     """The scopes the index holds for `key` (empty when none)."""
     return [r[0] for r in con.execute(
         "SELECT DISTINCT scope FROM scoped_candidates WHERE project = ? ORDER BY scope", [key]).fetchall()]
+
+
+# ---------------------------------------------------------------- titles
+def fix_titles(rows, *, lookup=False):
+    """(kept rows, stats). A real title is kept in display form; otherwise the row is looked up
+    (lookup=True) or dropped. stats: {dropped, looked_up, found, failed}."""
+    stats = {"dropped": 0, "looked_up": 0, "found": 0, "failed": 0}
+    need = []
+    for r in rows:
+        t = _titles.clean_title(r.get("title"))
+        r["title"] = t or ""
+        if not t:
+            need.append(r["doi"])
+    answers = {}
+    if need and lookup:
+        stats["looked_up"] = len(need)
+        answers = _titles.lookup(need)
+    kept = []
+    for r in rows:
+        if r["title"]:
+            kept.append(r)
+            continue
+        title, status = answers.get(r["doi"], (None, ""))
+        if title:
+            r["title"] = title
+            stats["found"] += 1
+            kept.append(r)
+        else:
+            stats["dropped"] += 1
+            stats["failed"] += status.startswith("error")
+    return kept, stats
 
 
 # ---------------------------------------------------------------- PMC check
@@ -342,7 +382,7 @@ def _year_cell(y):
 
 
 def render(rows, *, key, mode, scope, destination, out_name, tag, year_min, min_seeds, min_cites,
-           limit, recent_first, include_undated, n_undated, total, db_path, pmc):
+           limit, recent_first, include_undated, n_undated, total, db_path, pmc, title_stats=None):
     extra = PMC_COLUMNS if pmc is not None else []
     columns = BASE_COLUMNS + extra
     order = ("year desc (undated last), then " if recent_first else "") + ORDER_TEXT[mode]
@@ -362,8 +402,13 @@ def render(rows, *, key, mode, scope, destination, out_name, tag, year_min, min_
     buf.write(f"# Source: {source}; index {db_path.name}\n")
     buf.write(f"# Order: {order}\n")
     buf.write(f"# Filters: year>={year_min}, {SEED_COLUMN[mode]}>={min_seeds}, max_cited_by>={min_cites}, "
-              f"title starts with a letter, DOIs held anywhere excluded, limit={limit}\n")
+              f"a real title (litpipe.titles), DOIs held anywhere excluded, limit={limit}\n")
     buf.write(f"# Undated: {undated}\n")
+    if title_stats is not None and (title_stats["dropped"] or title_stats["looked_up"]):
+        ts = title_stats
+        buf.write(f"# Titles: {ts['dropped']} row(s) without a real title dropped"
+                  + (f"; {ts['looked_up']} looked up, {ts['found']} found, {ts['failed']} lookup(s) failed"
+                     if ts["looked_up"] else " (--lookup-titles looks them up)") + "\n")
     if pmc is not None:
         buf.write(f"# PMC check: {pmc['n'] - pmc['failed']} of {pmc['n']} answered; "
                   f"{pmc['failed']} lookup(s) failed (pmc_status names the failure, never NO_PMCID)\n")
@@ -382,7 +427,7 @@ def render(rows, *, key, mode, scope, destination, out_name, tag, year_min, min_
 def _summary(res):
     keys = ("step", "exit_code", "status", "reasons", "aborted", "transport_failures", "project", "rank",
             "scope", "order", "min_seeds", "output", "db", "destination", "rows", "total_matching",
-            "undated", "pmc")
+            "undated", "pmc", "titles")
     print(SUMMARY_MARKER + json.dumps({k: res.get(k) for k in keys}, ensure_ascii=False), flush=True)
 
 
@@ -398,7 +443,7 @@ def _error(msg, **kw) -> dict:
 # ---------------------------------------------------------------- run
 def run(*, project, rank=None, scope=None, year_min=2010, min_seeds=None, min_cites=0, limit=100,
         destination=None, output=None, tag=None, recent_first=False, include_undated=False,
-        pmc_check=False, db=None, cfg=None, state=None) -> dict:
+        pmc_check=False, lookup_titles=False, db=None, cfg=None, state=None) -> dict:
     """One draft. Returns the summary dict; its `exit_code` is the CLI's exit code. `cfg` (a
     loaded projects.json) replaces CONFIG_PATH; `state` goes to lit_net.doi_to_pmcid."""
     if scope is not None and rank is not None:
@@ -439,7 +484,8 @@ def run(*, project, rank=None, scope=None, year_min=2010, min_seeds=None, min_ci
                             f"(known: {', '.join(known) or 'none'})")
         rows, total, n_undated = select_rows(
             con, key=project, mode=mode, scope=scope, year_min=year_min, min_seeds=seeds_min,
-            min_cites=min_cites, limit=limit, recent_first=recent_first, include_undated=include_undated)
+            min_cites=min_cites, limit=limit, recent_first=recent_first, include_undated=include_undated,
+            any_title=lookup_titles)
     except config.ConfigError as e:
         return _error(e, project=project, db=str(db_path))
     except duckdb.Error as e:
@@ -448,11 +494,12 @@ def run(*, project, rank=None, scope=None, year_min=2010, min_seeds=None, min_ci
     finally:
         con.close()
 
+    rows, title_stats = fix_titles(rows, lookup=lookup_titles)
     pmc = check_pmc(rows, state=state, cfg=registry) if pmc_check else None
     text = render(rows, key=project, mode=mode, scope=scope, destination=dest, out_name=out_path.name,
                   tag=tag, year_min=year_min, min_seeds=seeds_min, min_cites=min_cites, limit=limit,
                   recent_first=recent_first, include_undated=include_undated, n_undated=n_undated,
-                  total=total, db_path=db_path, pmc=pmc)
+                  total=total, db_path=db_path, pmc=pmc, title_stats=title_stats)
     # Built in memory, written atomically (RC4): a crash mid-write must never leave a truncated
     # draft that the stager would treat as a valid queue.
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -463,6 +510,9 @@ def run(*, project, rank=None, scope=None, year_min=2010, min_seeds=None, min_ci
         detail = ", ".join(f"{k}: {v}" for k, v in sorted(pmc["by_status"].items()) if k not in
                            ("OK", "NO_PMCID", "EMBARGOED"))
         reasons.append(f"pmc-check: {pmc['failed']} of {pmc['n']} lookup(s) failed ({detail})")
+    if title_stats["failed"]:
+        reasons.append(f"lookup-titles: {title_stats['failed']} of {title_stats['looked_up']} lookup(s) "
+                       f"failed; those rows were dropped (re-run to retry)")
     code = EXIT_DEGRADED if reasons else EXIT_OK
     res = {"step": "seed_queue", "exit_code": code, "status": "degraded" if reasons else "ok",
            "reasons": reasons, "aborted": None,
@@ -472,6 +522,7 @@ def run(*, project, rank=None, scope=None, year_min=2010, min_seeds=None, min_ci
            "output": str(out_path), "db": str(db_path), "destination": dest,
            "rows": len(rows), "total_matching": total, "undated": n_undated,
            "include_undated": include_undated, "min_seeds": seeds_min, "pmc": pmc,
+           "titles": title_stats,
            "dois": [r["doi"] for r in rows]}
 
     print(f"Wrote {len(rows)} draft rows to {out_path}")
@@ -480,6 +531,10 @@ def run(*, project, rank=None, scope=None, year_min=2010, min_seeds=None, min_ci
         print(f"  undated: {n_undated} candidate(s) with no year kept")
     else:
         print(f"  undated: {n_undated} candidate(s) with no year dropped (--include-undated keeps them)")
+    if title_stats["dropped"] or title_stats["looked_up"]:
+        print(f"  titles: {title_stats['dropped']} row(s) without a real title dropped"
+              + (f"; {title_stats['found']} of {title_stats['looked_up']} found by lookup"
+                 if title_stats["looked_up"] else " (--lookup-titles looks them up)"))
     if total > limit:
         print(f"[WARN] {total} candidates passed the filters but --limit={limit} truncated the draft "
               f"to the top {limit}. Raise --limit (or tighten --min-seeds/--year-min) to see the rest.",
@@ -516,6 +571,9 @@ def main(argv=None) -> int:
                     help="Keep candidates with no year (dropped and counted by default)")
     ap.add_argument("--pmc-check", action="store_true",
                     help="Look every draft DOI up in PMC (lit_net.doi_to_pmcid): adds pmcid, pmc_status")
+    ap.add_argument("--lookup-titles", action="store_true",
+                    help="Look up a real title (Crossref; arXiv for 10.48550) for rows whose stored "
+                         "title is missing or junk, instead of dropping them")
     ap.add_argument("--tag", default=None,
                     help="Write lit_pull_queue.<tag>.draft.csv (renamed later to lit_pull_queue.<tag>.csv)")
     ap.add_argument("--db", default=None,
@@ -529,7 +587,7 @@ def main(argv=None) -> int:
               min_seeds=args.min_seeds, min_cites=args.min_cites, limit=args.limit,
               destination=args.destination, output=args.output, tag=args.tag,
               recent_first=args.recent_first, include_undated=args.include_undated,
-              pmc_check=args.pmc_check, db=args.db)
+              pmc_check=args.pmc_check, lookup_titles=args.lookup_titles, db=args.db)
     return res["exit_code"]
 
 

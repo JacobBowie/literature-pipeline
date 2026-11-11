@@ -173,7 +173,7 @@ SLUG_SKIP = {"a","an","the","of","in","on","and","to","for","at","from","with","
 
 
 def slug(text: str, n: int = 6) -> str:
-    text = re.sub(r"<[^>]+>", "", text or "")
+    text = _text.strip_tags(text or "")
     text = safe_ascii(text)
     text = re.sub(r"[^A-Za-z0-9\s\-]", " ", text)
     words = [w for w in text.split() if w.lower() not in SLUG_SKIP][:n]
@@ -190,7 +190,7 @@ def canonical_stem(year, lastname, title) -> str:
 
 
 def normalize_title(t: str) -> str:
-    t = re.sub(r"<[^>]+>", "", t or "").lower()
+    t = _text.strip_tags(t or "").lower()
     t = re.sub(r"[^a-z0-9 ]", " ", t)
     return re.sub(r"\s+", " ", t).strip()
 

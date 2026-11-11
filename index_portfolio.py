@@ -63,6 +63,7 @@ import lit_util  # RC1 DOI validity gate, RC4 atomic writes (shared, pre-tested)
 import audit_portfolio as _audit  # the shared DEC-08 / identity-flag predicates (W2-F)
 from litpipe import config as _config
 from litpipe import doi as _doi
+from litpipe import titles as _titles
 from litpipe.config import ConfigError
 
 lit_util.utf8_stdout()
@@ -492,12 +493,20 @@ def upsert_library_metadata(con, rows):
 
 def insert_new_metadata(con, rows):
     """paper_metadata rows for DOIs not present yet (anti-join INSERT); an existing row (richer
-    .ris data, an enriched abstract) is never overwritten."""
-    rows = _dedup_first(rows)
+    .ris data, an enriched abstract) is never overwritten, except that a NULL or empty title is
+    filled from a staged real title (a reverse-citation row stored no title; a later forward row
+    or .ris knows it). These are candidate rows (the forward and reverse walkers), so every title
+    passes litpipe.titles.clean_title first: a parsed-reference fragment, URL, author list or empty
+    string is staged as NULL, a real one in display form (2026-11-11). The held papers' .ris path
+    (upsert_library_metadata) is unchanged."""
+    rows = [(d, y, ln, _titles.clean_title(t), *rest) for d, y, ln, t, *rest in _dedup_first(rows)]
     if not rows:
         return
     _stage_metadata(con, rows, "_meta_new")
     try:
+        con.execute("UPDATE paper_metadata AS m SET title = n.title FROM _meta_new AS n "
+                    "WHERE m.doi = n.doi AND (m.title IS NULL OR m.title = '') "
+                    "AND n.title IS NOT NULL AND n.title <> ''")
         con.execute("INSERT INTO paper_metadata (doi, year, lastname, title, venue, authors, refreshed_at) "
                     "SELECT n.doi, n.year, n.lastname, n.title, n.venue, n.authors, n.refreshed_at "
                     "FROM _meta_new AS n "

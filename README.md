@@ -394,7 +394,21 @@ uv run python seed_queue_from_top_candidates.py --project my-review
 writes `<project>/lit_pull_queue.draft.csv` (never swept: the name does not match). `--rank
 project` (default) ranks by the project's own seeds, `portfolio` by every project's, `cocitation`
 by co-citation; `--scope NAME` draws from a scoped walk; `--pmc-check` adds each DOI's PMC status.
-Review the draft, then save it as `lit_pull_queue.csv`.
+A row whose stored title is not a real title (empty, a parsed-reference fragment, a URL, an author
+list: `litpipe.titles`) is dropped and counted; `--lookup-titles` looks those up instead (Crossref;
+the arXiv API for `10.48550` DOIs). Review the draft, then save it as `lit_pull_queue.csv`.
+
+**Refreshing candidate titles.** Reverse-citation parsing used to store the reference string as a
+candidate's title. The index now stores NULL for those, and a later real title fills the row. Rows
+written before 2026-11-11 are repaired per project:
+
+```bash
+uv run python -m litpipe.titles --project my-review            # dry run: counts by kind, sends nothing
+uv run python -m litpipe.titles --project my-review --commit   # look up, write, NULL what stays junk
+```
+
+It targets the project's seedable candidates (2+ seeds, not held). Re-runnable; exit 2 when lookups
+failed (the next run retries them). It writes to the index, so run it when nothing else is.
 
 ## The runner
 
